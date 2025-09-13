@@ -258,7 +258,10 @@ class SimpleProcessor:
                                 })
                             
                             # Calculate angles for this frame using original MediaPipe landmarks
-                            frame_angles = self.angle_calculator.calculate_joint_angles(results.pose_landmarks)
+                            if results.pose_landmarks:
+                                frame_angles = self.angle_calculator.calculate_joint_angles(results.pose_landmarks)
+                            else:
+                                frame_angles = {}
                             if frame_angles:
                                 angle_data.append({
                                     'frame': frame_count,
