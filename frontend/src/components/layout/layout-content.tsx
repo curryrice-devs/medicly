@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useSidebar } from '@/contexts/sidebar-context'
+import { Navbar } from './navbar'
 
 interface LayoutContentProps {
   children: React.ReactNode
@@ -19,7 +20,13 @@ export function LayoutContent({ children }: LayoutContentProps) {
       flexDirection: 'column',
       transition: 'margin-left 0.3s ease-in-out'
     }}>
-      {children}
+      {/* Navbar */}
+      <Navbar />
+      
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
     </div>
   )
 } 
