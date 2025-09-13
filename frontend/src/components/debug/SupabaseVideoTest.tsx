@@ -13,7 +13,6 @@ export function SupabaseVideoTest() {
     uploadError, 
     uploadedVideo,
     uploadVideo,
-    testBucketAccess 
   } = useSupabaseVideoUpload()
 
   const handleTestConnection = async () => {
@@ -63,70 +62,9 @@ export function SupabaseVideoTest() {
     }
   }
 
-  const handleTestBucket = async () => {
-    console.log('🧪 Testing Supabase bucket access...')
-    const result = await testBucketAccess()
-    console.log('📊 Detailed test result:', result)
-    
-    if (result.success) {
-      alert(`✅ Bucket test successful!\nBuckets: ${result.buckets?.map(b => b.name).join(', ')}\nFiles: ${result.files?.length || 0}`)
-    } else {
-      console.error('❌ Bucket test error details:', result)
-      alert(`❌ Bucket test failed: ${result.error}`)
-    }
-  }
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      console.log('📁 Selected file:', file.name, file.size, file.type)
-      console.log('🔧 Upload state before:', { isUploading, uploadProgress, uploadError })
-      
-      await uploadVideo(file)
-      
-      console.log('🔧 Upload state after:', { isUploading, uploadProgress, uploadError, uploadedVideo })
-      alert('✅ Upload successful!')
-    } catch (error) {
-      console.error('❌ Upload failed:', error)
-      console.log('🔧 Final upload state:', { isUploading, uploadProgress, uploadError, uploadedVideo })
-      alert(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
   return (
     <div style={{ 
-      padding: '20px', 
-      border: '2px solid #0d4a2b', 
-      borderRadius: '8px', 
-      margin: '20px',
-      backgroundColor: 'rgba(13, 74, 43, 0.05)'
     }}>
-      <h3 style={{ color: '#0d4a2b', marginBottom: '16px' }}>🧪 Supabase Video Upload Test</h3>
-      
-      <div style={{ marginBottom: '16px' }}>
-        <Button onClick={handleTestConnection} style={{ marginRight: '10px' }}>
-          Test Connection
-        </Button>
-        
-        <Button onClick={handleTestBucket} style={{ marginRight: '10px' }}>
-          Test Bucket Access
-        </Button>
-        
-        <Button onClick={() => fileInputRef.current?.click()}>
-          Test Video Upload
-        </Button>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-      </div>
-
       {isUploading && (
         <div style={{ marginBottom: '16px' }}>
           <div>Uploading: {uploadProgress}%</div>
@@ -167,16 +105,6 @@ export function SupabaseVideoTest() {
           <div>Storage Path: {uploadedVideo.storagePath}</div>
         </div>
       )}
-
-      <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '16px' }}>
-        <strong>Instructions:</strong>
-        <ol>
-          <li>First click "Test Bucket Access" to verify Supabase connection</li>
-          <li>Check browser console for detailed logs</li>
-          <li>Then try "Test Video Upload" with a small video file</li>
-          <li>Monitor console for upload progress and errors</li>
-        </ol>
-      </div>
     </div>
   )
 } 

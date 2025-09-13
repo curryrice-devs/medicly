@@ -18,7 +18,6 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
 import { useSupabaseVideoUpload } from '@/hooks/useSupabaseVideoUpload'
-import { SupabaseVideoTest } from '@/components/debug/SupabaseVideoTest'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
 type VideoMode = 'original' | 'processed' | 'overlay'
@@ -53,6 +52,9 @@ export default function ExerciseDetailPage() {
 
   const { user } = useAuth()
   
+  // Create a ref to hold the upload promise resolver
+  const uploadResolverRef = useRef<((videoId: string) => void) | null>(null)
+  
   // Debug: Check environment variables
   React.useEffect(() => {
     console.log('🔧 Environment check:', {
@@ -76,9 +78,15 @@ export default function ExerciseDetailPage() {
     reset: resetUpload
   } = useSupabaseVideoUpload({
     sessionId,
+    userId: user?.id, // Pass the user ID from auth context
     onUploadComplete: (videoId) => {
-      console.log('✅ Video uploaded successfully:', videoId)
+      console.log('✅ Video uploaded successfully (callback):', videoId)
       setVideoId(videoId)
+      // Resolve the upload promise if it exists
+      if (uploadResolverRef.current) {
+        uploadResolverRef.current(videoId)
+        uploadResolverRef.current = null
+      }
     },
     onUploadError: (error) => {
       console.error('❌ Upload failed:', error)
@@ -158,19 +166,46 @@ export default function ExerciseDetailPage() {
         console.log('⬆️ Attempting Supabase upload...')
         console.log('📊 Upload hook state before:', { isUploading, uploadProgress, uploadError, uploadedVideo })
         
-        await uploadVideo(selectedFile)
+        // Create a promise that will resolve when upload completes
+        const uploadPromise = new Promise<string>((resolve, reject) => {
+          uploadResolverRef.current = resolve
+          
+          // Set a timeout in case callback never fires
+          setTimeout(() => {
+            if (uploadResolverRef.current === resolve) {
+              uploadResolverRef.current = null
+              reject(new Error('Upload callback timeout'))
+            }
+          }, 30000) // 30 second timeout
+        })
         
-        console.log('📊 Upload hook state after:', { isUploading, uploadProgress, uploadError, uploadedVideo })
+        // Start the upload
+        uploadVideo(selectedFile)
         
-        // Wait for state to update
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        currentVideoId = videoId || uploadedVideo?.id || null
-        console.log('✅ Supabase upload result:', { currentVideoId, uploadedVideo, videoId })
-        
-        if (!currentVideoId) {
-          throw new Error('Supabase upload completed but no video ID received')
+        // Wait for the upload to complete and get the video ID
+        let currentVideoId: string
+        try {
+          currentVideoId = await uploadPromise
+          console.log('✅ Upload completed with video ID:', currentVideoId)
+        } catch (timeoutError) {
+          // If timeout, check if we have a video ID anyway
+          if (videoId) {
+            currentVideoId = videoId
+            console.log('⚠️ Upload callback timed out but found video ID:', currentVideoId)
+          } else if (uploadedVideo?.id) {
+            currentVideoId = uploadedVideo.id
+            console.log('⚠️ Upload callback timed out but found uploadedVideo ID:', currentVideoId)
+          } else {
+            throw new Error('Upload completed but no video ID was received')
+          }
         }
+        
+        console.log('🎯 Using video ID for processing:', currentVideoId)
+        
+        // Wait a bit for the storage URL to be available
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        console.log('ℹ️ Video uploaded to Supabase storage, proceeding with backend processing')
         
       } catch (supabaseError) {
         console.error('❌ Supabase upload failed:', supabaseError)
@@ -329,15 +364,21 @@ export default function ExerciseDetailPage() {
     const currentVideoId = videoId || uploadedVideo?.id
     if (!currentVideoId) return null
     
+    // For original video, use Supabase storage URL if available
+    if (videoMode === 'original' && uploadedVideo?.storageUrl) {
+      console.log('📹 Using Supabase storage URL for video display');
+      return uploadedVideo.storageUrl;
+    }
+    
+    // For processed/overlay videos, use backend API
     switch (videoMode) {
-      case 'original':
-        return uploadedVideo?.storageUrl || `http://localhost:8001/api/video/${currentVideoId}`
       case 'processed':
-        return processedVideoUrl || `http://localhost:8001/api/stream/${currentVideoId}`
+        return `http://localhost:8001/api/stream/${currentVideoId}`
       case 'overlay':
         return `http://localhost:8001/api/stream/${currentVideoId}?overlay=true`
       default:
-        return uploadedVideo?.storageUrl || `http://localhost:8001/api/video/${currentVideoId}`
+        // Fallback to backend API if no storage URL
+        return `http://localhost:8001/api/video/${currentVideoId}`
     }
   }
 
@@ -380,107 +421,6 @@ export default function ExerciseDetailPage() {
             }}>
               {exerciseDisplayName} Analysis
             </h1>
-          </div>
-        </div>
-
-        {/* Debug Component - Remove this after testing */}
-        <SupabaseVideoTest />
-        
-        {/* Debug Panel */}
-        <div style={{ 
-          backgroundColor: '#f3f4f6', 
-          border: '1px solid #d1d5db', 
-          borderRadius: '8px', 
-          padding: '16px', 
-          marginBottom: '24px' 
-        }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
-            🔧 Debug Panel
-          </h3>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={async () => {
-                console.log('🧪 Testing backend connection...')
-                try {
-                  const response = await fetch('http://localhost:8001/api/health')
-                  const data = await response.json()
-                  console.log('✅ Backend health:', data)
-                  alert(`Backend status: ${data.status}`)
-                } catch (error) {
-                  console.error('❌ Backend connection failed:', error)
-                  alert('Backend connection failed - is it running on port 8001?')
-                }
-              }}
-              style={{ 
-                padding: '6px 12px', 
-                backgroundColor: '#3b82f6', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
-            >
-              Test Backend
-            </button>
-            <button
-              onClick={() => {
-                console.log('🔍 Current state:', {
-                  selectedFile: selectedFile?.name,
-                  videoId,
-                  currentStep,
-                  isUploading,
-                  uploadProgress,
-                  uploadError,
-                  uploadedVideo: uploadedVideo?.id,
-                  user: user?.email,
-                  sessionId,
-                  exerciseName
-                })
-              }}
-              style={{ 
-                padding: '6px 12px', 
-                backgroundColor: '#10b981', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
-            >
-              Log State
-            </button>
-            <button
-              onClick={async () => {
-                if (!selectedFile) {
-                  alert('Please select a file first')
-                  return
-                }
-                console.log('🧪 Testing direct upload only...')
-                try {
-                  const formData = new FormData()
-                  formData.append('file', selectedFile)
-                  const response = await fetch('http://localhost:8001/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                  })
-                  const result = await response.json()
-                  console.log('✅ Direct upload result:', result)
-                  alert(`Direct upload success: ${result.video_id}`)
-                } catch (error) {
-                  console.error('❌ Direct upload failed:', error)
-                  alert('Direct upload failed')
-                }
-              }}
-              style={{ 
-                padding: '6px 12px', 
-                backgroundColor: '#f59e0b', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }}
-            >
-              Test Direct Upload
-            </button>
           </div>
         </div>
 
@@ -634,6 +574,7 @@ export default function ExerciseDetailPage() {
                 }}>
                   {getVideoUrl() ? (
                     <video
+                      key={getVideoUrl()} // Force remount when URL changes
                       src={getVideoUrl()!}
                       controls
                       style={{ 
@@ -641,8 +582,12 @@ export default function ExerciseDetailPage() {
                         height: '100%',
                         objectFit: 'contain'
                       }}
-                      onError={() => {
-                        console.error('Video failed to load')
+                      onLoadedData={() => {
+                        console.log('✅ Video loaded successfully');
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Video failed to load:', e);
+                        console.log('🔗 Attempted URL:', getVideoUrl());
                       }}
                     />
                   ) : (
@@ -655,8 +600,8 @@ export default function ExerciseDetailPage() {
                       color: '#6b7280'
                     }}>
                       <div style={{ textAlign: 'center' }}>
-                        <Video style={{ width: '48px', height: '48px', margin: '0 auto 12px' }} />
-                        <p>Processing video...</p>
+                        <Loader2 style={{ width: '48px', height: '48px', margin: '0 auto 12px' }} className="animate-spin" />
+                        <p>Loading video...</p>
                       </div>
                     </div>
                   )}

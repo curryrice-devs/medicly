@@ -109,6 +109,32 @@ class AngleCalculator:
         except Exception as e:
             print(f"Error calculating angle: {e}")
             return 0.0
+    
+    def get_angle_descriptions(self):
+        """Return descriptions of what each angle represents"""
+        return {
+            'left_knee_angle': 'Angle between left hip, knee, and ankle',
+            'right_knee_angle': 'Angle between right hip, knee, and ankle',
+            'left_elbow_angle': 'Angle between left shoulder, elbow, and wrist',
+            'right_elbow_angle': 'Angle between right shoulder, elbow, and wrist',
+            'left_hip_angle': 'Angle between left shoulder, hip, and knee',
+            'right_hip_angle': 'Angle between right shoulder, hip, and knee',
+            'left_shoulder_angle': 'Angle at left shoulder joint',
+            'right_shoulder_angle': 'Angle at right shoulder joint'
+        }
+    
+    def get_health_ranges(self):
+        """Return healthy ranges for each angle"""
+        return {
+            'left_knee_angle': {'min': 0, 'max': 180, 'optimal_range': [150, 180]},
+            'right_knee_angle': {'min': 0, 'max': 180, 'optimal_range': [150, 180]},
+            'left_elbow_angle': {'min': 0, 'max': 180, 'optimal_range': [30, 150]},
+            'right_elbow_angle': {'min': 0, 'max': 180, 'optimal_range': [30, 150]},
+            'left_hip_angle': {'min': 0, 'max': 180, 'optimal_range': [90, 180]},
+            'right_hip_angle': {'min': 0, 'max': 180, 'optimal_range': [90, 180]},
+            'left_shoulder_angle': {'min': 0, 'max': 180, 'optimal_range': [30, 150]},
+            'right_shoulder_angle': {'min': 0, 'max': 180, 'optimal_range': [30, 150]}
+        }
 
 class SimpleProcessor:
     def __init__(self):
@@ -228,8 +254,8 @@ class SimpleProcessor:
                                     'visibility': landmark.visibility
                                 })
                             
-                            # Calculate angles for this frame
-                            frame_angles = self.angle_calculator.calculate_joint_angles(landmarks)
+                            # Calculate angles for this frame using the MediaPipe landmarks object
+                            frame_angles = self.angle_calculator.calculate_joint_angles(results.pose_landmarks)
                             if frame_angles:
                                 angle_data.append({
                                     'frame': frame_count,
