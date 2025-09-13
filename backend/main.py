@@ -359,55 +359,51 @@ async def process_supabase_video(request: Request):
                 
                 if success and processed_video_path.exists():
                     # Upload processed video to Supabase bucket
-                    try:
-                        
-                        # Read processed video file
-                        with open(processed_video_path, 'rb') as video_file:
-                            video_data = video_file.read()
+                    processed_video_url = None  # Initialize as None to track success
+                    
+                    # Read processed video file
+                    with open(processed_video_path, 'rb') as video_file:
+                        video_data = video_file.read()
                         
                         # Create storage path for processed video
                         # Extract user_id from original storage_path if available
                         user_id = storage_path.split('/')[0] if storage_path else 'unknown'
-                        # Store processed videos in a separate path to distinguish from originals
-                        processed_storage_path = f"processed/{user_id}/sessions/{session_id}/{video_id}_processed.mp4"
+                        # Store processed videos in same bucket but in processed folder
+                        processed_storage_path = f"{user_id}/processed/{session_id}/{video_id}_processed.mp4"
                         
                         logger.info(f"Uploading processed video to Supabase: {processed_storage_path}")
                         
-                        # Upload to Supabase storage using direct API
+                        # Upload to Supabase storage using SDK
                         supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
                         supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
                         
                         logger.info(f"Supabase credentials check - URL: {'SET' if supabase_url else 'MISSING'}, Key: {'SET' if supabase_key else 'MISSING'}")
                         
                         if supabase_url and supabase_key:
-                            # Upload to processed_videos bucket instead of patient_videos
-                            upload_url = f"{supabase_url}/storage/v1/object/processed_videos/{processed_storage_path}"
-                            logger.info(f"Attempting upload to: {upload_url}")
-                            logger.info(f"Video file size: {len(video_data)} bytes")
-                            
-                            upload_response = requests.post(
-                                upload_url,
-                                headers={
-                                    'apikey': supabase_key,
-                                    'Authorization': f'Bearer {supabase_key}',
-                                    'Content-Type': 'video/mp4'
-                                },
-                                data=video_data
-                            )
-                            
-                            logger.info(f"Upload response: {upload_response.status_code} - {upload_response.text[:200]}")
-                            
-                            if upload_response.status_code == 200:
-                                logger.info(f"Processed video uploaded successfully to: {processed_storage_path}")
+                            try:
+                                # Use Supabase SDK for upload
+                                from supabase import create_client
+                                supabase_client = create_client(supabase_url, supabase_key)
                                 
-                                # Create signed URL for the processed video
-                                try:
-                                    from supabase import create_client
-                                    supabase_client = create_client(supabase_url, supabase_key)
+                                logger.info(f"Uploading to patient_videos bucket: {processed_storage_path}")
+                                logger.info(f"Video file size: {len(video_data)} bytes")
+                                
+                                # Upload processed video to patient_videos bucket
+                                upload_result = supabase_client.storage.from_('patient_videos').upload(
+                                    processed_storage_path,
+                                    video_data,
+                                    file_options={"content-type": "video/mp4"}
+                                )
+                                
+                                logger.info(f"Upload result: {upload_result}")
+                                
+                                # Check if upload was successful - UploadResponse has path attribute when successful
+                                if hasattr(upload_result, 'path') and upload_result.path:
+                                    logger.info(f"✅ Processed video uploaded successfully to: {processed_storage_path}")
                                     
+                                    # Create signed URL for the processed video
                                     logger.info(f"Creating signed URL for: {processed_storage_path}")
-                                    # Create signed URL from processed_videos bucket
-                                    signed_url_result = supabase_client.storage.from_('processed_videos').create_signed_url(
+                                    signed_url_result = supabase_client.storage.from_('patient_videos').create_signed_url(
                                         processed_storage_path, 
                                         60 * 60 * 24  # 24 hours
                                     )
@@ -425,7 +421,6 @@ async def process_supabase_video(request: Request):
                                             processed_video_url = signed_url_result.data['signedUrl']
                                         else:
                                             logger.warn(f"Unexpected signed URL data format: {signed_url_result.data}")
-                                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
                                     elif isinstance(signed_url_result, dict):
                                         # Direct dict format - this is what we're getting
                                         if 'signedUrl' in signed_url_result:
@@ -439,44 +434,47 @@ async def process_supabase_video(request: Request):
                                             logger.info(f"Using nested data.signedUrl from dict response")
                                         else:
                                             logger.warn(f"No signedUrl in response: {signed_url_result}")
-                                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
                                     else:
                                         logger.warn(f"Unexpected signed URL response format: {signed_url_result}")
-                                        processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
                                     
-                                    logger.info(f"Final processed video URL: {processed_video_url}")
+                                    if processed_video_url:
+                                        logger.info(f"✅ Successfully got Supabase signed URL: {processed_video_url}")
+                                    else:
+                                        logger.error("❌ Failed to extract signed URL from Supabase response")
+                                else:
+                                    logger.warn(f"❌ Failed to upload processed video to Supabase: {upload_result}")
+                                    logger.warn(f"Upload result type: {type(upload_result)}, attributes: {dir(upload_result)}")
                                     
-                                except Exception as signed_url_error:
-                                    logger.error(f"Error creating signed URL: {signed_url_error}")
-                                    processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
-                            else:
-                                logger.warn(f"Failed to upload processed video to Supabase: {upload_response.status_code} - {upload_response.text}")
-                                processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                            except Exception as upload_error:
+                                logger.error(f"❌ Error uploading processed video to Supabase: {upload_error}")
                         else:
-                            logger.warn("Missing Supabase credentials, using backend stream")
-                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
-                            
-                    except Exception as upload_error:
-                        logger.error(f"Error uploading processed video to Supabase: {upload_error}")
-                        processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                            logger.warn("❌ Missing Supabase credentials")
                     
-                    # Update session with processed video URL (postvidurl)
-                    if session_id:
-                        try:
-                            session_update = requests.put(
-                                f"http://localhost:3000/api/sessions/{session_id}",
-                                json={"postvidurl": processed_video_url},
-                                headers={"Content-Type": "application/json"}
-                            )
-                            if session_update.status_code == 200:
-                                logger.info(f"Updated session {session_id} with processed video URL")
-                            else:
-                                logger.warn(f"Failed to update session {session_id}: {session_update.text}")
-                        except Exception as e:
-                            logger.warn(f"Error updating session with processed video URL: {e}")
+                    # Only fall back to localhost if Supabase completely failed
+                    if not processed_video_url:
+                        processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                        logger.warn(f"⚠️ Using localhost fallback URL: {processed_video_url}")
                 else:
                     processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
-                    logger.warn("Processed video file not found, using backend stream")
+                    logger.warn("⚠️ Processed video file not found, using backend stream")
+                
+                                # Update session with processed video URL (postvidurl)
+                if session_id and processed_video_url:
+                    try:
+                        logger.info(f"🔄 Updating session {session_id} with postvidurl: {processed_video_url}")
+                        session_update = requests.put(
+                            f"http://localhost:3000/api/sessions/{session_id}",
+                            json={"postvidurl": processed_video_url},
+                            headers={"Content-Type": "application/json"}
+                        )
+                        if session_update.status_code == 200:
+                            logger.info(f"✅ Updated session {session_id} with processed video URL")
+                        else:
+                            logger.warn(f"❌ Failed to update session {session_id}: {session_update.text}")
+                    except Exception as e:
+                        logger.warn(f"❌ Error updating session with processed video URL: {e}")
+                elif session_id:
+                    logger.warn(f"⚠️ Not updating session {session_id} - no valid processed video URL")
                 
                 # Update status with URLs
                 processing_status[video_id] = {
