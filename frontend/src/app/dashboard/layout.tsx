@@ -20,8 +20,24 @@ export default function DashboardLayout({
         return
       }
 
+      // Check if user is onboarded, but give some grace time for recent onboarding
       if (!user?.onboarded) {
-        router.push('/welcome')
+        // Check if we came from the welcome page (to avoid redirect loop)
+        const cameFromWelcome = document.referrer.includes('/welcome')
+        
+        if (!cameFromWelcome) {
+          router.push('/welcome')
+          return
+        }
+        
+        // If we came from welcome, give the auth state time to update
+        // and don't redirect immediately
+        setTimeout(() => {
+          // Re-check after a delay
+          if (!user?.onboarded) {
+            router.push('/welcome')
+          }
+        }, 2000)
         return
       }
 

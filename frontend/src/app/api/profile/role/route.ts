@@ -39,18 +39,34 @@ export async function POST(req: NextRequest) {
   // Get the user's name from auth metadata if not already in profile
   const userName = user.user_metadata?.full_name || user.email;
 
+  // Use update instead of upsert to ensure the profile exists and is properly updated
   const { error } = await supabase
     .from("profiles")
-    .upsert({
-      id: user.id,
+    .update({
       role,
       onboarded: true,
       name: userName
-    });
+    })
+    .eq("id", user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // If update fails, try insert (for new users)
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        role,
+        onboarded: true,
+        name: userName
+      });
+    
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
   }
+
+  // Wait a bit to ensure database propagation
+  await new Promise(resolve => setTimeout(resolve, 200));
 
   // Refresh the session to ensure updated data is available
   await supabase.auth.refreshSession();
