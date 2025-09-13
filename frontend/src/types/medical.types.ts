@@ -72,6 +72,9 @@ export interface CaseStats {
   pendingCount: number;
   completedToday: number;
   averageReviewTimeSec: number;
+  uniquePatients: number;
+  sessionsToday: number;
+  highPriorityCases: number;
 }
 
  

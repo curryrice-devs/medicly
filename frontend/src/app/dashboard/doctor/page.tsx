@@ -41,35 +41,35 @@ export default function DoctorDashboard() {
   const doctorStats = [
     {
       title: 'Active Patients',
-      value: caseStats?.pendingCount ? (caseStats.pendingCount + 20).toString() : '24',
+      value: caseStats?.uniquePatients?.toString() || '0',
       icon: Users,
       description: 'Currently under care',
-      change: '+12% from last month',
-      changeType: 'positive' as const
-    },
-    {
-      title: 'Pending Reviews',
-      value: caseStats?.pendingCount?.toString() || '8',
-      icon: FileText,
-      description: 'Videos awaiting analysis',
-      change: '-3 from yesterday',
-      changeType: 'positive' as const
-    },
-    {
-      title: 'Sessions Today',
-      value: caseStats?.completedToday?.toString() || '6',
-      icon: Calendar,
-      description: 'Scheduled appointments',
-      change: '2 more scheduled',
+      change: caseStats?.uniquePatients ? `${caseStats.uniquePatients} total patients` : 'No patients yet',
       changeType: 'neutral' as const
     },
     {
-      title: 'Avg Review Time',
-      value: caseStats?.averageReviewTimeSec ? Math.round(caseStats.averageReviewTimeSec / 60).toString() + 'm' : '18m',
+      title: 'Pending Reviews',
+      value: caseStats?.pendingCount?.toString() || '0',
+      icon: FileText,
+      description: 'Cases awaiting review',
+      change: caseStats?.highPriorityCases ? `${caseStats.highPriorityCases} high priority` : 'No urgent cases',
+      changeType: caseStats?.highPriorityCases ? 'negative' as const : 'positive' as const
+    },
+    {
+      title: 'Sessions Today',
+      value: caseStats?.sessionsToday?.toString() || '0',
+      icon: Calendar,
+      description: 'New sessions submitted',
+      change: caseStats?.completedToday ? `${caseStats.completedToday} completed` : 'None completed',
+      changeType: 'neutral' as const
+    },
+    {
+      title: 'Est. Review Time',
+      value: caseStats?.averageReviewTimeSec ? Math.round(caseStats.averageReviewTimeSec / 60).toString() + 'm' : '0m',
       icon: Clock,
-      description: 'Time per case review',
-      change: '-2m from last week',
-      changeType: 'positive' as const
+      description: 'Estimated time per case',
+      change: caseStats?.pendingCount ? `${caseStats.pendingCount} in queue` : 'Queue empty',
+      changeType: 'neutral' as const
     }
   ]
 
