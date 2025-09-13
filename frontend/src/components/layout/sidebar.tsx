@@ -39,17 +39,14 @@ export function Sidebar() {
   const getNavigationItems = () => {
     const baseRoute = user?.role === 'doctor' ? '/dashboard/doctor' : '/dashboard/patient'
     
-          const items = [
-        { href: baseRoute, label: 'Dashboard', icon: Home },
-        ...(user?.role === 'doctor' ? [
-          { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 }
-        ] : []),
-        { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
-      ]
-
-    if (user?.role === 'doctor') {
-      items.push({ href: '/dashboard/doctor/patients', label: 'Patients', icon: Users })
-    }
+    const items = [
+      { href: baseRoute, label: 'Dashboard', icon: Home },
+      ...(user?.role === 'doctor' ? [
+        { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 },
+        { href: '/dashboard/doctor/patients', label: 'Patients', icon: Users }
+      ] : []),
+      { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
+    ]
 
     return items
   }

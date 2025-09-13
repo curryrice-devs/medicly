@@ -159,44 +159,40 @@ export default function PatientDashboard() {
   }
 
   return (
-    <div style={{ 
-      flex: 1,
-      backgroundColor: 'hsl(var(--background))'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 12px' }}>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Welcome Header */}
-
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {user?.name?.split(' ')[0]}
+          </h1>
+          <p className="text-gray-600">
+            Here's your exercise sessions and recovery progress
+          </p>
+        </div>
 
         {/* Active Sessions */}
-        <section style={{ marginBottom: '32px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <h2 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: 'bold', 
-              color: 'hsl(var(--foreground))',
-              margin: 0
-            }}>
-              Exercise Sessions
-            </h2>
-            <Button size="sm" variant="outline" style={{ gap: '6px' }} onClick={() => setIsModalOpen(true)}>
-              <Plus style={{ width: '14px', height: '14px' }} />
-              New Session
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Exercise Sessions
+                </h2>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="flex items-center space-x-2" onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4" />
+              <span>New Session</span>
             </Button>
           </div>
 
           {/* Status Filter */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '8px', 
-            marginBottom: '16px',
-            flexWrap: 'wrap'
-          }}>
+          <div className="flex flex-wrap gap-3 mb-6">
             {[
               { key: 'all', label: 'All Sessions', count: sessionStats.all },
               { key: 'pending', label: 'Pending', count: sessionStats.pending },
@@ -208,31 +204,19 @@ export default function PatientDashboard() {
               <button
                 key={filter.key}
                 onClick={() => setStatusFilter(filter.key as any)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: statusFilter === filter.key ? '#0d4a2b' : 'hsl(var(--background))',
-                  color: statusFilter === filter.key ? 'white' : 'hsl(var(--foreground))',
-                  fontSize: '0.75rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center space-x-2 ${
+                  statusFilter === filter.key
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
+                }`}
               >
-                {filter.label}
+                <span>{filter.label}</span>
                 {filter.count > 0 && (
-                  <span style={{
-                    backgroundColor: statusFilter === filter.key ? 'rgba(255,255,255,0.2)' : 'hsl(var(--accent))',
-                    color: statusFilter === filter.key ? 'white' : 'hsl(var(--muted-foreground))',
-                    padding: '2px 6px',
-                    borderRadius: '10px',
-                    fontSize: '0.65rem',
-                    fontWeight: '600'
-                  }}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    statusFilter === filter.key
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
                     {filter.count}
                   </span>
                 )}
@@ -240,41 +224,17 @@ export default function PatientDashboard() {
             ))}
           </div>
 
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-            gap: '16px' 
-          }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSessions.length === 0 ? (
-              <div style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                padding: '40px 20px',
-                backgroundColor: 'hsl(var(--accent))',
-                borderRadius: '8px'
-              }}>
-                <Activity style={{ 
-                  width: '48px', 
-                  height: '48px', 
-                  color: 'hsl(var(--muted-foreground))',
-                  margin: '0 auto 16px'
-                }} />
-                <h4 style={{
-                  fontSize: '1.125rem',
-                  fontWeight: '600',
-                  color: 'hsl(var(--foreground))',
-                  marginBottom: '8px'
-                }}>
+              <div className="col-span-full text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">
                   {statusFilter === 'all' 
                     ? 'No Sessions Yet' 
                     : `No ${statusFilter.replace('_', ' ')} Sessions`
                   }
                 </h4>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: 'hsl(var(--muted-foreground))',
-                  marginBottom: '20px'
-                }}>
+                <p className="text-sm text-gray-600 mb-6">
                   {statusFilter === 'all' 
                     ? 'Start a new exercise session below to begin your recovery journey'
                     : `No sessions with ${statusFilter.replace('_', ' ')} status found. Try a different filter or create a new session.`
@@ -287,88 +247,35 @@ export default function PatientDashboard() {
                   key={session.id} 
                   href={`/dashboard/patient/session/${session.id}/${session.treatment?.name?.toLowerCase().replace(/\s+/g, '_') || 'exercise'}`}
                 >
-                  <div style={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.1)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    border: '1px solid hsl(var(--border))',
-                  }}
-                  className="hover:scale-[1.01] hover:shadow-md group"
-                  >
+                  <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
                     {/* Header with Title and Doctor */}
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-start', 
-                      justifyContent: 'space-between',
-                      marginBottom: '16px'
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ 
-                          fontSize: '1.125rem', 
-                          fontWeight: 'bold', 
-                          color: 'hsl(var(--foreground))',
-                          marginBottom: '4px',
-                          lineHeight: '1.3'
-                        }}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-1">
                           {session.treatment?.name || 'Exercise Session'}
                         </h4>
-                        <p style={{ 
-                          fontSize: '0.875rem', 
-                          color: 'hsl(var(--muted-foreground))',
-                          marginBottom: '0'
-                        }}>
+                        <p className="text-sm text-gray-600">
                           {session.doctor_id ? `Doctor assigned` : 'Self-guided'}
                         </p>
                       </div>
-                      <div style={{ 
-                        width: '32px', 
-                        height: '32px', 
-                        borderRadius: '6px', 
-                        backgroundColor: 'rgba(13, 74, 43, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        marginLeft: '12px'
-                      }}>
-                        <Activity style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
+                      <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
+                        <Activity className="w-4 h-4 text-green-600" />
                       </div>
                     </div>
 
                     {/* Progress and Next Checkup - Inline Layout */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: '16px',
-                      marginBottom: '16px'
-                    }}>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
                       {/* Progress Section */}
                       <div>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px', 
-                          marginBottom: '6px' 
-                        }}>
-                          <Activity style={{ width: '14px', height: '14px', color: '#0d4a2b' }} />
-                          <span style={{ 
-                            fontSize: '0.875rem', 
-                            fontWeight: '600', 
-                            color: 'hsl(var(--foreground))' 
-                          }}>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Activity className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium text-gray-900">
                             Exercise Details
                           </span>
                         </div>
-                        <div style={{ 
-                          fontSize: '0.875rem', 
-                          color: 'hsl(var(--muted-foreground))',
-                          lineHeight: '1.4'
-                        }}>
+                        <div className="text-sm text-gray-600 leading-relaxed">
                           <div>{session.exercise_sets || 3} sets × {session.exercise_reps || 10} reps</div>
-                          <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                          <div className="text-xs mt-1">
                             {session.exercise_frequency_daily || 1}x daily
                           </div>
                         </div>
@@ -376,28 +283,15 @@ export default function PatientDashboard() {
 
                       {/* Due Date Section */}
                       <div>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px', 
-                          marginBottom: '6px' 
-                        }}>
-                          <Calendar style={{ width: '14px', height: '14px', color: '#0d4a2b' }} />
-                          <span style={{ 
-                            fontSize: '0.875rem', 
-                            fontWeight: '600', 
-                            color: 'hsl(var(--foreground))' 
-                          }}>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Calendar className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium text-gray-900">
                             Due Date
                           </span>
                         </div>
-                        <div style={{ 
-                          fontSize: '0.875rem', 
-                          color: 'hsl(var(--muted-foreground))',
-                          lineHeight: '1.4'
-                        }}>
+                        <div className="text-sm text-gray-600 leading-relaxed">
                           <div>{session.due_date ? new Date(session.due_date).toLocaleDateString() : 'Not set'}</div>
-                          <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                          <div className="text-xs mt-1">
                             Status: {session.status}
                           </div>
                         </div>
@@ -405,15 +299,9 @@ export default function PatientDashboard() {
                     </div>
 
                     {/* View Session Button */}
-                    <Button size="sm" style={{ 
-                      width: '100%', 
-                      gap: '6px', 
-                      height: '36px', 
-                      fontSize: '0.875rem',
-                      fontWeight: '500'
-                    }}>
-                      <Video style={{ width: '14px', height: '14px' }} />
-                      View Session Details
+                    <Button size="sm" className="w-full h-9 text-sm font-medium flex items-center justify-center space-x-2">
+                      <Video className="w-4 h-4" />
+                      <span>View Session Details</span>
                     </Button>
                   </div>
                 </Link>

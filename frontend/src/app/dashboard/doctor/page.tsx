@@ -45,7 +45,7 @@ export default function DoctorDashboard() {
       value: caseStats?.activePatients?.toString() || '0',
       icon: Users,
       description: 'In treatment programs',
-      change: caseStats?.inProgressCount ? `${caseStats.inProgressCount} sessions in progress` : 'No active treatments',
+      change: caseStats?.activePatients ? `${caseStats.activePatients} sessions in progress` : 'No active treatments',
       changeType: 'neutral' as const
     },
     {
