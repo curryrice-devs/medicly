@@ -67,7 +67,7 @@ export default function PatientDetailPage() {
     }
 
     loadPatientData()
-  }, [patientId, user?.id, router])
+  }, [patientId, user?.id])
 
 
   const getStatusColor = (status: string) => {
