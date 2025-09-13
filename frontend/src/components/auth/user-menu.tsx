@@ -124,17 +124,24 @@ export function UserMenu() {
               console.debug('[menu] logout already in progress')
               return
             }
-            console.debug('[menu] signout click - immediately redirecting to /')
-            // Immediately redirect to home page to force reload
-            window.location.href = '/'
             
-            // Logout process will continue in background
+            console.debug('[menu] logout clicked')
+            
+            // Set a timeout to ensure page reloads even if logout hangs
+            const reloadTimeout = setTimeout(() => {
+              console.debug('[menu] logout timeout - forcing reload...')
+              window.location.reload()
+            }, 1000)
+            
             try {
-              console.debug('[menu] calling logout() in background')
-              await logout() // waits for client signOut + server cookie clear
-              console.debug('[menu] logout() completed')
+              await logout()
+              console.debug('[menu] logout completed, reloading page...')
+              clearTimeout(reloadTimeout)
+              window.location.reload()
             } catch (error) {
-              console.error('[menu] logout error', error)
+              console.error('[menu] logout failed:', error)
+              clearTimeout(reloadTimeout)
+              window.location.reload()
             }
           }}
           disabled={isLoggingOut}

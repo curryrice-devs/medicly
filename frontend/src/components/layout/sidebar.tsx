@@ -227,16 +227,23 @@ export function Sidebar() {
           </p>
           <button
             onClick={async () => {
+              console.log('Sidebar logout clicked')
+              
+              // Set a timeout to ensure page reloads even if logout hangs
+              const reloadTimeout = setTimeout(() => {
+                console.log('Logout timeout - forcing reload...')
+                window.location.reload()
+              }, 1000)
+              
               try {
-                console.log('Sidebar logout clicked')
                 await logout()
-                console.log('Logout completed, redirecting...')
-                // Force redirect to landing page
-                window.location.replace('/')
+                console.log('Logout completed, reloading page...')
+                clearTimeout(reloadTimeout)
+                window.location.reload()
               } catch (error) {
                 console.error('Logout failed:', error)
-                // Force redirect even on error
-                window.location.replace('/')
+                clearTimeout(reloadTimeout)
+                window.location.reload()
               }
             }}
             style={{

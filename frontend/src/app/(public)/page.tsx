@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 export default function LandingPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser;
+  const supabase = supabaseBrowser();
 
   const handleGoogleSignIn = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({

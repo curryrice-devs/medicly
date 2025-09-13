@@ -50,7 +50,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
-    const supabase = supabaseBrowser
+    const supabase = supabaseBrowser()
 
     const mapUser = (u: any | null): User | null => {
       if (!u) return null
@@ -132,7 +132,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const supabase = supabaseBrowser
+      const supabase = supabaseBrowser()
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
     } finally {
@@ -148,7 +148,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   ) => {
     setIsLoading(true)
     try {
-      const supabase = supabaseBrowser
+      const supabase = supabaseBrowser()
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -167,7 +167,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       return
     }
     
-    const supabase = supabaseBrowser
+    const supabase = supabaseBrowser()
     console.debug('[auth] logout() start')
     setIsLoggingOut(true)
     
@@ -184,19 +184,23 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       const { error } = await supabase.auth.signOut()
       if (error) {
         console.error('[auth] logout() error', error)
-        throw error
+        // Don't throw error, continue with logout process
       } else {
         console.debug('[auth] logout() success - auth cleared')
       }
       
-      // Clear loading state immediately after signOut
-      setIsLoggingOut(false)
+      // Clear user state immediately
+      setUser(null)
       console.debug('[auth] logout() completed')
       
     } catch (e) {
       console.error('[auth] logout() threw', e)
+      // Even on error, clear the user state
+      setUser(null)
+    } finally {
+      // Always clear loading state
       setIsLoggingOut(false)
-      throw e
+      console.debug('[auth] logout() finally - isLoggingOut set to false')
     }
   }
 
