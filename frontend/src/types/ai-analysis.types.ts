@@ -192,8 +192,15 @@ export function parseAIAnalysis(aiEvaluationData: any): AIAnalysisData | null {
         redFlags: [],
         recommendedExercise: {
           name: summary.movement_identified || "Exercise to be assigned",
+          rationale: "Based on movement analysis",
           contraindications: [],
-          progressionNotes: summary.main_recommendations?.join('. ')
+          progressionNotes: summary.main_recommendations?.join('. ') || ""
+        },
+        followUpRecommendations: {
+          timeframe: "1-2 weeks",
+          monitorFor: summary.key_concerns || ["Progress", "Technique"],
+          progressIndicators: ["Improved form", "Reduced compensation"],
+          escalationCriteria: ["Worsening pain", "No improvement"]
         }
       } as AIAnalysisData;
     }
