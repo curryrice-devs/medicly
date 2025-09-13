@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
 
 export interface Session {
   id: number;
   created_at: string;
   patient_id: string;
-  video_id?: number;
   doctor_id?: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'reviewed';
+  status: 'pending' | 'active' | 'rejective' | 'completed';
   due_date?: string;
-  ai_evaluation?: string;
+  ai_evaluation?: any; // JSONB
   exercise_sets?: number;
   exercise_reps?: number;
   exercise_weight?: number;
   exercise_duration_in_weeks?: number;
   exercise_frequency_daily?: number;
   treatment_id?: number;
+  previdurl?: string; // Original video URL in Supabase
+  pose_video_id?: string; // UUID
+  patient_notes?: string;
+  postvidurl?: string; // Processed video URL in Supabase
   treatment?: Treatment;
 }
 
@@ -52,53 +54,38 @@ export function usePatientSessions() {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Starting session fetch...');
+      console.log('🔄 Starting session fetch via API...');
       
-      // Add a timeout to prevent infinite loading
-      const fetchPromise = supabase
-        .from('sessions')
-        .select(`
-          *,
-          treatment:treatments(*)
-        `)
-        .eq('patient_id', user?.id)
-        .order('created_at', { ascending: false });
+      const response = await fetch(`/api/sessions?userId=${user?.id}`);
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Fetch timeout - tables may not exist')), 10000)
-      );
-
-      const { data, error: fetchError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as any;
-
-      console.log('📊 Session fetch result:', { data, error: fetchError });
-
-      if (fetchError) {
-        console.error('❌ Error fetching sessions:', fetchError);
-        
-        // Check if it's a table doesn't exist error
-        if (fetchError.message?.includes('relation "sessions" does not exist') || 
-            fetchError.message?.includes('table') || 
-            fetchError.code === 'PGRST116') {
-          setError('Database tables not set up. Please run the SQL setup script.');
-        } else {
-          setError(fetchError.message);
-        }
-        setSessions([]);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch sessions');
       }
 
-      console.log('✅ Fetched sessions:', data);
-      setSessions(data || []);
+      const result = await response.json();
+      
+      console.log('📊 Session fetch result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'API request failed');
+      }
+
+      console.log('✅ Fetched sessions via API:', result.data);
+      setSessions(result.data || []);
     } catch (err) {
       console.error('❌ Error in fetchSessions:', err);
       
-      if (err instanceof Error && err.message.includes('timeout')) {
-        setError('Database connection timeout. Tables may not exist. Please run the SQL setup script.');
+      if (err instanceof Error) {
+        if (err.message.includes('timeout') || err.message.includes('fetch')) {
+          setError('Network error. Please check your connection and try again.');
+        } else if (err.message.includes('table') || err.message.includes('relation')) {
+          setError('Database tables not set up. Please run the SQL setup script.');
+        } else {
+          setError(err.message);
+        }
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch sessions');
+        setError('Failed to fetch sessions');
       }
       setSessions([]);
     } finally {
@@ -108,57 +95,68 @@ export function usePatientSessions() {
 
   const createSession = async (treatmentId: number, additionalData?: Partial<Session>) => {
     try {
-      const { data, error: createError } = await supabase
-        .from('sessions')
-        .insert({
+      console.log('📝 Creating session via API...');
+      
+      const response = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           patient_id: user?.id,
           treatment_id: treatmentId,
-          status: 'pending',
-          created_at: new Date().toISOString(),
           ...additionalData
         })
-        .select(`
-          *,
-          treatment:treatments(*)
-        `)
-        .single();
+      });
 
-      if (createError) {
-        console.error('Error creating session:', createError);
-        throw createError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create session');
       }
 
-      console.log('✅ Created session:', data);
-      setSessions(prev => [data, ...prev]);
-      return data;
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'API request failed');
+      }
+
+      console.log('✅ Created session via API:', result.data);
+      setSessions(prev => [result.data, ...prev]);
+      return result.data;
     } catch (err) {
-      console.error('Error in createSession:', err);
+      console.error('❌ Error in createSession:', err);
       throw err;
     }
   };
 
   const updateSession = async (sessionId: number, updates: Partial<Session>) => {
     try {
-      const { data, error: updateError } = await supabase
-        .from('sessions')
-        .update(updates)
-        .eq('id', sessionId)
-        .select(`
-          *,
-          treatment:treatments(*)
-        `)
-        .single();
+      console.log('📝 Updating session via API...');
+      
+      const response = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
 
-      if (updateError) {
-        console.error('Error updating session:', updateError);
-        throw updateError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update session');
       }
 
-      console.log('✅ Updated session:', data);
-      setSessions(prev => prev.map(s => s.id === sessionId ? data : s));
-      return data;
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'API request failed');
+      }
+
+      console.log('✅ Updated session via API:', result.data);
+      setSessions(prev => prev.map(s => s.id === sessionId ? result.data : s));
+      return result.data;
     } catch (err) {
-      console.error('Error in updateSession:', err);
+      console.error('❌ Error in updateSession:', err);
       throw err;
     }
   };

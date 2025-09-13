@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -111,15 +111,23 @@ async def process_video(video_id: str):
                 action_logger.log_processing_step("VIDEO_PROCESSING", video_id, "started")
                 
                 # Process video
-                output_path = processor.process_video(str(video_path), str(OUTPUT_DIR))
+                output_file_path = OUTPUT_DIR / f"{video_id}_output.mp4"
+                success, actual_output_path = processor.process_video(str(video_path), str(output_file_path))
                 
                 # Update status
-                processing_status[video_id] = {
-                    "status": "completed",
-                    "message": "Processing completed successfully",
-                    "output_path": str(output_path),
-                    "end_time": datetime.now().isoformat()
-                }
+                if success:
+                    processing_status[video_id] = {
+                        "status": "completed",
+                        "message": "Processing completed successfully",
+                        "output_path": actual_output_path,
+                        "end_time": datetime.now().isoformat()
+                    }
+                else:
+                    processing_status[video_id] = {
+                        "status": "error",
+                        "message": "Processing failed",
+                        "end_time": datetime.now().isoformat()
+                    }
                 
                 action_logger.log_processing_step("VIDEO_PROCESSING", video_id, "completed")
                 logger.info(f"Processing completed for video {video_id}")
@@ -171,8 +179,21 @@ async def download_processed_video(video_id: str):
     )
 
 @app.get("/api/stream/{video_id}")
+@app.options("/api/stream/{video_id}")
 async def stream_processed_video(video_id: str, request: Request):
     """Stream processed video with pose landmarks"""
+    
+    # Handle OPTIONS request for CORS
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    
     processed_path = OUTPUT_DIR / f"{video_id}_output.mp4"
     
     if not processed_path.exists():
@@ -187,14 +208,28 @@ async def stream_processed_video(video_id: str, request: Request):
         media_type="video/mp4",
         headers={
             "Accept-Ranges": "bytes",
-            "Content-Length": str(processed_path.stat().st_size)
+            "Content-Length": str(processed_path.stat().st_size),
+            "Access-Control-Allow-Origin": "*",
         }
     )
 
 @app.get("/api/video/{video_id}")
 @app.head("/api/video/{video_id}")
+@app.options("/api/video/{video_id}")
 async def get_original_video(video_id: str, request: Request):
     """Get original video file"""
+    
+    # Handle OPTIONS request for CORS
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    
     video_path = UPLOAD_DIR / f"{video_id}.mp4"
     
     if not video_path.exists():
@@ -203,7 +238,8 @@ async def get_original_video(video_id: str, request: Request):
     return FileResponse(
         path=str(video_path),
         media_type="video/mp4",
-        filename=f"{video_id}.mp4"
+        filename=f"{video_id}.mp4",
+        headers={"Access-Control-Allow-Origin": "*"}
     )
 
 @app.get("/api/version")
@@ -240,31 +276,109 @@ async def get_angle_data(video_id: str):
         filename=angle_file_path.name
     )
 
-@app.post("/api/process-supabase")
+@app.post("/api/process-supabase-video")
 async def process_supabase_video(request: Request):
-    """Process video from Supabase storage"""
+    """Download video from Supabase, process it, and upload results back to Supabase"""
     try:
         body = await request.json()
         video_id = body.get('video_id')
-        video_url = body.get('video_url')
+        video_url = body.get('video_url')  # Signed URL from Supabase
         storage_path = body.get('storage_path')
+        session_id = body.get('session_id')
         
-        if not all([video_id, video_url, storage_path]):
-            raise HTTPException(status_code=400, detail="Missing required fields: video_id, video_url, storage_path")
+        if not all([video_id, video_url]):
+            raise HTTPException(status_code=400, detail="Missing required fields: video_id, video_url")
         
-        logger.info(f"Processing Supabase video: {video_id} from {storage_path}")
+        logger.info(f"Processing Supabase video: {video_id}")
         
-        # For now, just return success - you can implement actual processing later
+        # Step 1: Download video from Supabase to local temp file
+        import requests
+        video_response = requests.get(video_url)
+        if video_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to download video from Supabase")
+        
+        # Save to local temp file for processing
+        temp_video_path = UPLOAD_DIR / f"{video_id}.mp4"
+        with open(temp_video_path, 'wb') as f:
+            f.write(video_response.content)
+        
+        logger.info(f"Downloaded video to: {temp_video_path}")
+        
+        # Step 2: Process video locally (existing pipeline)
+        processing_status[video_id] = {
+            "status": "processing",
+            "message": "Processing started",
+            "start_time": datetime.now().isoformat()
+        }
+        
+        def process_and_upload_task():
+            try:
+                logger.info(f"Starting processing for Supabase video {video_id}")
+                
+                # Process video with MediaPipe
+                output_file_path = OUTPUT_DIR / f"{video_id}_output.mp4"
+                success, actual_output_path = processor.process_video(str(temp_video_path), str(output_file_path))
+                
+                # Step 3: Upload processed video back to Supabase
+                processed_video_path = Path(actual_output_path) if success else OUTPUT_DIR / f"{video_id}_output.mp4"
+                
+                if success and processed_video_path.exists():
+                    # TODO: Upload processed video to Supabase bucket
+                    # For now, we'll use the backend streaming URL
+                    processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                    
+                    # Update session with processed video URL (postvidurl)
+                    if session_id:
+                        try:
+                            import requests
+                            session_update = requests.put(
+                                f"http://localhost:3000/api/sessions/{session_id}",
+                                json={"postvidurl": processed_video_url},
+                                headers={"Content-Type": "application/json"}
+                            )
+                            if session_update.status_code == 200:
+                                logger.info(f"Updated session {session_id} with processed video URL")
+                            else:
+                                logger.warn(f"Failed to update session {session_id}: {session_update.text}")
+                        except Exception as e:
+                            logger.warn(f"Error updating session with processed video URL: {e}")
+                else:
+                    processed_video_url = None
+                    logger.warn("Processed video file not found")
+                
+                # Update status with URLs
+                processing_status[video_id] = {
+                    "status": "completed",
+                    "message": "Processing completed successfully",
+                    "original_url": video_url,
+                    "processed_video_url": processed_video_url,
+                    "output_path": str(actual_output_path) if success else None,
+                    "end_time": datetime.now().isoformat()
+                }
+                
+                logger.info(f"Processing completed for Supabase video {video_id}")
+                
+            except Exception as e:
+                logger.error(f"Error processing Supabase video {video_id}: {e}")
+                processing_status[video_id] = {
+                    "status": "error",
+                    "message": f"Processing failed: {str(e)}",
+                    "end_time": datetime.now().isoformat()
+                }
+        
+        # Start processing in background
+        executor.submit(process_and_upload_task)
+        
         return {
             "success": True,
             "video_id": video_id,
             "message": "Supabase video processing started",
-            "storage_path": storage_path
+            "status": "processing"
         }
         
     except Exception as e:
-        logger.error(f"Error processing Supabase video: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process Supabase video: {str(e)}")
+        logger.error(f"Error starting Supabase video processing: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start Supabase video processing: {str(e)}")
 
 @app.post("/api/two-stage-analysis/{video_id}")
 async def perform_two_stage_analysis(video_id: str):
@@ -296,8 +410,7 @@ async def perform_two_stage_analysis(video_id: str):
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "started")
         analysis_package = key_frame_extractor.extract_key_frames(
             str(video_path), 
-            str(key_frames_dir),
-            str(angle_file)
+            str(key_frames_dir)
         )
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "completed")
         
@@ -306,10 +419,8 @@ async def perform_two_stage_analysis(video_id: str):
             raise HTTPException(status_code=500, detail=f"Key frame extraction failed: {analysis_package['error']}")
         
         # Perform two-stage analysis
-        analysis_result = two_stage_claude_analyzer.perform_two_stage_analysis(
-            str(video_path),
-            analysis_package,
-            str(OUTPUT_DIR)
+        analysis_result = two_stage_claude_analyzer.analyze_video_comprehensive(
+            analysis_package
         )
         
         # Save analysis result
@@ -362,6 +473,34 @@ async def get_two_stage_analysis(video_id: str):
     except Exception as e:
         logger.error(f"Error getting two-stage analysis: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get two-stage analysis: {str(e)}")
+
+@app.get("/api/processed-video/{video_id}")
+async def get_processed_video_data(video_id: str):
+    """Return processed video as base64 data for frontend display"""
+    try:
+        processed_path = OUTPUT_DIR / f"{video_id}_output.mp4"
+        
+        if not processed_path.exists():
+            raise HTTPException(status_code=404, detail="Processed video not found")
+        
+        # Read video file and encode as base64
+        with open(processed_path, "rb") as video_file:
+            video_data = video_file.read()
+            
+        import base64
+        video_base64 = base64.b64encode(video_data).decode('utf-8')
+        
+        return {
+            "success": True,
+            "video_id": video_id,
+            "video_data": video_base64,
+            "video_size": len(video_data),
+            "mime_type": "video/mp4"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting processed video data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get processed video: {str(e)}")
 
 # Logging endpoints
 @app.get("/api/logs")

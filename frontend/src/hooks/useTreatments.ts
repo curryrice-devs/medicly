@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
 export interface Treatment {
   id: number;
@@ -14,7 +13,7 @@ export function useTreatments() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('📋 Fetching treatments...');
+    console.log('📋 Fetching treatments via API...');
     fetchTreatments();
   }, []);
 
@@ -23,49 +22,38 @@ export function useTreatments() {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Starting treatments fetch...');
+      console.log('🔄 Starting treatments fetch via API...');
       
-      // Add timeout to prevent infinite loading
-      const fetchPromise = supabase
-        .from('treatments')
-        .select('*')
-        .order('name', { ascending: true });
+      const response = await fetch('/api/treatments');
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Fetch timeout - treatments table may not exist')), 10000)
-      );
-
-      const { data, error: fetchError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as any;
-
-      console.log('📊 Treatments fetch result:', { data, error: fetchError });
-
-      if (fetchError) {
-        console.error('❌ Error fetching treatments:', fetchError);
-        
-        // Check if it's a table doesn't exist error
-        if (fetchError.message?.includes('relation "treatments" does not exist') || 
-            fetchError.message?.includes('table') || 
-            fetchError.code === 'PGRST116') {
-          setError('Treatments table not set up. Please run the SQL setup script.');
-        } else {
-          setError(fetchError.message);
-        }
-        setTreatments([]);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch treatments');
       }
 
-      console.log('✅ Fetched treatments:', data);
-      setTreatments(data || []);
+      const result = await response.json();
+      
+      console.log('📊 Treatments fetch result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'API request failed');
+      }
+
+      console.log('✅ Fetched treatments via API:', result.data);
+      setTreatments(result.data || []);
     } catch (err) {
       console.error('❌ Error in fetchTreatments:', err);
       
-      if (err instanceof Error && err.message.includes('timeout')) {
-        setError('Database connection timeout. Tables may not exist. Please run the SQL setup script.');
+      if (err instanceof Error) {
+        if (err.message.includes('timeout') || err.message.includes('fetch')) {
+          setError('Network error. Please check your connection and try again.');
+        } else if (err.message.includes('table') || err.message.includes('relation')) {
+          setError('Treatments table not set up. Please run the SQL setup script.');
+        } else {
+          setError(err.message);
+        }
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch treatments');
+        setError('Failed to fetch treatments');
       }
       setTreatments([]);
     } finally {

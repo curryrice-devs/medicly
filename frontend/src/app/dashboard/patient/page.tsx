@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
 import { usePatientSessions } from '@/hooks/usePatientSessions'
 import { useTreatments } from '@/hooks/useTreatments'
+import { CreateSessionModal } from '@/components/CreateSessionModal'
 
 interface ActiveSession {
   id: string
@@ -37,13 +38,14 @@ export default function PatientDashboard() {
   const { user } = useAuth()
   const { sessions, loading: sessionsLoading, error: sessionsError, createSession } = usePatientSessions()
   const { treatments, loading: treatmentsLoading, error: treatmentsError } = useTreatments()
-  const [creatingSession, setCreatingSession] = useState(false)
-  const [selectedTreatment, setSelectedTreatment] = useState<number | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'active' | 'rejective' | 'completed'>('all')
 
   // Debug logging
   React.useEffect(() => {
     console.log('🏥 Patient Dashboard State:', {
       user: user?.email,
+      userId: user?.id,
       sessionsLoading,
       sessionsError,
       sessionsCount: sessions?.length,
@@ -53,26 +55,44 @@ export default function PatientDashboard() {
     });
   }, [user, sessionsLoading, sessionsError, sessions, treatmentsLoading, treatmentsError, treatments]);
 
-  const handleCreateSession = async () => {
-    if (!selectedTreatment) return
-    
-    try {
-      setCreatingSession(true)
-      await createSession(selectedTreatment, {
-        status: 'pending',
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week from now
-      })
-      setSelectedTreatment(null)
-    } catch (error) {
-      console.error('Failed to create session:', error)
-    } finally {
-      setCreatingSession(false)
-    }
+  // If user is not loaded yet, show loading
+  if (!user) {
+    return (
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: 'hsl(var(--background))',
+        minHeight: '100vh',
+        width: '100%'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 className="animate-spin" style={{ width: '48px', height: '48px', marginBottom: '16px' }} />
+          <p>Loading user information...</p>
+        </div>
+      </div>
+    )
   }
 
-  // Group sessions by status
-  const activeSessions = sessions.filter(s => s.status === 'in_progress' || s.status === 'pending')
-  const completedSessions = sessions.filter(s => s.status === 'completed' || s.status === 'reviewed')
+  const handleCreateSession = async (sessionData: any) => {
+    await createSession(sessionData.treatment_id, sessionData)
+  }
+
+  // Filter sessions by status
+  const filteredSessions = sessions.filter(session => {
+    if (statusFilter === 'all') return true
+    return session.status === statusFilter
+  })
+
+  // Group sessions by status for stats
+  const sessionStats = {
+    all: sessions.length,
+    pending: sessions.filter(s => s.status === 'pending').length,
+    active: sessions.filter(s => s.status === 'active').length,
+    rejective: sessions.filter(s => s.status === 'rejective').length,
+    completed: sessions.filter(s => s.status === 'completed').length
+  }
 
   // Remove old hardcoded upcoming tasks
   const upcomingTasks: any[] = []
@@ -84,7 +104,9 @@ export default function PatientDashboard() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        backgroundColor: 'hsl(var(--background))'
+        backgroundColor: 'hsl(var(--background))',
+        minHeight: '100vh',
+        width: '100%'
       }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 className="animate-spin" style={{ width: '48px', height: '48px', marginBottom: '16px' }} />
@@ -104,7 +126,10 @@ export default function PatientDashboard() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        backgroundColor: 'hsl(var(--background))'
+        backgroundColor: 'hsl(var(--background))',
+        minHeight: '100vh',
+        width: '100%',
+        padding: '20px'
       }}>
         <div style={{ textAlign: 'center', maxWidth: '500px', padding: '20px' }}>
           <AlertCircle style={{ width: '48px', height: '48px', color: 'red', margin: '0 auto 16px' }} />
@@ -155,28 +180,75 @@ export default function PatientDashboard() {
             justifyContent: 'space-between',
             marginBottom: '16px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity style={{ width: '20px', height: '20px', color: '#0d4a2b' }} />
-              <h2 style={{ 
-                fontSize: '1.25rem', 
-                fontWeight: 'bold', 
-                color: 'hsl(var(--foreground))' 
-              }}>
-                Active Sessions
-              </h2>
-            </div>
-            <Button size="sm" variant="outline" style={{ gap: '6px' }}>
+            <h2 style={{ 
+              fontSize: '1.25rem', 
+              fontWeight: 'bold', 
+              color: 'hsl(var(--foreground))',
+              margin: 0
+            }}>
+              Exercise Sessions
+            </h2>
+            <Button size="sm" variant="outline" style={{ gap: '6px' }} onClick={() => setIsModalOpen(true)}>
               <Plus style={{ width: '14px', height: '14px' }} />
               New Session
             </Button>
           </div>
-          
+
+          {/* Status Filter */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            marginBottom: '16px',
+            flexWrap: 'wrap'
+          }}>
+            {[
+              { key: 'all', label: 'All Sessions', count: sessionStats.all },
+              { key: 'pending', label: 'Pending', count: sessionStats.pending },
+              { key: 'active', label: 'Active', count: sessionStats.active },
+              { key: 'rejective', label: 'Rejective', count: sessionStats.rejective },
+              { key: 'completed', label: 'Completed', count: sessionStats.completed }
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setStatusFilter(filter.key as any)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: statusFilter === filter.key ? '#0d4a2b' : 'hsl(var(--background))',
+                  color: statusFilter === filter.key ? 'white' : 'hsl(var(--foreground))',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {filter.label}
+                {filter.count > 0 && (
+                  <span style={{
+                    backgroundColor: statusFilter === filter.key ? 'rgba(255,255,255,0.2)' : 'hsl(var(--accent))',
+                    color: statusFilter === filter.key ? 'white' : 'hsl(var(--muted-foreground))',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '0.65rem',
+                    fontWeight: '600'
+                  }}>
+                    {filter.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
             gap: '16px' 
           }}>
-            {activeSessions.length === 0 ? (
+            {filteredSessions.length === 0 ? (
               <div style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',
@@ -196,18 +268,24 @@ export default function PatientDashboard() {
                   color: 'hsl(var(--foreground))',
                   marginBottom: '8px'
                 }}>
-                  No Active Sessions
+                  {statusFilter === 'all' 
+                    ? 'No Sessions Yet' 
+                    : `No ${statusFilter.replace('_', ' ')} Sessions`
+                  }
                 </h4>
                 <p style={{
                   fontSize: '0.875rem',
                   color: 'hsl(var(--muted-foreground))',
                   marginBottom: '20px'
                 }}>
-                  Start a new exercise session below to begin your recovery journey
+                  {statusFilter === 'all' 
+                    ? 'Start a new exercise session below to begin your recovery journey'
+                    : `No sessions with ${statusFilter.replace('_', ' ')} status found. Try a different filter or create a new session.`
+                  }
                 </p>
               </div>
             ) : (
-              activeSessions.map((session) => (
+              filteredSessions.map((session) => (
                 <Link 
                   key={session.id} 
                   href={`/dashboard/patient/session/${session.id}/${session.treatment?.name?.toLowerCase().replace(/\s+/g, '_') || 'exercise'}`}
@@ -347,165 +425,53 @@ export default function PatientDashboard() {
           </div>
         </section>
 
-        {/* Upcoming Tasks */}
-        <section>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar style={{ width: '20px', height: '20px', color: '#0d4a2b' }} />
-              <h2 style={{ 
-                fontSize: '1.25rem', 
-                fontWeight: 'bold', 
-                color: 'hsl(var(--foreground))' 
-              }}>
-                Upcoming Tasks
-              </h2>
-            </div>
-            <Button size="sm" variant="outline" style={{ gap: '6px' }}>
-              <Plus style={{ width: '14px', height: '14px' }} />
-              Add Task
-            </Button>
-          </div>
-
-          <div style={{ 
-            backgroundColor: 'hsl(var(--card))',
-            borderRadius: '8px',
-            padding: '12px',
-            boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.1)',
-            border: '1px solid hsl(var(--border))'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {upcomingTasks.map((task) => (
-                <div key={task.id} style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px', 
-                  padding: '12px', 
-                  borderRadius: '6px',
-                  backgroundColor: 'hsl(var(--accent) / 0.4)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid hsl(var(--border))'
-                }}
-                className="hover:bg-accent/60 hover:shadow-sm group"
-                >
-                  <div style={{ flexShrink: 0 }}>
-                    <Calendar style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-                  </div>
-                  
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '0.875rem', fontWeight: '600', color: 'hsl(var(--foreground))', marginBottom: '4px' }}>
-                      {task.title}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                        Due: {task.dueDate}
-                      </p>
-                      {task.session && (
-                        <>
-                          <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>•</span>
-                          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                            {task.session}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        
 
         {/* Create New Session Section */}
-        {!treatmentsLoading && treatments.length > 0 && (
+        {!treatmentsLoading && treatments.length > 0 && sessions.length === 0 && (
           <div style={{ 
             backgroundColor: 'hsl(var(--card))',
             borderRadius: '12px',
             padding: '20px',
-            marginTop: '24px'
+            marginTop: '24px',
+            textAlign: 'center'
           }}>
             <h3 style={{ 
               fontSize: '1.125rem', 
               fontWeight: 'bold', 
               color: 'hsl(var(--foreground))',
-              marginBottom: '16px'
+              marginBottom: '12px'
             }}>
-              Start New Exercise Session
+              Start Your First Exercise Session
             </h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginBottom: '20px'
+            }}>
+              Create a personalized exercise session to begin your recovery journey
+            </p>
             
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.875rem', 
-                  color: 'hsl(var(--muted-foreground))',
-                  marginBottom: '6px'
-                }}>
-                  Select Exercise
-                </label>
-                <select
-                  value={selectedTreatment || ''}
-                  onChange={(e) => setSelectedTreatment(Number(e.target.value) || null)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid hsl(var(--border))',
-                    backgroundColor: 'hsl(var(--background))',
-                    color: 'hsl(var(--foreground))',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  <option value="">Choose an exercise...</option>
-                  {treatments.map(treatment => (
-                    <option key={treatment.id} value={treatment.id}>
-                      {treatment.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <Button
-                onClick={handleCreateSession}
-                disabled={!selectedTreatment || creatingSession}
-                style={{ 
-                  backgroundColor: '#0d4a2b',
-                  gap: '8px'
-                }}
-              >
-                {creatingSession ? (
-                  <>
-                    <Loader2 className="animate-spin" style={{ width: '16px', height: '16px' }} />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus style={{ width: '16px', height: '16px' }} />
-                    Create Session
-                  </>
-                )}
-              </Button>
-            </div>
-            
-            {selectedTreatment && treatments.find(t => t.id === selectedTreatment)?.description && (
-              <p style={{ 
-                fontSize: '0.875rem', 
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '12px',
-                padding: '12px',
-                backgroundColor: 'hsl(var(--accent))',
-                borderRadius: '6px'
-              }}>
-                {treatments.find(t => t.id === selectedTreatment)?.description}
-              </p>
-            )}
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              style={{ 
+                backgroundColor: '#0d4a2b',
+                gap: '8px'
+              }}
+            >
+              <Plus style={{ width: '16px', height: '16px' }} />
+              Create Your First Session
+            </Button>
           </div>
         )}
+
+        {/* Create Session Modal */}
+        <CreateSessionModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreateSession={handleCreateSession}
+          userId={user.id}
+        />
       </div>
     </div>
   )

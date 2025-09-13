@@ -17,21 +17,30 @@ import Link from 'next/link'
 
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
-import { useSupabaseVideoUpload } from '@/hooks/useSupabaseVideoUpload'
+import { useVideoUpload } from '@/hooks/useVideoUpload'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
 type VideoMode = 'original' | 'processed' | 'overlay'
 
 interface AnalysisResult {
+  analysis_type?: string
+  timestamp?: string
+  stage_1_movement_overview?: string
+  stage_2_health_report?: any
+  analysis_summary?: {
+    movement_identified?: string
+    confidence_level?: number
+    technique_quality?: string
+    overall_health_assessment?: string
+    key_concerns?: string[]
+    main_recommendations?: string[]
+    analysis_quality?: string
+  }
   movement_identified?: string
   confidence?: number
-  stage_1_movement_overview?: string
-  stage_2_detailed_report?: any
-  analysis_summary?: {
-    overall_health_assessment?: string
-  }
   message?: string
   key_frames?: any[]
+  error?: string
 }
 
 export default function ExerciseDetailPage() {
@@ -49,50 +58,42 @@ export default function ExerciseDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [videoMode, setVideoMode] = useState<VideoMode>('original')
   const [keyFrames, setKeyFrames] = useState<any[]>([])
+  const [patientNotes, setPatientNotes] = useState<string>('')
+  const [isSubmittingNotes, setIsSubmittingNotes] = useState(false)
+  const [processedVideoData, setProcessedVideoData] = useState<string | null>(null)
+  const [uploadResult, setUploadResult] = useState<any>(null)
 
   const { user } = useAuth()
-  
-  // Create a ref to hold the upload promise resolver
-  const uploadResolverRef = useRef<((videoId: string) => void) | null>(null)
-  
-  // Debug: Check environment variables
-  React.useEffect(() => {
-    console.log('🔧 Environment check:', {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing',
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
-      user: user ? `✅ ${user.email}` : '❌ Not logged in'
-    })
-  }, [user])
-  
+
   // Use Supabase video upload hook
   const { 
     isUploading,
     uploadProgress,
     uploadError,
     uploadedVideo,
-    isProcessing,
-    processingStatus,
-    processedVideoUrl,
     uploadVideo,
-    startProcessing,
     reset: resetUpload
-  } = useSupabaseVideoUpload({
+  } = useVideoUpload({
+    userId: user?.id || '',
     sessionId,
-    userId: user?.id, // Pass the user ID from auth context
-    onUploadComplete: (videoId) => {
-      console.log('✅ Video uploaded successfully (callback):', videoId)
-      setVideoId(videoId)
-      // Resolve the upload promise if it exists
-      if (uploadResolverRef.current) {
-        uploadResolverRef.current(videoId)
-        uploadResolverRef.current = null
-      }
+    onUploadComplete: (result) => {
+      console.log('✅ Video uploaded to Supabase:', result)
+      setVideoId(result.id)
+      setUploadResult(result)
     },
     onUploadError: (error) => {
-      console.error('❌ Upload failed:', error)
+      console.error('❌ Supabase upload failed:', error)
       setError(error)
     }
   })
+
+  // Auto-switch to pose overlay when analysis completes
+  React.useEffect(() => {
+    if (currentStep === 'complete' && analysisResult) {
+      console.log('🎯 Analysis complete, switching to processed video view')
+      setVideoMode('processed')
+    }
+  }, [currentStep, analysisResult])
 
   const stepLabels = {
     idle: 'Ready to analyze',
@@ -142,6 +143,11 @@ export default function ExerciseDetailPage() {
       return
     }
 
+    if (!user?.id) {
+      setError('User not authenticated')
+      return
+    }
+
     setError(null)
     setAnalysisResult(null)
     setKeyFrames([])
@@ -149,112 +155,92 @@ export default function ExerciseDetailPage() {
     try {
       console.log('🎬 Starting analysis...')
       console.log('📁 Selected file:', selectedFile.name, selectedFile.size, selectedFile.type)
-      console.log('🔧 Environment check:', {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing',
-        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
-        apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
-        user: user ? `✅ ${user.email}` : '❌ Not logged in'
-      })
       
-            // Step 1: Try Supabase upload first, fallback to direct upload
+      // Step 0: Check backend health
+      try {
+        console.log('🏥 Checking backend health...')
+        const healthResponse = await fetch('http://localhost:8001/api/health')
+        if (!healthResponse.ok) {
+          throw new Error('Backend is not responding')
+        }
+        const health = await healthResponse.json()
+        console.log('✅ Backend health check:', health)
+      } catch (healthError) {
+        throw new Error('Backend is not running. Please start the backend server.')
+      }
+      
+      // Step 1: Upload video to Supabase
       setCurrentStep('uploading')
       setStepProgress(0)
       
-      let currentVideoId: string | null = null
+      let currentVideoId: string
       
       try {
-        console.log('⬆️ Attempting Supabase upload...')
-        console.log('📊 Upload hook state before:', { isUploading, uploadProgress, uploadError, uploadedVideo })
+        console.log('⬆️ Starting video upload to Supabase...')
+        const result = await uploadVideo(selectedFile)
+        currentVideoId = result.id
+        setVideoId(currentVideoId)
+        setUploadResult(result)
+        console.log('✅ Upload completed with video ID:', currentVideoId)
         
-        // Create a promise that will resolve when upload completes
-        const uploadPromise = new Promise<string>((resolve, reject) => {
-          uploadResolverRef.current = resolve
-          
-          // Set a timeout in case callback never fires
-          setTimeout(() => {
-            if (uploadResolverRef.current === resolve) {
-              uploadResolverRef.current = null
-              reject(new Error('Upload callback timeout'))
-            }
-          }, 30000) // 30 second timeout
-        })
+        // Wait for uploadedVideo state to be updated (optional, for additional data)
+        let attempts = 0
+        while (!uploadedVideo && attempts < 5) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          attempts++
+          console.log(`⏳ Waiting for uploadedVideo state (${attempts}/5)`)
+        }
         
-        // Start the upload
-        uploadVideo(selectedFile)
-        
-        // Wait for the upload to complete and get the video ID
-        let currentVideoId: string
+        // Save original video URL to session (previdurl)
         try {
-          currentVideoId = await uploadPromise
-          console.log('✅ Upload completed with video ID:', currentVideoId)
-        } catch (timeoutError) {
-          // If timeout, check if we have a video ID anyway
-          if (videoId) {
-            currentVideoId = videoId
-            console.log('⚠️ Upload callback timed out but found video ID:', currentVideoId)
-          } else if (uploadedVideo?.id) {
-            currentVideoId = uploadedVideo.id
-            console.log('⚠️ Upload callback timed out but found uploadedVideo ID:', currentVideoId)
+          console.log('💾 Saving original video URL to session...')
+          const updateResponse = await fetch(`/api/sessions/${sessionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              previdurl: result.url || result.signedUrl,
+              status: 'active' // Use correct enum value
+            })
+          })
+          
+          if (updateResponse.ok) {
+            const updatedSession = await updateResponse.json()
+            console.log('✅ Original video URL linked to session:', updatedSession.data)
           } else {
-            throw new Error('Upload completed but no video ID was received')
+            const errorData = await updateResponse.json()
+            console.warn('⚠️ Failed to link original video URL to session:', errorData.error)
           }
+        } catch (dbError) {
+          console.warn('⚠️ Database error linking original video to session:', dbError)
+          // Continue anyway - this is just for persistence
         }
         
-        console.log('🎯 Using video ID for processing:', currentVideoId)
-        
-        // Wait a bit for the storage URL to be available
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        console.log('ℹ️ Video uploaded to Supabase storage, proceeding with backend processing')
-        
-      } catch (supabaseError) {
-        console.error('❌ Supabase upload failed:', supabaseError)
-        console.log('📊 Final upload state:', { isUploading, uploadProgress, uploadError, uploadedVideo })
-       
-        // Fallback to direct backend upload
-        console.log('🔄 Falling back to direct backend upload...')
-        const formData = new FormData()
-        formData.append('file', selectedFile)
-
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          setStepProgress(prev => Math.min(prev + 15, 90))
-        }, 300)
-
-        console.log('📡 Calling backend API:', 'http://localhost:8001/api/upload')
-        const uploadResponse = await fetch('http://localhost:8001/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        
-        clearInterval(progressInterval)
-        setStepProgress(100)
-        
-        console.log('📡 Backend response status:', uploadResponse.status, uploadResponse.statusText)
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text()
-          console.error('❌ Upload response error:', errorText)
-          throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`)
-        }
-
-        const uploadResult = await uploadResponse.json()
-        currentVideoId = uploadResult.video_id
-        setVideoId(currentVideoId || '')
-        console.log('✅ Direct upload successful:', currentVideoId)
+      } catch (uploadError) {
+        console.error('❌ Video upload failed:', uploadError)
+        throw new Error(`Upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`)
       }
       
       if (!currentVideoId) {
-        throw new Error('Upload failed - no video ID received')
+        throw new Error('Upload completed but no video ID received')
       }
 
-      // Step 2: Process poses
+      // Step 2: Process poses using backend (download from Supabase, process, upload back)
       setCurrentStep('processing_pose')
       setStepProgress(0)
       
       console.log('🔄 Starting pose processing for video:', currentVideoId)
-      const processResponse = await fetch(`http://localhost:8001/api/process/${currentVideoId}`, {
+      console.log('📋 Using upload result:', uploadResult)
+      
+      // Use the Supabase processing endpoint that will upload processed video back to bucket
+      const processResponse = await fetch(`http://localhost:8001/api/process-supabase-video`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          video_url: uploadResult?.url || uploadResult?.signedUrl,
+          storage_path: uploadResult?.storagePath,
+          session_id: sessionId // Pass session ID for database updates
+        })
       })
 
       if (!processResponse.ok) {
@@ -269,28 +255,31 @@ export default function ExerciseDetailPage() {
       // Wait for processing to complete by polling status
       console.log('⏳ Waiting for pose processing to complete...')
       let processingComplete = false
-      let attempts = 0
-      const maxAttempts = 30 // 30 seconds max
+      let pollAttempts = 0
+      let processedVideoUrl = null
+      const maxPollAttempts = 30 // 30 seconds max
 
-      while (!processingComplete && attempts < maxAttempts) {
+      while (!processingComplete && pollAttempts < maxPollAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
-        attempts++
+        pollAttempts++
         
         try {
           const statusResponse = await fetch(`http://localhost:8001/api/status/${currentVideoId}`)
           if (statusResponse.ok) {
             const status = await statusResponse.json()
-            console.log(`📊 Processing status (${attempts}/30):`, status.status, status.message)
+            console.log(`📊 Processing status (${pollAttempts}/30):`, status.status, status.message)
             
             if (status.status === 'completed') {
               processingComplete = true
+              processedVideoUrl = status.processed_video_url // URL from Supabase bucket
               console.log('✅ Pose processing completed!')
+              console.log('🎬 Processed video URL:', processedVideoUrl)
             } else if (status.status === 'error' || status.status === 'failed') {
               throw new Error(`Processing failed: ${status.message}`)
             }
             
             // Update progress based on status
-            setStepProgress(Math.min((attempts / maxAttempts) * 100, 90))
+            setStepProgress(Math.min((pollAttempts / maxPollAttempts) * 100, 90))
           }
         } catch (statusError) {
           console.warn('⚠️ Status check failed:', statusError)
@@ -299,6 +288,30 @@ export default function ExerciseDetailPage() {
 
       if (!processingComplete) {
         throw new Error('Pose processing timed out after 30 seconds')
+      }
+
+      // Save processed video URL to session (postvidurl)
+      if (processedVideoUrl) {
+        try {
+          console.log('💾 Saving processed video URL to session...')
+          const updateResponse = await fetch(`/api/sessions/${sessionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              postvidurl: processedVideoUrl
+            })
+          })
+          
+          if (updateResponse.ok) {
+            const updatedSession = await updateResponse.json()
+            console.log('✅ Processed video URL linked to session:', updatedSession.data)
+          } else {
+            const errorData = await updateResponse.json()
+            console.warn('⚠️ Failed to link processed video URL to session:', errorData.error)
+          }
+        } catch (dbError) {
+          console.warn('⚠️ Database error linking processed video to session:', dbError)
+        }
       }
 
       setStepProgress(100)
@@ -325,10 +338,35 @@ export default function ExerciseDetailPage() {
       }
 
       const result = await analysisResponse.json()
+      console.log('🎉 Claude analysis result:', result)
       setAnalysisResult(result)
       
       if (result.key_frames) {
         setKeyFrames(result.key_frames)
+      }
+
+      // Save analysis results to database
+      try {
+        console.log('💾 Saving analysis results to session...')
+        const analysisResponse = await fetch(`/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ai_evaluation: result, // Save as JSONB object, not stringified
+            status: 'completed'
+          })
+        })
+        
+        if (analysisResponse.ok) {
+          const updatedSession = await analysisResponse.json()
+          console.log('✅ Analysis results saved to session:', updatedSession.data)
+        } else {
+          const errorData = await analysisResponse.json()
+          console.warn('⚠️ Failed to save analysis results:', errorData.error)
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database error saving analysis results:', dbError)
+        // Continue anyway - this is just for persistence
       }
 
       setStepProgress(100)
@@ -352,33 +390,36 @@ export default function ExerciseDetailPage() {
     setAnalysisResult(null)
     setError(null)
     setKeyFrames([])
-    resetUpload() // Reset Supabase upload state
+    setPatientNotes('')
+    setProcessedVideoData(null)
+    setUploadResult(null)
+    resetUpload()
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
   const getVideoUrl = () => {
-    if (!videoId && !uploadedVideo) return null
+    if (!videoId) return null
     
-    const currentVideoId = videoId || uploadedVideo?.id
-    if (!currentVideoId) return null
-    
-    // For original video, use Supabase storage URL if available
-    if (videoMode === 'original' && uploadedVideo?.storageUrl) {
-      console.log('📹 Using Supabase storage URL for video display');
-      return uploadedVideo.storageUrl;
-    }
-    
-    // For processed/overlay videos, use backend API
+    // Use Supabase URLs when available, fallback to backend
     switch (videoMode) {
+      case 'original':
+        // For original video, try to use the upload result URL directly
+        if (uploadResult?.url || uploadResult?.signedUrl) {
+          console.log('📹 Using Supabase URL for original video:', uploadResult.url || uploadResult.signedUrl)
+          return uploadResult.url || uploadResult.signedUrl
+        }
+        // Fallback to backend
+        return `http://localhost:8001/api/video/${videoId}`
       case 'processed':
-        return `http://localhost:8001/api/stream/${currentVideoId}`
-      case 'overlay':
-        return `http://localhost:8001/api/stream/${currentVideoId}?overlay=true`
+        // For processed video, use backend stream (will be updated to Supabase later)
+        return processedVideoData || `http://localhost:8001/api/stream/${videoId}`
       default:
-        // Fallback to backend API if no storage URL
-        return `http://localhost:8001/api/video/${currentVideoId}`
+        if (uploadResult?.url || uploadResult?.signedUrl) {
+          return uploadResult.url || uploadResult.signedUrl
+        }
+        return `http://localhost:8001/api/video/${videoId}`
     }
   }
 
@@ -401,23 +442,23 @@ export default function ExerciseDetailPage() {
       flex: 1,
       backgroundColor: 'hsl(var(--background))'
     }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px 12px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '8px' }}>
         
         {/* Header with Back Navigation */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center',
           gap: '12px',
-          marginBottom: '24px',
-          padding: '16px 0',
+          marginBottom: '12px',
+          padding: '8px 0',
           borderBottom: '1px solid hsl(var(--border))'
         }}>
           <div>
             <h1 style={{ 
-              fontSize: '1.75rem', 
+              fontSize: '1.25rem', 
               fontWeight: 'bold', 
               color: 'hsl(var(--foreground))',
-              marginBottom: '4px'
+              marginBottom: '0'
             }}>
               {exerciseDisplayName} Analysis
             </h1>
@@ -426,156 +467,145 @@ export default function ExerciseDetailPage() {
 
         {/* Main Analysis Interface */}
         <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '2fr 1fr', 
-          gap: '32px',
-          minHeight: '70vh'
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '12px',
+          minHeight: '40vh'
         }}>
           
-          {/* Left Side - Video Interface */}
-          <div>
-            {/* Upload Section */}
-            {!videoId && (
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
-                borderRadius: '12px',
-                padding: '24px',
-                border: '1px solid hsl(var(--border))',
-                marginBottom: '24px'
+          {/* Upload Section */}
+          {!videoId && (
+            <div style={{ 
+              backgroundColor: 'hsl(var(--card))',
+              borderRadius: '6px',
+              padding: '12px',
+              border: '1px solid hsl(var(--border))'
+            }}>
+              <h3 style={{ 
+                fontSize: '0.9rem', 
+                fontWeight: '600', 
+                color: 'hsl(var(--foreground))',
+                marginBottom: '8px'
               }}>
-                <h3 style={{ 
-                  fontSize: '1.125rem', 
-                  fontWeight: '600', 
-                  color: 'hsl(var(--foreground))',
-                  marginBottom: '16px'
-                }}>
-                  Upload Your Exercise Video
-                </h3>
+                Upload Your Exercise Video
+              </h3>
+              
+              <div
+                style={{
+                  border: selectedFile 
+                    ? '2px dashed #0d4a2b' 
+                    : '2px dashed hsl(var(--border))',
+                  backgroundColor: selectedFile 
+                    ? 'rgba(13, 74, 43, 0.05)' 
+                    : 'transparent',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
                 
-                <div
-                  style={{
-                    border: selectedFile 
-                      ? '2px dashed #0d4a2b' 
-                      : '2px dashed hsl(var(--border))',
-                    backgroundColor: selectedFile 
-                      ? 'rgba(13, 74, 43, 0.05)' 
-                      : 'transparent',
-                    borderRadius: '12px',
-                    padding: '32px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  
-                  {selectedFile ? (
-                    <div>
-                      <CheckCircle2 style={{ width: '48px', height: '48px', color: '#0d4a2b', margin: '0 auto 16px' }} />
-                      <h4 style={{ 
-                        fontSize: '1.125rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '8px'
-                      }}>
-                        {selectedFile.name}
-                      </h4>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '16px' }}>
-                        {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for analysis
-                      </p>
-                      <Button 
-                        onClick={startAnalysis}
-                        disabled={isUploading || isProcessing}
-                        style={{ 
-                          backgroundColor: '#0d4a2b',
-                          gap: '8px'
-                        }}
-                      >
-                        <Play style={{ width: '16px', height: '16px' }} />
-                        Start AI Analysis
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload style={{ width: '48px', height: '48px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 16px' }} />
-                      <h4 style={{ 
-                        fontSize: '1.125rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '8px'
-                      }}>
-                        Drop your {exerciseDisplayName.toLowerCase()} video here
-                      </h4>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                        or click to browse • MP4, AVI, MOV supported • Max 100MB
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Video Display */}
-            {videoId && (
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
-                borderRadius: '12px',
-                padding: '20px',
-                border: '1px solid hsl(var(--border))'
-              }}>
-                {/* Video Mode Toggle */}
-                <div style={{ 
-                  display: 'flex',
-                  gap: '4px',
-                  backgroundColor: 'hsl(var(--accent))',
-                  borderRadius: '8px',
-                  padding: '4px',
-                  marginBottom: '16px'
-                }}>
-                  {[
-                    { key: 'original', label: 'Original' },
-                    { key: 'processed', label: 'With Poses' },
-                    { key: 'overlay', label: 'Overlay' }
-                  ].map((mode) => (
-                    <button
-                      key={mode.key}
-                      onClick={() => setVideoMode(mode.key as VideoMode)}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        backgroundColor: videoMode === mode.key ? '#0d4a2b' : 'transparent',
-                        color: videoMode === mode.key ? 'white' : 'hsl(var(--muted-foreground))',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
+                {selectedFile ? (
+                  <div>
+                    <CheckCircle2 style={{ width: '48px', height: '48px', color: '#0d4a2b', margin: '0 auto 16px' }} />
+                    <h4 style={{ 
+                      fontSize: '1.125rem', 
+                      fontWeight: '600', 
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '8px'
+                    }}>
+                      {selectedFile.name}
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '16px' }}>
+                      {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for analysis
+                    </p>
+                    <Button 
+                      onClick={(e) => {
+                        e.stopPropagation() // Prevent file picker from opening
+                        startAnalysis()
+                      }}
+                      disabled={isUploading}
+                      style={{ 
+                        backgroundColor: '#0d4a2b',
+                        gap: '8px'
                       }}
                     >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
+                      <Play style={{ width: '16px', height: '16px' }} />
+                      Start AI Analysis
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload style={{ width: '48px', height: '48px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 16px' }} />
+                    <h4 style={{ 
+                      fontSize: '1.125rem', 
+                      fontWeight: '600', 
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '8px'
+                    }}>
+                      Drop your {exerciseDisplayName.toLowerCase()} video here
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
+                      or click to browse • MP4, AVI, MOV supported • Max 100MB
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                {/* Video Player */}
-                <div style={{ 
-                  backgroundColor: '#000',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  aspectRatio: '16/9'
-                }}>
-                  {getVideoUrl() ? (
+          {/* Video Display - Ultra Compact */}
+          {videoId && (
+            <div style={{ 
+              backgroundColor: 'hsl(var(--card))',
+              borderRadius: '6px',
+              padding: '12px',
+              border: '1px solid hsl(var(--border))'
+            }}>
+              <h3 style={{ 
+                fontSize: '0.9rem', 
+                fontWeight: '600', 
+                color: 'hsl(var(--foreground))',
+                marginBottom: '8px'
+              }}>
+                Video Analysis
+              </h3>
+
+              {/* Side by Side Video Display */}
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px',
+                marginBottom: '8px'
+              }}>
+                
+                {/* Original Video */}
+                <div>
+                  <h4 style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: '600', 
+                    color: 'hsl(var(--foreground))',
+                    marginBottom: '4px'
+                  }}>
+                    Original Video
+                  </h4>
+                  <div style={{ 
+                    backgroundColor: '#000',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    aspectRatio: '4/3'
+                  }}>
                     <video
-                      key={getVideoUrl()} // Force remount when URL changes
-                      src={getVideoUrl()!}
+                      src={`http://localhost:8001/api/video/${videoId}`}
                       controls
                       style={{ 
                         width: '100%', 
@@ -583,333 +613,380 @@ export default function ExerciseDetailPage() {
                         objectFit: 'contain'
                       }}
                       onLoadedData={() => {
-                        console.log('✅ Video loaded successfully');
+                        console.log('✅ Original video loaded');
                       }}
                       onError={(e) => {
-                        console.error('❌ Video failed to load:', e);
-                        console.log('🔗 Attempted URL:', getVideoUrl());
+                        console.error('❌ Original video failed to load:', e);
                       }}
                     />
-                  ) : (
-                    <div style={{ 
-                      width: '100%', 
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#6b7280'
+                  </div>
+                </div>
+
+                {/* Pose Analysis Video */}
+                <div>
+                  <h4 style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: '600', 
+                    color: 'hsl(var(--foreground))',
+                    marginBottom: '4px'
+                  }}>
+                    Pose Analysis
+                  </h4>
+                  <div style={{ 
+                    backgroundColor: '#000',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    aspectRatio: '4/3'
+                  }}>
+                    {currentStep === 'complete' && processedVideoData ? (
+                      <video
+                        src={processedVideoData}
+                        controls
+                        style={{ 
+                          width: '100%', 
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                        onLoadedData={() => {
+                          console.log('✅ Processed video loaded');
+                        }}
+                        onError={(e) => {
+                          console.error('❌ Processed video failed to load:', e);
+                        }}
+                      />
+                    ) : currentStep === 'complete' ? (
+                      <video
+                        src={`http://localhost:8001/api/stream/${videoId}`}
+                        controls
+                        style={{ 
+                          width: '100%', 
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                        onLoadedData={() => {
+                          console.log('✅ Streamed processed video loaded');
+                        }}
+                        onError={(e) => {
+                          console.error('❌ Streamed processed video failed to load:', e);
+                        }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#6b7280',
+                        backgroundColor: '#f3f4f6'
+                      }}>
+                        <div style={{ textAlign: 'center' }}>
+                          {currentStep === 'idle' ? (
+                            <p style={{ fontSize: '0.7rem', margin: 0 }}>Pose analysis will appear here</p>
+                          ) : (
+                            <>
+                              <Loader2 style={{ width: '14px', height: '14px', margin: '0 auto 3px' }} className="animate-spin" />
+                              <p style={{ fontSize: '0.7rem', margin: 0 }}>Generating...</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '6px'
+              }}>
+                <Button 
+                  onClick={resetAnalysis}
+                  variant="outline"
+                  size="sm"
+                  style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
+                >
+                  Upload New Video
+                </Button>
+                {currentStep === 'complete' && videoId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
+                    asChild
+                  >
+                    <a href={`http://localhost:8001/api/download/${videoId}`} download>
+                      <Download style={{ width: '10px', height: '10px' }} />
+                      Download
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Analysis Progress and Notes Grid */}
+          {videoId && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px'
+            }}>
+              
+              {/* Analysis Progress */}
+              <div style={{ 
+                backgroundColor: 'hsl(var(--card))',
+                borderRadius: '6px',
+                padding: '12px',
+                border: '1px solid hsl(var(--border))'
+              }}>
+                <h3 style={{ 
+                  fontSize: '0.9rem', 
+                  fontWeight: '600', 
+                  color: 'hsl(var(--foreground))',
+                  marginBottom: '8px'
+                }}>
+                  Analysis Progress
+                </h3>
+
+                {/* Current Step */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    marginBottom: '4px'
+                  }}>
+                    {isUploading ? (
+                      <Loader2 style={{ width: '12px', height: '12px', color: getStepColor(currentStep) }} className="animate-spin" />
+                    ) : currentStep === 'complete' ? (
+                      <CheckCircle2 style={{ width: '12px', height: '12px', color: '#0d4a2b' }} />
+                    ) : currentStep !== 'idle' ? (
+                      <Loader2 style={{ width: '12px', height: '12px', color: getStepColor(currentStep) }} className="animate-spin" />
+                    ) : (
+                      <Activity style={{ width: '12px', height: '12px', color: 'hsl(var(--muted-foreground))' }} />
+                    )}
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      fontWeight: '600',
+                      color: currentStep === 'complete' ? '#0d4a2b' : 'hsl(var(--foreground))'
                     }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <Loader2 style={{ width: '48px', height: '48px', margin: '0 auto 12px' }} className="animate-spin" />
-                        <p>Loading video...</p>
+                      {stepLabels[currentStep]}
+                    </span>
+                  </div>
+
+                  {/* Overall Progress Bar */}
+                  {currentStep !== 'idle' && (
+                    <div style={{ marginBottom: '6px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '2px'
+                      }}>
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                          Overall Progress
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                          {(() => {
+                            const steps = Object.keys(stepLabels);
+                            const currentIndex = steps.indexOf(currentStep);
+                            const totalSteps = steps.length - 1; // Exclude 'idle'
+                            const progressPercent = currentStep === 'complete' ? 100 : Math.round((currentIndex / totalSteps) * 100);
+                            return `${progressPercent}%`;
+                          })()}
+                        </span>
+                      </div>
+                      <div style={{ 
+                        width: '100%', 
+                        backgroundColor: 'hsl(var(--accent))', 
+                        borderRadius: '3px', 
+                        height: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ 
+                          height: '4px',
+                          backgroundColor: currentStep === 'complete' ? '#0d4a2b' : getStepColor(currentStep),
+                          borderRadius: '3px',
+                          width: (() => {
+                            const steps = Object.keys(stepLabels);
+                            const currentIndex = steps.indexOf(currentStep);
+                            const totalSteps = steps.length - 1; // Exclude 'idle'
+                            return currentStep === 'complete' ? '100%' : `${Math.round((currentIndex / totalSteps) * 100)}%`;
+                          })(),
+                          transition: 'width 0.5s ease'
+                        }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Progress Bar (when uploading) */}
+                  {isUploading && (
+                    <div style={{ marginBottom: '6px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '2px'
+                      }}>
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                          Upload Progress
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                          {uploadProgress}%
+                        </span>
+                      </div>
+                      <div style={{ 
+                        width: '100%', 
+                        backgroundColor: 'hsl(var(--accent))', 
+                        borderRadius: '3px', 
+                        height: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ 
+                          height: '4px',
+                          backgroundColor: getStepColor(currentStep),
+                          borderRadius: '3px',
+                          width: `${uploadProgress}%`,
+                          transition: 'width 0.3s ease'
+                        }} />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '12px',
-                  marginTop: '16px'
-                }}>
-                  <Button 
-                    onClick={resetAnalysis}
-                    variant="outline"
-                    style={{ gap: '6px' }}
-                  >
-                    Upload New Video
-                  </Button>
-                  {currentStep === 'complete' && videoId && (
-                    <Button
-                      variant="outline"
-                      style={{ gap: '6px' }}
-                      asChild
-                    >
-                      <a href={`http://localhost:8001/api/download/${videoId}`} download>
-                        <Download style={{ width: '14px', height: '14px' }} />
-                        Download Analysis
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Side - Analysis Progress & Results */}
-          <div>
-            {/* Processing Status */}
-            <div style={{ 
-              backgroundColor: 'hsl(var(--card))',
-              borderRadius: '12px',
-              padding: '20px',
-              border: '1px solid hsl(var(--border))',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ 
-                fontSize: '1.125rem', 
-                fontWeight: '600', 
-                color: 'hsl(var(--foreground))',
-                marginBottom: '16px'
-              }}>
-                Analysis Progress
-              </h3>
-
-              {/* Current Step */}
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px',
-                  marginBottom: '8px'
-                }}>
-                  {(isUploading || isProcessing) ? (
-                    <Loader2 style={{ width: '16px', height: '16px', color: getStepColor(currentStep) }} className="animate-spin" />
-                  ) : currentStep === 'complete' ? (
-                    <CheckCircle2 style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-                  ) : (
-                    <Activity style={{ width: '16px', height: '16px', color: 'hsl(var(--muted-foreground))' }} />
-                  )}
-                  <span style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: '600',
-                    color: currentStep === 'complete' ? '#0d4a2b' : 'hsl(var(--foreground))'
-                  }}>
-                    {stepLabels[currentStep]}
-                  </span>
+                {/* Step Indicators */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {Object.entries(stepLabels).map(([step, label]) => {
+                    const isActive = currentStep === step
+                    const isCompleted = step === 'complete' && currentStep === 'complete'
+                    const stepIndex = Object.keys(stepLabels).indexOf(step)
+                    const currentIndex = Object.keys(stepLabels).indexOf(currentStep)
+                    const isPast = stepIndex < currentIndex
+                    
+                    return (
+                      <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ 
+                          width: '8px', 
+                          height: '8px', 
+                          borderRadius: '50%',
+                          backgroundColor: isCompleted || isPast ? '#0d4a2b' : isActive ? getStepColor(step as ProcessingStep) : '#e5e7eb'
+                        }} />
+                        <span style={{ 
+                          fontSize: '0.7rem',
+                          color: isCompleted || isPast ? '#0d4a2b' : isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+                          fontWeight: isActive ? '600' : '400'
+                        }}>
+                          {label}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
 
-                {/* Progress Bar */}
-                {(isUploading || isProcessing) && (
+                {/* Analysis Complete Message */}
+                {currentStep === 'complete' && (
                   <div style={{ 
-                    width: '100%', 
-                    backgroundColor: 'hsl(var(--accent))', 
-                    borderRadius: '6px', 
-                    height: '8px',
-                    overflow: 'hidden'
+                    padding: '6px',
+                    backgroundColor: 'rgba(13, 74, 43, 0.05)',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                    color: '#0d4a2b',
+                    textAlign: 'center',
+                    fontWeight: '500',
+                    marginTop: '8px'
                   }}>
-                    <div style={{ 
-                      height: '8px',
-                      backgroundColor: getStepColor(currentStep),
-                      borderRadius: '6px',
-                      width: isUploading ? `${uploadProgress}%` : `${stepProgress}%`,
-                      transition: 'width 0.3s ease'
-                    }} />
+                    Analysis sent to your doctor for review
                   </div>
                 )}
               </div>
 
-              {/* Step Indicators */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.entries(stepLabels).map(([step, label]) => {
-                  const isActive = currentStep === step
-                  const isCompleted = step === 'complete' && currentStep === 'complete'
-                  const stepIndex = Object.keys(stepLabels).indexOf(step)
-                  const currentIndex = Object.keys(stepLabels).indexOf(currentStep)
-                  const isPast = stepIndex < currentIndex
-                  
-                  return (
-                    <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ 
-                        width: '12px', 
-                        height: '12px', 
-                        borderRadius: '50%',
-                        backgroundColor: isCompleted || isPast ? '#0d4a2b' : isActive ? getStepColor(step as ProcessingStep) : '#e5e7eb'
-                      }} />
-                      <span style={{ 
-                        fontSize: '0.8rem',
-                        color: isCompleted || isPast ? '#0d4a2b' : isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-                        fontWeight: isActive ? '600' : '400'
-                      }}>
-                        {label}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Error Display */}
-            {(error || uploadError) && (
-              <div style={{ 
-                backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '8px',
-                padding: '16px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <AlertCircle style={{ width: '16px', height: '16px', color: '#dc2626' }} />
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#dc2626' }}>
-                    Analysis Failed
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>
-                  {error || uploadError}
-                </p>
-              </div>
-            )}
-
-            {/* Analysis Results */}
-            {analysisResult && currentStep === 'complete' && (
+              {/* Patient Notes */}
               <div style={{ 
                 backgroundColor: 'hsl(var(--card))',
-                borderRadius: '12px',
-                padding: '20px',
+                borderRadius: '6px',
+                padding: '12px',
                 border: '1px solid hsl(var(--border))'
               }}>
                 <h3 style={{ 
-                  fontSize: '1.125rem', 
+                  fontSize: '0.9rem', 
                   fontWeight: '600', 
                   color: 'hsl(var(--foreground))',
-                  marginBottom: '16px'
+                  marginBottom: '6px'
                 }}>
-                  AI Analysis Results
+                  Notes for Your Doctor
                 </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Movement Identification */}
-                  {analysisResult.movement_identified && (
-                    <div style={{ 
-                      backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      <h5 style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: '#1e40af',
-                        marginBottom: '6px'
-                      }}>
-                        Movement Analysis
-                      </h5>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          padding: '4px 8px',
-                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                          borderRadius: '12px',
-                          color: '#1e40af',
-                          fontWeight: '500'
-                        }}>
-                          {analysisResult.movement_identified}
-                        </span>
-                        {analysisResult.confidence && (
-                          <span style={{ fontSize: '0.75rem', color: '#1e40af' }}>
-                            {Math.round(analysisResult.confidence * 100)}% confidence
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Movement Overview */}
-                  {analysisResult.stage_1_movement_overview && (
-                    <div style={{ 
-                      backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      <h5 style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: '#047857',
-                        marginBottom: '8px'
-                      }}>
-                        Movement Overview
-                      </h5>
-                      <p style={{ 
-                        fontSize: '0.875rem', 
-                        color: 'hsl(var(--foreground))',
-                        lineHeight: '1.5',
-                        margin: 0
-                      }}>
-                        {analysisResult.stage_1_movement_overview}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Health Assessment */}
-                  {analysisResult.analysis_summary?.overall_health_assessment && (
-                    <div style={{ 
-                      backgroundColor: 'rgba(245, 158, 11, 0.05)',
-                      border: '1px solid rgba(245, 158, 11, 0.2)',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      <h5 style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: '#92400e',
-                        marginBottom: '8px'
-                      }}>
-                        Health Assessment
-                      </h5>
-                      <p style={{ 
-                        fontSize: '0.875rem', 
-                        color: 'hsl(var(--foreground))',
-                        lineHeight: '1.5',
-                        margin: 0
-                      }}>
-                        {analysisResult.analysis_summary.overall_health_assessment}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Detailed Report */}
-                  {analysisResult.stage_2_detailed_report && (
-                    <div style={{ 
-                      backgroundColor: 'hsl(var(--accent))',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      <h5 style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '8px'
-                      }}>
-                        Detailed Analysis Report
-                      </h5>
-                      <div style={{ 
-                        backgroundColor: 'white',
-                        borderRadius: '6px',
-                        padding: '12px',
-                        maxHeight: '200px',
-                        overflowY: 'auto'
-                      }}>
-                        <pre style={{ 
-                          fontSize: '0.75rem', 
-                          color: 'hsl(var(--foreground))',
-                          whiteSpace: 'pre-wrap',
-                          lineHeight: '1.4',
-                          margin: 0
-                        }}>
-                          {JSON.stringify(analysisResult.stage_2_detailed_report, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Key Frames Info */}
-                  {keyFrames.length > 0 && (
-                    <div style={{ 
-                      padding: '8px 12px',
-                      backgroundColor: 'rgba(13, 74, 43, 0.05)',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      color: '#0d4a2b'
-                    }}>
-                      ✓ Analyzed {keyFrames.length} key frames with Claude AI
-                    </div>
-                  )}
+                <p style={{ 
+                  fontSize: '0.75rem', 
+                  color: 'hsl(var(--muted-foreground))',
+                  marginBottom: '6px'
+                }}>
+                  Add any symptoms or observations.
+                </p>
+                
+                <textarea
+                  value={patientNotes}
+                  onChange={(e) => setPatientNotes(e.target.value)}
+                  placeholder="Describe any pain or observations..."
+                  style={{
+                    width: '100%',
+                    minHeight: '60px',
+                    padding: '8px',
+                    borderRadius: '3px',
+                    border: '1px solid hsl(var(--border))',
+                    backgroundColor: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
+                    fontSize: '0.75rem',
+                    lineHeight: '1.3',
+                    resize: 'vertical',
+                    marginBottom: '6px'
+                  }}
+                />
+                
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    onClick={async () => {
+                      if (!patientNotes.trim()) return
+                      
+                      setIsSubmittingNotes(true)
+                      try {
+                        // Update session with patient notes
+                        const response = await fetch(`/api/sessions/${sessionId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            patient_notes: patientNotes
+                          })
+                        })
+                        
+                        if (response.ok) {
+                          console.log('✅ Patient notes saved')
+                          alert('Notes saved successfully!')
+                        } else {
+                          throw new Error('Failed to save notes')
+                        }
+                      } catch (error) {
+                        console.error('❌ Failed to save notes:', error)
+                        alert('Failed to save notes. Please try again.')
+                      } finally {
+                        setIsSubmittingNotes(false)
+                      }
+                    }}
+                    disabled={!patientNotes.trim() || isSubmittingNotes}
+                    size="sm"
+                    style={{ 
+                      backgroundColor: '#0d4a2b',
+                      gap: '3px',
+                      fontSize: '0.7rem'
+                    }}
+                  >
+                    {isSubmittingNotes ? 'Saving...' : 'Save Notes'}
+                  </Button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

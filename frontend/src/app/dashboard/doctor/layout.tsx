@@ -5,16 +5,14 @@ export const metadata: Metadata = {
   description: "Patient case management and video analysis dashboard for healthcare professionals",
 };
 
-export default function RootLayout({
+export default function DoctorLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased" suppressHydrationWarning={true}>
-        {children}
-      </body>
-    </html>
+    <>
+      {children}
+    </>
   );
 }

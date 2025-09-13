@@ -2,10 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 import { AuthProvider } from "@/contexts/auth-context";
-import { SidebarProvider } from "@/contexts/sidebar-context";
-import { Sidebar } from "@/components/layout/sidebar";
-import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-import { LayoutContent } from "@/components/layout/layout-content";
+import { ClientLayoutWrapper } from "@/components/layout/client-layout-wrapper";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -78,21 +75,11 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`antialiased font-sans ${initialUser ? 'bg-white' : ''}`} suppressHydrationWarning={true}>
+      <body className="antialiased font-sans" suppressHydrationWarning={true}>
         <AuthProvider initialUser={initialUser}>
-          {initialUser ? (
-            <SidebarProvider>
-              <div style={{ position: 'relative', minHeight: '100vh' }}>
-                <Sidebar />
-                <LayoutContent>
-                  <BreadcrumbNav />
-                  {children}
-                </LayoutContent>
-              </div>
-            </SidebarProvider>
-          ) : (
-            children
-          )}
+          <ClientLayoutWrapper>
+            {children}
+          </ClientLayoutWrapper>
         </AuthProvider>
       </body>
     </html>

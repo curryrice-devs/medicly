@@ -42,7 +42,7 @@ export interface PatientCase {
   injuryType: string;
   aiAnalysis: string;
   recommendedExercise: Exercise;
-  status: 'pending' | 'approved' | 'modified' | 'rejected';
+  status: 'pending' | 'in-progress' | 'rejected' | 'completed';
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1
@@ -72,6 +72,10 @@ export interface CaseStats {
   pendingCount: number;
   completedToday: number;
   averageReviewTimeSec: number;
+  activePatients: number;
+  sessionsToday: number;
+  highPriorityPending: number;
+  inProgressCount: number;
 }
 
  

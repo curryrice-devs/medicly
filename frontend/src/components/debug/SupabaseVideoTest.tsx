@@ -3,7 +3,7 @@
 import React, { useRef } from 'react'
 import { useSupabaseVideoUpload } from '@/hooks/useSupabaseVideoUpload'
 import { Button } from '@/components/ui/button'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/admin'
 
 export function SupabaseVideoTest() {
   const fileInputRef = useRef<HTMLInputElement>(null)

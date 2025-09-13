@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 interface User {
@@ -48,9 +49,23 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const [user, setUser] = useState<User | null>(initialUser ?? null)
   const [isLoading, setIsLoading] = useState(!initialUser)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
-    const supabase = supabaseBrowser
+    const supabase = supabaseBrowser()
+    
+    // Add error handling for undefined supabase client
+    if (!supabase) {
+      console.error('[auth] Supabase client is undefined - check environment variables')
+      setIsLoading(false)
+      return
+    }
+    
+    if (!supabase.auth) {
+      console.error('[auth] Supabase auth is undefined - client may not be properly initialized')
+      setIsLoading(false)
+      return
+    }
 
     const mapUser = (u: any | null): User | null => {
       if (!u) return null
@@ -132,7 +147,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const supabase = supabaseBrowser
+      const supabase = supabaseBrowser()
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
     } finally {
@@ -148,7 +163,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   ) => {
     setIsLoading(true)
     try {
-      const supabase = supabaseBrowser
+      const supabase = supabaseBrowser()
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -167,7 +182,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       return
     }
     
-    const supabase = supabaseBrowser
+    const supabase = supabaseBrowser() 
     console.debug('[auth] logout() start')
     setIsLoggingOut(true)
     
@@ -193,10 +208,14 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       setUser(null)
       console.debug('[auth] logout() completed')
       
+      // Redirect to home page instead of reloading
+      router.push('/')
+      
     } catch (e) {
       console.error('[auth] logout() threw', e)
-      // Even on error, clear the user state
+      // Even on error, clear the user state and redirect
       setUser(null)
+      router.push('/')
     } finally {
       // Always clear loading state
       setIsLoggingOut(false)
