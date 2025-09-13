@@ -51,6 +51,19 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
 
   useEffect(() => {
     const supabase = supabaseBrowser()
+    
+    // Add error handling for undefined supabase client
+    if (!supabase) {
+      console.error('[auth] Supabase client is undefined - check environment variables')
+      setIsLoading(false)
+      return
+    }
+    
+    if (!supabase.auth) {
+      console.error('[auth] Supabase auth is undefined - client may not be properly initialized')
+      setIsLoading(false)
+      return
+    }
 
     const mapUser = (u: any | null): User | null => {
       if (!u) return null
