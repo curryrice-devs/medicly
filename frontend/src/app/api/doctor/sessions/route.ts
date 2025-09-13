@@ -15,7 +15,11 @@ export async function GET() {
 
     const { data: sessions, error } = await supabase
       .from('sessions')
+<<<<<<< HEAD
       .select('id, created_at, patient_id, doctor_id, status, due_date, treatment_id, ai_evaluation, exercise_sets, exercise_reps, exercise_weight, previdurl, postvidurl, patient_notes, doctor_feedback')
+=======
+      .select('id, created_at, patient_id, doctor_id, status, due_date, treatment_id, ai_evaluation, exercise_sets, exercise_reps, exercise_weight, previdurl, postvidurl, patient_notes')
+>>>>>>> 8b9616adb5360a1208326755ef9735f9190169fd
       .order('created_at', { ascending: false })
       .limit(200)
 
