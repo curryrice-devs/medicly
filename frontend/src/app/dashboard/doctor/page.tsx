@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { PatientQueue } from './components/CaseQueue/PatientQueue'
 import { QueueFilters } from './components/CaseQueue/QueueFilters'
+import { PatientSearch } from './components/PatientSearch/PatientSearch'
 import { usePatientCases } from '@/hooks/usePatientCases'
 
 
@@ -112,6 +113,31 @@ export default function DoctorDashboard() {
               </div>
             )
           })}
+        </div>
+
+        {/* Patient Search Section */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Patient Search</h2>
+                <p className="text-sm text-gray-600">
+                  Search for patients by case ID, patient ID, or name to add them to your care
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <PatientSearch 
+              onPatientSelect={(patient) => {
+                router.push(`/dashboard/doctor/patients/${patient.id}`)
+              }}
+              showAddButton={true}
+            />
+          </div>
         </div>
 
         {/* Patient Case Queue */}

@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Refresh the session to ensure updated data is available
+  await supabase.auth.refreshSession();
+
   return NextResponse.json({ success: true, role });
 }
 

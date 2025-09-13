@@ -41,10 +41,12 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
-  patientName?: string; // Patient name from profiles table
-  videoUrl: string; // Keep for backwards compatibility - will use previdurl
-  originalVideoUrl?: string; // previdurl - patient's original uploaded video
-  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
+  patientName?: string; // From patient_profiles.full_name
+  patientEmail?: string; // From patient_profiles.email
+  patientPhone?: string; // From patient_profiles.phone
+  patientAge?: number; // From patient_profiles.age
+  patientCaseId?: string; // From patient_profiles.case_id
+  videoUrl: string;
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
@@ -83,6 +85,73 @@ export interface CaseStats {
   sessionsToday: number;
   highPriorityPending: number;
   activeCount: number;
+}
+
+// New types for patient profiles and relationships
+
+export interface PatientProfile {
+  id: string;
+  caseId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  medicalHistory?: string[];
+  currentMedications?: string[];
+  allergies?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DoctorPatientRelationship {
+  id: string;
+  doctorId: string;
+  patientId: string;
+  status: 'active' | 'inactive' | 'completed';
+  assignedAt: string;
+  notes?: string;
+}
+
+export interface TherapySession {
+  id: string;
+  patientId: string;
+  doctorId?: string;
+  caseId?: string;
+  sessionType: string;
+  injuryType?: string;
+  sessionData?: any; // JSON data for video analysis, exercises, etc.
+  aiAnalysis?: string;
+  doctorNotes?: string;
+  status: 'pending' | 'reviewed' | 'approved' | 'completed';
+  urgency: UrgencyLevel;
+  sessionDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatientSearchResult {
+  id: string;
+  caseId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  age?: number;
+  relationshipStatus: string;
+  assignedAt?: string;
+  lastSession?: string;
+  totalSessions: number;
+}
+
+export interface PatientSearchParams {
+  searchTerm?: string;
+  doctorId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
 }
 
  
