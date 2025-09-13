@@ -28,10 +28,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('sessions')
-      .select(`
-        *,
-        treatment:treatments(*)
-      `)
+      .select('*')
       .eq('patient_id', userId)
       .order('created_at', { ascending: false });
 
@@ -69,7 +66,7 @@ export async function POST(request: NextRequest) {
       .from('sessions')
       .insert({
         patient_id: sessionData.patient_id,
-        treatment_id: sessionData.treatment_id,
+        evaluation_id: sessionData.treatment_id, // Use evaluation_id instead of treatment_id
         status: sessionData.status || 'pending',
         due_date: sessionData.due_date,
         exercise_sets: sessionData.exercise_sets || 3,
@@ -78,10 +75,7 @@ export async function POST(request: NextRequest) {
         patient_notes: sessionData.description || null, // Store patient's problem description
         created_at: new Date().toISOString()
       })
-      .select(`
-        *,
-        treatment:treatments(*)
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -94,9 +88,29 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Created session:', data);
 
+    // Fetch the evaluation_metrics data if evaluation_id exists
+    let evaluationData = null;
+    if (data.evaluation_id) {
+      const { data: evaluation } = await supabase
+        .from('evaluation_metrics')
+        .select('*')
+        .eq('id', data.evaluation_id)
+        .single();
+      evaluationData = evaluation;
+    }
+
+    // Format response for evaluation phase - return exercise data instead of treatment
+    const responseData = {
+      ...data,
+      exercise: evaluationData ? {
+        id: evaluationData.id,
+        name: evaluationData.name
+      } : null
+    };
+
     return Response.json({
       success: true,
-      data
+      data: responseData
     });
   } catch (error) {
     console.error('❌ Error in sessions POST:', error);
