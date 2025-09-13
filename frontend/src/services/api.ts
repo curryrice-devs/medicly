@@ -191,5 +191,24 @@ export const doctorApi = {
       items: [],
       total: 0
     };
+  },
+
+  async getPatientProfile(patientId: string): Promise<any> {
+    console.log('[doctorApi.getPatientProfile] fetching profile via API route for patientId:', patientId);
+    try {
+      const resp = await fetch(`/api/doctor/patient-profile/${patientId}`, { cache: 'no-store' })
+      const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
+
+      if (!resp.ok) {
+        console.warn('[doctorApi.getPatientProfile] route error payload', payload)
+        return null
+      }
+
+      console.log('[doctorApi.getPatientProfile] found profile:', payload.profile);
+      return payload.profile;
+    } catch (e) {
+      console.error('[doctorApi.getPatientProfile] unexpected error:', e);
+      return null;
+    }
   }
 }; 
