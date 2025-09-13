@@ -41,10 +41,10 @@ export default function DoctorDashboard() {
   const doctorStats = [
     {
       title: 'Active Patients',
-      value: caseStats?.uniquePatients?.toString() || '0',
+      value: caseStats?.activePatients?.toString() || '0',
       icon: Users,
-      description: 'Currently under care',
-      change: caseStats?.uniquePatients ? `${caseStats.uniquePatients} total patients` : 'No patients yet',
+      description: 'In treatment programs',
+      change: caseStats?.inProgressCount ? `${caseStats.inProgressCount} sessions in progress` : 'No active treatments',
       changeType: 'neutral' as const
     },
     {
@@ -52,15 +52,15 @@ export default function DoctorDashboard() {
       value: caseStats?.pendingCount?.toString() || '0',
       icon: FileText,
       description: 'Cases awaiting review',
-      change: caseStats?.highPriorityCases ? `${caseStats.highPriorityCases} high priority` : 'No urgent cases',
-      changeType: caseStats?.highPriorityCases ? 'negative' as const : 'positive' as const
+      change: caseStats?.highPriorityPending ? `${caseStats.highPriorityPending} high priority` : 'No urgent cases',
+      changeType: caseStats?.highPriorityPending ? 'negative' as const : 'positive' as const
     },
     {
       title: 'Sessions Today',
       value: caseStats?.sessionsToday?.toString() || '0',
       icon: Calendar,
       description: 'New sessions submitted',
-      change: caseStats?.completedToday ? `${caseStats.completedToday} completed` : 'None completed',
+      change: caseStats?.completedToday ? `${caseStats.completedToday} completed today` : 'None completed today',
       changeType: 'neutral' as const
     },
     {

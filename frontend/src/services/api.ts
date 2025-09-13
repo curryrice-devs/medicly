@@ -119,17 +119,24 @@ export const doctorApi = {
              d.getDate() === today.getDate();
     };
     const completedToday = mapped.filter(
-      (c) => (c.status === 'approved' || c.status === 'modified') && isSameDay(c.submittedAt)
+      (c) => c.status === 'completed' && isSameDay(c.submittedAt)
     ).length;
 
-    // Calculate active patients (unique patient IDs across all cases)
-    const uniquePatients = new Set(mapped.map(c => c.patientId)).size;
+    // Calculate active patients (unique patient IDs with in-progress status)
+    const activePatients = new Set(
+      mapped.filter(c => c.status === 'in-progress').map(c => c.patientId)
+    ).size;
 
     // Calculate sessions created today
     const sessionsToday = mapped.filter(c => isSameDay(c.submittedAt)).length;
 
-    // Calculate high priority cases
-    const highPriorityCases = mapped.filter(c => c.urgency === 'high').length;
+    // Calculate high priority pending cases
+    const highPriorityPending = mapped.filter(c =>
+      c.urgency === 'high' && c.status === 'pending'
+    ).length;
+
+    // Calculate in-progress cases
+    const inProgressCount = mapped.filter(c => c.status === 'in-progress').length;
 
     // Calculate average review time based on case complexity
     // Simple heuristic: pending cases take longer, high urgency cases are reviewed faster
@@ -143,9 +150,10 @@ export const doctorApi = {
         pendingCount,
         completedToday,
         averageReviewTimeSec,
-        uniquePatients,
+        activePatients,
         sessionsToday,
-        highPriorityCases
+        highPriorityPending,
+        inProgressCount
       }
     };
   },
