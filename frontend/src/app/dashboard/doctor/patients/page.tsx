@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Users,
   Search,
@@ -22,94 +22,49 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { doctorApi } from '@/services/api'
+import { PatientSearchResult } from '@/types/medical.types'
+import { useRouter } from 'next/navigation'
 
 export default function PatientsPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
+  const [patients, setPatients] = useState<PatientSearchResult[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock patient data
-  const patients = [
-    {
-      id: 'P-001',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@email.com',
-      phone: '+1 (555) 123-4567',
-      age: 34,
-      injuryType: 'Shoulder Impingement',
-      status: 'active',
-      lastVisit: '2024-01-15',
-      totalSessions: 8,
-      nextAppointment: '2024-01-22',
-      progress: 75,
-      notes: 'Responding well to treatment, range of motion improving'
-    },
-    {
-      id: 'P-002',
-      name: 'Michael Chen',
-      email: 'michael.chen@email.com',
-      phone: '+1 (555) 234-5678',
-      age: 28,
-      injuryType: 'Lower Back Pain',
-      status: 'active',
-      lastVisit: '2024-01-14',
-      totalSessions: 12,
-      nextAppointment: '2024-01-21',
-      progress: 60,
-      notes: 'Core strengthening exercises showing good results'
-    },
-    {
-      id: 'P-003',
-      name: 'Emily Rodriguez',
-      email: 'emily.rodriguez@email.com',
-      phone: '+1 (555) 345-6789',
-      age: 45,
-      injuryType: 'Knee Issues',
-      status: 'completed',
-      lastVisit: '2024-01-10',
-      totalSessions: 15,
-      nextAppointment: null,
-      progress: 100,
-      notes: 'Treatment completed successfully, patient discharged'
-    },
-    {
-      id: 'P-004',
-      name: 'David Thompson',
-      email: 'david.thompson@email.com',
-      phone: '+1 (555) 456-7890',
-      age: 52,
-      injuryType: 'Neck Pain',
-      status: 'pending',
-      lastVisit: '2024-01-08',
-      totalSessions: 3,
-      nextAppointment: '2024-01-20',
-      progress: 25,
-      notes: 'Initial assessment completed, starting treatment plan'
-    },
-    {
-      id: 'P-005',
-      name: 'Lisa Wang',
-      email: 'lisa.wang@email.com',
-      phone: '+1 (555) 567-8901',
-      age: 31,
-      injuryType: 'Hip Problems',
-      status: 'active',
-      lastVisit: '2024-01-12',
-      totalSessions: 6,
-      nextAppointment: '2024-01-19',
-      progress: 45,
-      notes: 'Hip mobility exercises progressing well'
+  // Load doctor's patients
+  useEffect(() => {
+    const loadPatients = async () => {
+      if (!user?.id) return
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const patientsData = await doctorApi.getDoctorPatients(user.id)
+        setPatients(patientsData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load patients')
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    loadPatients()
+  }, [user?.id])
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.id.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter
-    
+    const searchLower = searchTerm.toLowerCase()
+    const matchesSearch = (patient.fullName && patient.fullName.toLowerCase().includes(searchLower)) ||
+                         (patient.email && patient.email.toLowerCase().includes(searchLower)) ||
+                         (patient.caseId && patient.caseId.toLowerCase().includes(searchLower))
+
+    const matchesStatus = statusFilter === 'all' || patient.relationshipStatus === statusFilter
+
     return matchesSearch && matchesStatus
   })
 
@@ -131,71 +86,68 @@ export default function PatientsPage() {
     }
   }
 
-  const PatientCard = ({ patient }: { patient: any }) => (
+  const PatientCard = ({ patient }: { patient: PatientSearchResult }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
             <span className="text-green-600 font-semibold text-lg">
-              {patient.name.split(' ').map((n: string) => n[0]).join('')}
+              {patient.fullName.split(' ').map((n: string) => n[0]).join('')}
             </span>
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{patient.name}</h3>
-            <p className="text-sm text-gray-600">ID: {patient.id}</p>
+            <h3 className="text-lg font-semibold text-gray-900">{patient.fullName}</h3>
+            <p className="text-sm text-gray-600">ID: {patient.caseId}</p>
           </div>
         </div>
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(patient.status)}`}>
-          {getStatusIcon(patient.status)}
-          <span className="ml-1 capitalize">{patient.status}</span>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(patient.relationshipStatus)}`}>
+          {getStatusIcon(patient.relationshipStatus)}
+          <span className="ml-1 capitalize">{patient.relationshipStatus}</span>
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="flex items-center text-sm text-gray-600">
-          <Mail className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="truncate">{patient.email}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Phone className="w-4 h-4 mr-2 text-gray-400" />
-          <span>{patient.phone}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-          <span>Age: {patient.age}</span>
-        </div>
+        {patient.email && (
+          <div className="flex items-center text-sm text-gray-600">
+            <Mail className="w-4 h-4 mr-2 text-gray-400" />
+            <span className="truncate">{patient.email}</span>
+          </div>
+        )}
+        {patient.phone && (
+          <div className="flex items-center text-sm text-gray-600">
+            <Phone className="w-4 h-4 mr-2 text-gray-400" />
+            <span>{patient.phone}</span>
+          </div>
+        )}
+        {patient.age && (
+          <div className="flex items-center text-sm text-gray-600">
+            <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+            <span>Age: {patient.age}</span>
+          </div>
+        )}
         <div className="flex items-center text-sm text-gray-600">
           <FileText className="w-4 h-4 mr-2 text-gray-400" />
-          <span>{patient.injuryType}</span>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>Progress</span>
-          <span>{patient.progress}%</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-green-500 h-2 rounded-full transition-all duration-300" 
-            style={{ width: `${patient.progress}%` }}
-          />
+          <span>Sessions: {patient.totalSessions}</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-        <span>Sessions: {patient.totalSessions}</span>
-        <span>Last visit: {new Date(patient.lastVisit).toLocaleDateString()}</span>
+        <span>Total Sessions: {patient.totalSessions}</span>
+        {patient.lastSession && (
+          <span>Last session: {new Date(patient.lastSession).toLocaleDateString()}</span>
+        )}
+        {patient.assignedAt && (
+          <span>Assigned: {new Date(patient.assignedAt).toLocaleDateString()}</span>
+        )}
       </div>
 
-      {patient.notes && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-700">{patient.notes}</p>
-        </div>
-      )}
-
       <div className="flex space-x-2">
-        <Button variant="outline" size="sm" className="flex-1">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1"
+          onClick={() => router.push(`/dashboard/doctor/patients/${patient.id}`)}
+        >
           <Eye className="w-4 h-4 mr-2" />
           View Details
         </Button>
@@ -330,25 +282,59 @@ export default function PatientsPage() {
           </div>
         </div>
 
-        {/* Patients Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPatients.map((patient) => (
-            <PatientCard key={patient.id} patient={patient} />
-          ))}
-        </div>
-
-        {filteredPatients.length === 0 && (
+        {/* Loading State */}
+        {loading && (
           <div className="text-center py-12">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No patients found</h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first patient'}
-            </p>
-            <Button className="bg-green-600 hover:bg-green-700 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Patient
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded-lg mb-4">
+              <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Loading patients...</h3>
+            <p className="text-gray-600">Please wait while we fetch your patient list</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading patients</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Try Again
             </Button>
           </div>
+        )}
+
+        {/* Patients Grid */}
+        {!loading && !error && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPatients.map((patient) => (
+                <PatientCard key={patient.id} patient={patient} />
+              ))}
+            </div>
+
+            {filteredPatients.length === 0 && patients.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients assigned</h3>
+                <p className="text-gray-600 mb-4">
+                  Use the search feature on your dashboard to find and add patients to your care
+                </p>
+              </div>
+            )}
+
+            {filteredPatients.length === 0 && patients.length > 0 && (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients match your search</h3>
+                <p className="text-gray-600 mb-4">Try adjusting your search terms or filters</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
