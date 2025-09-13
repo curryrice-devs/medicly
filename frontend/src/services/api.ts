@@ -19,11 +19,38 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
 
   const treatment = s.treatment_id ? treatmentsById[s.treatment_id] : undefined;
 
-  // Create exercise info from database columns ONLY
+  // Create exercise info from AI recommendation or database columns
+  // Use AI's recommended exercise if available, otherwise fall back to treatment
+  
+  // Get the current exercise name from treatment to avoid recommending the same one
+  const currentExerciseName = treatment?.name || treatment?.description || '';
+  
+  // Generate a recommended exercise name based on the issues found
+  let recommendedExerciseName = aiAnalysis.recommendedExercise?.name;
+  
+  // If no AI recommendation or it's the same as current, suggest a corrective exercise
+  if (!recommendedExerciseName || recommendedExerciseName === currentExerciseName) {
+    // Based on the body part and injury type, suggest a complementary exercise
+    if (aiAnalysis.bodyPart?.toLowerCase().includes('knee') || currentExerciseName.toLowerCase().includes('squat')) {
+      recommendedExerciseName = 'Hip Strengthening - Clamshells';
+    } else if (aiAnalysis.bodyPart?.toLowerCase().includes('shoulder')) {
+      recommendedExerciseName = 'Shoulder Stabilization - Band Pull-Aparts';
+    } else if (aiAnalysis.bodyPart?.toLowerCase().includes('back')) {
+      recommendedExerciseName = 'Core Stabilization - Dead Bug';
+    } else if (aiAnalysis.bodyPart?.toLowerCase().includes('hip')) {
+      recommendedExerciseName = 'Hip Mobility - 90/90 Stretch';
+    } else if (aiAnalysis.bodyPart?.toLowerCase().includes('ankle')) {
+      recommendedExerciseName = 'Ankle Strengthening - Calf Raises';
+    } else {
+      recommendedExerciseName = 'Corrective Exercise Program';
+    }
+  }
+  
   const recommendedExercise: Exercise = {
     id: `T-${s.treatment_id ?? 'session-' + s.id}`,
-    name: treatment?.name || treatment?.description || 'Exercise to be assigned',
-    description: treatment?.description || 'Exercise details will be available once assigned',
+    name: recommendedExerciseName,
+    description: aiAnalysis.recommendedExercise?.rationale || 
+                 `Complementary exercise to address ${aiAnalysis.injuryType || 'movement dysfunction'} based on analysis`,
     bodyPart: aiAnalysis.bodyPart || '',
     injuryTypes: aiAnalysis.injuryType ? [aiAnalysis.injuryType] : [],
     defaultSets: s.exercise_sets ?? 3,
@@ -386,7 +413,7 @@ export const doctorApi = {
   async getPatientProfile(patientId: string): Promise<PatientProfile | null> {
     try {
       const { data, error } = await supabaseBrowser()
-        .from('patient_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', patientId)
         .single();
@@ -395,11 +422,12 @@ export const doctorApi = {
 
       if (!data) return null;
 
-      // Map snake_case database fields to camelCase TypeScript interface
+      // Map database fields to TypeScript interface
+      // The profiles table has: id, name, role, onboarded
       const mappedProfile: PatientProfile = {
         id: data.id,
-        caseId: data.case_id,
-        fullName: data.full_name,
+        caseId: data.id, // Use ID as caseId since profiles table doesn't have case_id
+        fullName: data.name || data.email || 'Unknown Patient',
         email: data.email,
         phone: data.phone,
         age: data.age,
@@ -410,8 +438,8 @@ export const doctorApi = {
         medicalHistory: data.medical_history || [],
         currentMedications: data.current_medications || [],
         allergies: data.allergies || [],
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        createdAt: data.created_at || new Date().toISOString(),
+        updatedAt: data.updated_at || new Date().toISOString()
       };
 
       return mappedProfile;
@@ -426,7 +454,6 @@ export const doctorApi = {
     try {
       // Convert camelCase to snake_case for database
       const dbProfile = {
-        id: profile.id,
         full_name: profile.fullName,
         email: profile.email,
         phone: profile.phone,

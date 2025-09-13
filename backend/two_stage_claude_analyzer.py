@@ -837,6 +837,150 @@ IMPORTANT: Return ONLY the JSON response, no additional text or explanations. An
             'main_recommendations': health_report.get('recommendations', {}).get('immediate_actions', []),
             'analysis_quality': 'high' if movement_overview.get('confidence', 0) > 0.7 else 'medium'
         }
+    
+    def analyze_patient_model_selection(self, analysis_package: Dict) -> Dict:
+        """
+        Analyze patient pain points and suggest appropriate BioDigital model and movements
+        """
+        start_time = datetime.now()
+        
+        try:
+            patient_info = analysis_package.get('patient_info', {})
+            problematic_areas = analysis_package.get('problematic_areas', [])
+            
+            # Create prompt for model selection
+            prompt = self._create_model_selection_prompt(patient_info, problematic_areas)
+            
+            # Call Claude API
+            response = self._call_claude_api(prompt, "model_selection")
+            
+            # Parse response
+            model_analysis = self._parse_model_selection_response(response)
+            
+            total_time = (datetime.now() - start_time).total_seconds()
+            
+            action_logger.log_processing_step(
+                "model_selection_complete",
+                f"Model selection completed in {total_time:.2f}s",
+                "success"
+            )
+            
+            return {
+                'success': True,
+                'model_analysis': model_analysis,
+                'processing_time': total_time
+            }
+            
+        except Exception as e:
+            total_time = (datetime.now() - start_time).total_seconds()
+            action_logger.log_processing_step(
+                "model_selection_error",
+                f"Model selection failed: {str(e)}",
+                "error"
+            )
+            raise e
+    
+    def _create_model_selection_prompt(self, patient_info: Dict, problematic_areas: List[Dict]) -> str:
+        """
+        Create a prompt for Claude to analyze patient pain points and suggest BioDigital model
+        """
+        areas_text = "\n".join([
+            f"- {area.get('name', 'Unknown')} ({area.get('id', 'unknown_id')}): {area.get('description', 'No description')} - Severity: {area.get('severity', 'unknown')}"
+            for area in problematic_areas
+        ])
+        
+        prompt = f"""You are a medical AI assistant specializing in physical therapy and anatomy visualization. 
+
+PATIENT INFORMATION:
+- Name: {patient_info.get('name', 'Unknown')}
+- Age: {patient_info.get('age', 'Unknown')}
+- Gender: {patient_info.get('gender', 'Unknown')}
+- Injury Type: {patient_info.get('injuryType', 'Unknown')}
+
+PROBLEMATIC AREAS:
+{areas_text}
+
+AVAILABLE BIODIGITAL MODELS:
+1. production/maleAdult/skeleton - Full skeleton system (bones, joints)
+2. production/maleAdult/muscular - Muscular system (muscles, tendons)
+3. production/maleAdult/cardiovascular - Heart and circulatory system
+4. production/maleAdult/lower_limb_codepen - Lower body (hips, legs, knees, ankles, feet)
+5. production/maleAdult/upper_limb - Upper body (shoulders, arms, hands, wrists)
+6. production/maleAdult/spine - Spine and back (cervical, thoracic, lumbar)
+
+TASK:
+Analyze the patient's problematic areas and recommend:
+1. The most appropriate BioDigital model ID
+2. Specific anatomy objects to highlight within that model
+3. Relevant movements/exercises that should be demonstrated
+4. Reasoning for your recommendations
+
+Please respond in JSON format:
+{{
+  "recommended_model": "production/maleAdult/[model_name]",
+  "model_name": "Human-readable model name",
+  "reasoning": "Detailed explanation of why this model was chosen",
+  "anatomy_objects": [
+    {{
+      "id": "anatomy_object_id",
+      "name": "Human-readable name",
+      "reason": "Why this should be highlighted"
+    }}
+  ],
+  "recommended_movements": [
+    {{
+      "name": "Movement name",
+      "description": "What the movement involves",
+      "target_areas": ["area1", "area2"],
+      "difficulty": "beginner|intermediate|advanced",
+      "purpose": "Why this movement is beneficial"
+    }}
+  ],
+  "confidence_score": 0.85
+}}
+
+Focus on:
+- Choosing the model that best represents the patient's specific pain points
+- Identifying the most relevant anatomy objects for highlighting
+- Suggesting practical movements that address their specific issues
+- Providing clear reasoning for all recommendations"""
+
+        return prompt
+    
+    def _parse_model_selection_response(self, response: Dict) -> Dict:
+        """
+        Parse Claude's response for model selection
+        """
+        try:
+            content = response.get('content', [{}])[0].get('text', '{}')
+            
+            # Try to extract JSON from the response
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                return json.loads(json_str)
+            else:
+                # Fallback parsing
+                return {
+                    'recommended_model': 'production/maleAdult/skeleton',
+                    'model_name': 'Full Skeleton',
+                    'reasoning': 'Unable to parse Claude response, using default skeleton model',
+                    'anatomy_objects': [],
+                    'recommended_movements': [],
+                    'confidence_score': 0.0
+                }
+                
+        except Exception as e:
+            print(f"Error parsing model selection response: {e}")
+            return {
+                'recommended_model': 'production/maleAdult/skeleton',
+                'model_name': 'Full Skeleton',
+                'reasoning': f'Error parsing response: {str(e)}',
+                'anatomy_objects': [],
+                'recommended_movements': [],
+                'confidence_score': 0.0
+            }
 
 # Example usage
 if __name__ == "__main__":

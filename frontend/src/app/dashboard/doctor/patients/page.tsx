@@ -203,7 +203,7 @@ export default function PatientsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Cases</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.status === 'active').length}
+                  {patients.filter(p => p.relationshipStatus === 'active').length}
                 </p>
               </div>
             </div>
@@ -217,7 +217,7 @@ export default function PatientsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.status === 'pending').length}
+                  {patients.filter(p => p.relationshipStatus === 'pending').length}
                 </p>
               </div>
             </div>
@@ -231,7 +231,7 @@ export default function PatientsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.status === 'completed').length}
+                  {patients.filter(p => p.relationshipStatus === 'completed').length}
                 </p>
               </div>
             </div>

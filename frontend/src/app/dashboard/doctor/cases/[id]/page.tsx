@@ -12,6 +12,8 @@ import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer'
 import { ActionButtons } from '../../components/CaseReview/ActionButtons'
 import { ExerciseSaveModal } from '../../components/CaseReview/ExerciseSaveModal'
 import { RejectionModal } from '../../components/CaseReview/RejectionModal'
+import { BioDigitalViewer } from '@/components/BioDigitalViewer'
+import { parseAIAnalysis, createFallbackAnalysis } from '@/types/ai-analysis.types'
 
 export default function CaseReviewRoute() {
   const params = useParams()
@@ -34,6 +36,64 @@ export default function CaseReviewRoute() {
   const [isApproving, setIsApproving] = React.useState(false)
   const [isRejecting, setIsRejecting] = React.useState(false)
   const [isSavingExercise, setIsSavingExercise] = React.useState(false)
+
+  // Helper function to get full AI analysis data
+  const getAIAnalysisData = React.useMemo(() => {
+    if (!caseData) return null;
+    
+    // Try to get the original ai_evaluation data from the session
+    // For now, we'll reconstruct it from the PatientCase data
+    const reconstructedAnalysis = {
+      confidence: caseData.aiConfidence || 0.8,
+      primaryDiagnosis: caseData.injuryType || 'Assessment pending',
+      injuryType: caseData.injuryType || 'General',
+      bodyPart: caseData.recommendedExercise?.bodyPart || '',
+      summary: caseData.aiAnalysis || 'Analysis pending',
+      reasoning: typeof caseData.reasoning === 'string' ? caseData.reasoning : 'Analysis in progress',
+      movementMetrics: caseData.movementMetrics || [],
+      rangeOfMotion: caseData.rangeOfMotion ? Object.entries(caseData.rangeOfMotion).map(([key, degrees]) => ({
+        joint: key.replace(/[A-Z]/g, ' $&').trim().split(' ')[0] || 'Joint',
+        movement: key.replace(/[A-Z]/g, ' $&').trim().split(' ').slice(1).join(' ') || 'movement',
+        degrees: degrees,
+        normalRange: '0-180°',
+        status: degrees < 90 ? 'limited' : degrees > 180 ? 'hypermobile' : 'normal'
+      })) : [],
+      compensatoryPatterns: [],
+      painIndicators: caseData.painIndicators ? caseData.painIndicators.map(indicator => {
+        const parts = indicator.split(': ');
+        const location = parts[0] || 'Unknown';
+        const rest = parts[1] || '';
+        const severityMatch = rest.match(/\((\d+)\/10\)/);
+        const severity = severityMatch ? parseInt(severityMatch[1]) : 5;
+        const type = rest.replace(/\(\d+\/10\)/, '').replace('pain', '').trim() || 'aching';
+        
+        return {
+          location,
+          severity,
+          type: type as any,
+          triggers: []
+        };
+      }) : [],
+      functionalLimitations: [],
+      urgencyLevel: caseData.urgency,
+      urgencyReason: `${caseData.urgency} priority case`,
+      redFlags: [],
+      recommendedExercise: {
+        name: caseData.recommendedExercise?.name,
+        rationale: 'Recommended based on assessment',
+        contraindications: caseData.recommendedExercise?.contraindications || [],
+        progressionNotes: caseData.recommendedExercise?.progressionLevels?.[0] || ''
+      },
+      followUpRecommendations: {
+        timeframe: '1-2 weeks',
+        monitorFor: ['Pain levels', 'Functional improvement'],
+        progressIndicators: ['Improved movement', 'Reduced pain'],
+        escalationCriteria: ['Worsening symptoms', 'No improvement']
+      }
+    };
+    
+    return reconstructedAnalysis;
+  }, [caseData]);
 
   React.useEffect(() => {
     let mounted = true
@@ -215,51 +275,73 @@ export default function CaseReviewRoute() {
 
 
                 {/* Top Row - Video and AI Analysis Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           
-          {/* Left Column - Patient Video (Larger) */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Patient Video
-              {caseData.processedVideoUrl && (
-                <span className="text-sm text-green-600 ml-2">
-                  (AI Enhanced)
-                </span>
-              )}
-            </h3>
-            <div className="relative">
-              {/* Large video container with better aspect ratio */}
-              <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden shadow-inner">
-                {(caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl) ? (
-                  <video
-                    src={caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl}
-                    controls
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                    style={{ backgroundColor: '#000' }}
-                    onLoadStart={() => console.log('🎥 Doctor video loading:', { processedUrl: caseData.processedVideoUrl, originalUrl: caseData.originalVideoUrl, fallbackUrl: caseData.videoUrl })}
-                    onError={(e) => console.error('❌ Doctor video failed:', e.currentTarget.src)}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <div className="text-center">
-                      <Video className="w-16 h-16 mx-auto mb-3" />
-                      <p className="text-lg font-medium">No video available</p>
-                      <p className="text-sm text-gray-500">Video will appear here when uploaded</p>
-                    </div>
-                  </div>
+          {/* Left Column - Patient Video */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Patient Video
+                {caseData.processedVideoUrl && (
+                  <span className="text-sm text-green-600 ml-2">
+                    (AI Enhanced)
+                  </span>
                 )}
+              </h3>
+              <div className="relative">
+                {/* Large video container with better aspect ratio */}
+                <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden shadow-inner">
+                  {(caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl) ? (
+                    <video
+                      src={caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl}
+                      controls
+                      className="w-full h-full object-contain"
+                      preload="metadata"
+                      style={{ backgroundColor: '#000' }}
+                      onLoadStart={() => console.log('🎥 Doctor video loading:', { processedUrl: caseData.processedVideoUrl, originalUrl: caseData.originalVideoUrl, fallbackUrl: caseData.videoUrl })}
+                      onError={(e) => console.error('❌ Doctor video failed:', e.currentTarget.src)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <div className="text-center">
+                        <Video className="w-16 h-16 mx-auto mb-3" />
+                        <p className="text-lg font-medium">No video available</p>
+                        <p className="text-sm text-gray-500">Video will appear here when uploaded</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-
             </div>
+
+            {/* Movement Metrics - Below Video */}
+            {caseData.movementMetrics && caseData.movementMetrics.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">
+                  Movement Metrics
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {caseData.movementMetrics.map((metric, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-600">
+                        {metric.label}
+                      </p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {metric.value}°
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right Column - AI Analysis & Movement Metrics */}
+          {/* Right Column - AI Analysis */}
           <div className="space-y-4">
             {/* AI Analysis */}
             <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                AI Analysis
+                AI Analysis & 3D Visualization
               </h3>
               
               {/* Display AI Analysis properly */}
@@ -308,7 +390,7 @@ export default function CaseReviewRoute() {
                     </>
                   ) : (
                     /* Fallback for string format */
-                    <p className="text-gray-700 leading-relaxed">
+                    <p className="text-gray-700 leading-relaxed mb-4">
                       {typeof caseData.aiAnalysis === 'string' ? caseData.aiAnalysis : JSON.stringify(caseData.aiAnalysis)}
                     </p>
                   )}
@@ -317,7 +399,8 @@ export default function CaseReviewRoute() {
                 <p className="text-gray-500 italic">No AI analysis available</p>
               )}
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+              {/* AI Confidence */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-blue-900">
                     AI Confidence: {Math.round((caseData.aiConfidence || 0) * 100)}%
@@ -327,44 +410,42 @@ export default function CaseReviewRoute() {
                   {typeof caseData.reasoning === 'string' ? caseData.reasoning : JSON.stringify(caseData.reasoning)}
                 </p>
               </div>
-            </div>
 
-            {/* Movement Metrics */}
-            {caseData.movementMetrics && caseData.movementMetrics.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-                <h3 className="text-base font-semibold text-gray-900 mb-3">
-                  Movement Metrics
-                </h3>
-                <div className="space-y-3">
-                  {caseData.movementMetrics.map((metric, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
-                      <p className="text-sm font-medium text-gray-600">
-                        {metric.label}
-                      </p>
-                      <p className="text-lg font-bold text-gray-900">
-                        {metric.value}
-                      </p>
-                    </div>
-                  ))}
+              {/* BioDigital 3D Anatomical Model */}
+              {getAIAnalysisData && (
+                <div className="mt-6">
+                  <h4 className="text-base font-semibold text-gray-900 mb-3">3D Anatomical Visualization</h4>
+                  <BioDigitalViewer 
+                    problematicAreas={[
+                      {
+                        name: caseData.injuryType || 'General',
+                        description: `${getAIAnalysisData.summary} - ${getAIAnalysisData.primaryDiagnosis || caseData.injuryType || 'Movement analysis'}`
+                      }
+                    ]}
+                    patientId={caseData.patientId}
+                    patientInfo={getAIAnalysisData.summary}
+                  />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Patient Context - Full Width Below */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Patient Context
-          </h3>
-          <PatientContextPanel caze={caseData} />
-        </div>
+        {/* Bottom Section - Full Width Components */}
+        <div className="space-y-6">
+          {/* Patient Context */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Patient Context
+            </h3>
+            <PatientContextPanel caze={caseData} />
+          </div>
 
-        {/* Exercise Recommendation */}
-        <div ref={exerciseSectionRef} className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Exercise Recommendation
-          </h3>
+          {/* Exercise Recommendation */}
+          <div ref={exerciseSectionRef} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Exercise Recommendation
+            </h3>
           <RecommendationCard
             exercise={caseData.recommendedExercise}
             confidence={caseData.aiConfidence}
@@ -381,10 +462,11 @@ export default function CaseReviewRoute() {
               handleExerciseChange({ ...params, exerciseId: newExercise?.id })
               setIsEditingRecommendation(false)
             }}
+            cachedModelUrl={caseData.exercise_models?.split(',')[0]} // Use first exercise model URL if available
+            sessionId={caseData.id} // Use case ID as session ID
           />
+          </div>
         </div>
-
-
 
         {/* Modals */}
         <ExerciseSaveModal

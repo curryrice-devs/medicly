@@ -142,7 +142,8 @@ const ProcessingResultsTab: React.FC<ProcessingResultsTabProps> = ({ videoId }) 
       }
 
       const result = await response.json();
-      setAnalysisResult(result);
+      // Extract the analysis from the response object
+      setAnalysisResult(result.analysis || result);
       setCurrentStep('complete');
       setStepProgress(100);
 

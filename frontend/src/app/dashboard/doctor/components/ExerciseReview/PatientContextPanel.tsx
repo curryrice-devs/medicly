@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PatientCase } from '@/types/medical.types';
+import { PatientCase, PatientProfile } from '@/types/medical.types';
 import { doctorApi } from '@/services/api';
 
 interface MedicalHistoryItem {
@@ -11,23 +11,9 @@ interface MedicalHistoryItem {
   status: string;
 }
 
-interface PatientProfile {
-  id: string;
-  case_id: string;
-  full_name: string;
+// Extend the PatientProfile type to add the name field
+interface ExtendedPatientProfile extends PatientProfile {
   name?: string; // Add name field for profiles table compatibility
-  email?: string;
-  phone?: string;
-  age?: number;
-  gender?: string;
-  address?: string;
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
-  medical_history?: MedicalHistoryItem[];
-  current_medications?: string[];
-  allergies?: string[];
-  created_at: string;
-  updated_at: string;
 }
 
 interface Props {
@@ -36,7 +22,7 @@ interface Props {
 
 export function PatientContextPanel({ caze }: Props) {
   const [open, setOpen] = useState(true);
-  const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+  const [patientProfile, setPatientProfile] = useState<ExtendedPatientProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +32,9 @@ export function PatientContextPanel({ caze }: Props) {
       try {
         const profile = await doctorApi.getPatientProfile(caze.patientId);
         console.log('[PatientContextPanel] received profile:', profile);
-        setPatientProfile(profile);
+        if (profile) {
+          setPatientProfile(profile);
+        }
       } catch (error) {
         console.error('Failed to fetch patient profile:', error);
       } finally {
@@ -74,7 +62,7 @@ export function PatientContextPanel({ caze }: Props) {
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient</p>
               <p className="text-gray-900 font-medium">
-                {patientProfile?.full_name || patientProfile?.name || `#${caze.patientId}`}
+                {patientProfile?.fullName || patientProfile?.name || `#${caze.patientId}`}
               </p>
             </div>
             <div>
@@ -105,7 +93,7 @@ export function PatientContextPanel({ caze }: Props) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Full Name</p>
-                  <p className="text-gray-900 font-medium">{patientProfile.full_name}</p>
+                  <p className="text-gray-900 font-medium">{patientProfile.fullName}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Age</p>
@@ -131,31 +119,11 @@ export function PatientContextPanel({ caze }: Props) {
             ) : (
               <div className="space-y-3">
                 {/* Medical History Items */}
-                {patientProfile?.medical_history && patientProfile.medical_history.length > 0 ? (
+                {patientProfile?.medicalHistory && patientProfile.medicalHistory.length > 0 ? (
                   <div className="space-y-2">
-                    {patientProfile.medical_history.map((item, index) => (
+                    {patientProfile.medicalHistory.map((item: string, index: number) => (
                       <div key={index} className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-start justify-between mb-1">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            {item.category}
-                          </p>
-                          {item.date && (
-                            <p className="text-xs text-gray-400">
-                              {new Date(item.date).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        <p className="text-sm font-medium text-gray-900 mb-1">{item.item}</p>
-                        <p className="text-sm text-gray-700">{item.details}</p>
-                        {item.severity && (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${
-                            item.severity === 'high' ? 'bg-red-100 text-red-800' :
-                            item.severity === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {item.severity} severity
-                          </span>
-                        )}
+                        <p className="text-sm text-gray-700">• {item}</p>
                       </div>
                     ))}
                   </div>
@@ -168,9 +136,9 @@ export function PatientContextPanel({ caze }: Props) {
                 {/* Current Medications */}
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Current Medications</p>
-                  {patientProfile?.current_medications && patientProfile.current_medications.length > 0 ? (
+                  {patientProfile?.currentMedications && patientProfile.currentMedications.length > 0 ? (
                     <div className="space-y-1">
-                      {patientProfile.current_medications.map((medication, index) => (
+                      {patientProfile.currentMedications.map((medication: string, index: number) => (
                         <p key={index} className="text-sm text-gray-700">• {medication}</p>
                       ))}
                     </div>

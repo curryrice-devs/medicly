@@ -5,18 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExerciseSearch } from '@/components/ExerciseDatabase/ExerciseSearch';
+import { BioDigitalViewer } from '@/components/BioDigitalViewer';
 
 interface Props {
   exercise: Exercise;
   confidence?: number; // 0-1
-  reasoning?: string;
+  reasoning?: string | object;
   initialEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
   onAccept?: () => Promise<void> | void;
   onModify?: (params: PrescriptionParams, newExercise?: Exercise) => Promise<void> | void;
+  cachedModelUrl?: string; // Optional cached BioDigital model URL
+  sessionId?: string; // Session ID to save URLs to database
 }
 
-export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onAccept, onModify }: Props) {
+export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onAccept, onModify, cachedModelUrl, sessionId }: Props) {
   const [editing, setEditing] = useState(initialEditing);
   const [params, setParams] = useState<PrescriptionParams>({
     sets: exercise.defaultSets,
@@ -42,47 +45,54 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
 
   return (
     <div className="border border-gray-200 rounded-lg p-4">
-      <div className="flex items-start gap-3">
+      <div className="grid grid-cols-[auto_1fr_200px] gap-4 items-start">
+        {/* Exercise Image */}
         {selectedExercise.imageUrl ? (
           <img src={selectedExercise.imageUrl} alt={selectedExercise.name} className="w-16 h-16 object-cover rounded-lg" />
         ) : (
           <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">No Image</div>
         )}
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">{selectedExercise.name}</h3>
+        
+        {/* Exercise Info */}
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{selectedExercise.name}</h3>
+              <p className="text-sm text-gray-600 mt-1">{selectedExercise.description}</p>
+            </div>
             {typeof confidence === 'number' && (
-              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">AI Confidence: {(confidence * 100).toFixed(0)}%</span>
+              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">AI: {(confidence * 100).toFixed(0)}%</span>
             )}
           </div>
-          <p className="text-sm text-gray-600 mt-1">{selectedExercise.description}</p>
           {reasoning && (
-            <p className="text-xs text-gray-500 mt-2">Reasoning: {reasoning}</p>
+            <p className="text-xs text-gray-500 mt-2">
+              <span className="font-medium">Reasoning:</span> {typeof reasoning === 'string' ? reasoning : JSON.stringify(reasoning)}
+            </p>
           )}
           {!editing ? (
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-gray-50 rounded-lg p-3">
+            <div className="mt-4 grid grid-cols-4 gap-2 text-sm">
+              <div className="bg-gray-50 rounded p-2">
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Sets</p>
                 <p className="font-semibold text-gray-900">{selectedExercise.defaultSets}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-gray-50 rounded p-2">
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Reps</p>
                 <p className="font-semibold text-gray-900">{selectedExercise.defaultReps}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-gray-50 rounded p-2">
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Frequency</p>
-                <p className="font-semibold text-gray-900">{selectedExercise.defaultFrequency}</p>
+                <p className="font-semibold text-gray-900 text-xs">{selectedExercise.defaultFrequency}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-gray-50 rounded p-2">
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">Duration</p>
                 <p className="font-semibold text-gray-900">4 weeks</p>
               </div>
             </div>
           ) : (
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div className="col-span-2 flex items-center justify-between">
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-white/60">Selected exercise</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Selected exercise</p>
                   <p className="text-sm font-medium">{selectedExercise.name}</p>
                 </div>
                 <Button 
@@ -96,59 +106,82 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
                 </Button>
               </div>
               {showSearch && (
-                <div className="col-span-2">
+                <div>
                   <ExerciseSearch onSelect={(ex: Exercise) => { setSelectedExercise(ex); setShowSearch(false); }} />
                 </div>
               )}
-              <div>
-                <Label className="text-gray-700 text-sm font-medium">Sets</Label>
-                <Select value={String(params.sets)} onValueChange={(v) => setParams({ ...params, sets: Number(v) })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sets" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <Label className="text-xs text-gray-700 font-medium">Sets</Label>
+                  <Select value={String(params.sets)} onValueChange={(v) => setParams({ ...params, sets: Number(v) })}>
+                    <SelectTrigger className="mt-1 h-8 text-sm">
+                      <SelectValue placeholder="Sets" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-700 font-medium">Reps</Label>
+                  <Input type="number" min={1} max={50} value={params.reps} onChange={(e) => setParams({ ...params, reps: Number(e.target.value) })} className="mt-1 h-8 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-700 font-medium">Frequency</Label>
+                  <Select value={params.frequency} onValueChange={(v) => setParams({ ...params, frequency: v })}>
+                    <SelectTrigger className="mt-1 h-8 text-sm">
+                      <SelectValue placeholder="Frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['Daily','3x/week','2x/week','Weekly'].map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-700 font-medium">Duration</Label>
+                  <Input type="number" min={2} max={12} value={params.durationWeeks} onChange={(e) => setParams({ ...params, durationWeeks: Number(e.target.value) })} className="mt-1 h-8 text-sm" placeholder="weeks" />
+                </div>
               </div>
               <div>
-                <Label className="text-gray-700 text-sm font-medium">Reps</Label>
-                <Input type="number" min={1} max={50} value={params.reps} onChange={(e) => setParams({ ...params, reps: Number(e.target.value) })} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-gray-700 text-sm font-medium">Frequency</Label>
-                <Select value={params.frequency} onValueChange={(v) => setParams({ ...params, frequency: v })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Daily','3x/week','2x/week','Weekly'].map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-gray-700 text-sm font-medium">Duration (weeks)</Label>
-                <Input type="number" min={2} max={12} value={params.durationWeeks} onChange={(e) => setParams({ ...params, durationWeeks: Number(e.target.value) })} className="mt-1" />
-              </div>
-              <div className="col-span-2">
-                <Label className="text-gray-700 text-sm font-medium">Instructions</Label>
-                <Input value={params.instructions} onChange={(e) => setParams({ ...params, instructions: e.target.value })} placeholder="Optional special instructions" className="mt-1" />
+                <Label className="text-xs text-gray-700 font-medium">Instructions</Label>
+                <Input value={params.instructions} onChange={(e) => setParams({ ...params, instructions: e.target.value })} placeholder="Optional special instructions" className="mt-1 h-8 text-sm" />
               </div>
             </div>
           )}
           <div className="mt-4 flex items-center gap-2">
             {!editing ? (
               <>
-                <Button onClick={() => onAccept && onAccept()} className="bg-green-600 hover:bg-green-700 text-white">Accept</Button>
-                <Button variant="outline" onClick={() => setEditing(true)} className="text-gray-600 border-gray-300 hover:bg-gray-50">Edit</Button>
+                <Button size="sm" onClick={() => onAccept && onAccept()} className="bg-green-600 hover:bg-green-700 text-white">Accept</Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-gray-600 border-gray-300 hover:bg-gray-50">Edit</Button>
               </>
             ) : (
               <>
-                <Button disabled={!canSave} onClick={() => onModify && onModify(params, selectedExercise)} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">Save</Button>
-                <Button variant="outline" onClick={handleCancel} className="text-gray-600 border-gray-300 hover:bg-gray-50">Cancel</Button>
+                <Button size="sm" disabled={!canSave} onClick={() => onModify && onModify(params, selectedExercise)} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">Save</Button>
+                <Button size="sm" variant="outline" onClick={handleCancel} className="text-gray-600 border-gray-300 hover:bg-gray-50">Cancel</Button>
               </>
             )}
           </div>
+        </div>
+        
+        {/* BioDigital 3D Preview */}
+        <div className="w-full">
+          <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">3D Preview</div>
+          <BioDigitalViewer 
+            className="aspect-square w-full"
+            problematicAreas={[
+              {
+                name: selectedExercise.name,
+                description: selectedExercise.description,
+                severity: 'medium'
+              }
+            ]}
+            patientId="exercise-preview"
+            patientInfo={{
+              name: selectedExercise.name,
+              injuryType: selectedExercise.bodyPart,
+              aiAnalysis: selectedExercise.description
+            }}
+          />
         </div>
       </div>
     </div>

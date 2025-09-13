@@ -276,6 +276,38 @@ async def get_angle_data(video_id: str):
         filename=angle_file_path.name
     )
 
+<<<<<<< HEAD
+@app.post("/api/analyze-patient-model")
+async def analyze_patient_model(request: Request):
+    """Analyze patient pain points and suggest appropriate BioDigital model and movements"""
+    try:
+        body = await request.json()
+        problematic_areas = body.get('problematicAreas', [])
+        patient_info = body.get('patientInfo', {})
+        
+        if not problematic_areas:
+            raise HTTPException(status_code=400, detail="No problematic areas provided")
+        
+        # Create analysis package for Claude
+        analysis_package = {
+            'patient_info': patient_info,
+            'problematic_areas': problematic_areas,
+            'analysis_type': 'model_selection'
+        }
+        
+        # Use Claude to analyze and suggest model
+        result = await asyncio.get_event_loop().run_in_executor(
+            executor, 
+            two_stage_claude_analyzer.analyze_patient_model_selection,
+            analysis_package
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error analyzing patient model: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+=======
 @app.post("/api/process-supabase-video")
 async def process_supabase_video(request: Request):
     """Download video from Supabase, process it, and upload results back to Supabase"""
@@ -477,6 +509,7 @@ async def process_supabase_video(request: Request):
     except Exception as e:
         logger.error(f"Error starting Supabase video processing: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start Supabase video processing: {str(e)}")
+>>>>>>> main
 
 @app.post("/api/two-stage-analysis/{video_id}")
 async def perform_two_stage_analysis(video_id: str):

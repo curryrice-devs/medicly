@@ -1,0 +1,128 @@
+import React, { useEffect, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
+
+interface BioDigitalViewerProps {
+  problematicAreas: Array<{
+    name: string
+    description?: string
+    severity?: string
+    color?: { r: number; g: number; b: number }
+    opacity?: number
+  }>
+  patientId: string
+  patientInfo?: any
+  cachedModelUrl?: string // Optional cached URL to use instead of calling Claude
+  sessionId?: string // Session ID to save URLs to database
+}
+
+export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cachedModelUrl, sessionId, className }: BioDigitalViewerProps & { className?: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [selectedModelUrl, setSelectedModelUrl] = useState<string>('')
+
+  // Get BioDigital key from environment
+  const biodigitalKey = process.env.NEXT_PUBLIC_BIODIGITAL_KEY || 'YOUR_APP_KEY'
+
+  // Simple function: get case summary → call Claude → render model
+  const loadModel = async () => {
+    if (!problematicAreas || problematicAreas.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      // If we have a cached URL, use it directly
+      if (cachedModelUrl) {
+        console.log('📦 Using cached BioDigital model URL:', cachedModelUrl);
+        setSelectedModelUrl(cachedModelUrl);
+        // Extract model ID from URL for display
+        const modelIdMatch = cachedModelUrl.match(/be=([^&]+)/);
+        if (modelIdMatch) {
+          setSelectedModel(modelIdMatch[1]);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Otherwise, call Claude to get the model
+      const caseDescription = problematicAreas.map(area => 
+        `${area.name}: ${area.description || ''}`
+      ).join('; ');
+      
+      console.log('🚀 Getting model for case via Claude:', caseDescription);
+      
+      const response = await fetch('/api/biodigital/select-model-for-case', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caseDescription,
+          bodyPart: problematicAreas[0]?.name,
+          aiAnalysis: patientInfo,
+          sessionId,
+          isExercisePreview: false
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Got model:', result.selectedModelId);
+        setSelectedModel(result.selectedModelId);
+        setSelectedModelUrl(result.selectedModel?.viewerUrl || '');
+        setIsLoading(false);
+      } else {
+        console.error('❌ Failed to get model');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ Error getting model:', error);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadModel()
+  }, [problematicAreas, patientInfo])
+
+  return (
+    <div className="w-full h-full">
+      {/* 3D Viewer */}
+      <div className={`relative w-full bg-gray-100 rounded-lg overflow-hidden ${className || 'h-96'}`}>
+        {/* Simple Loading/Model Display */}
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <Loader2 className="w-6 h-6 text-blue-600 mx-auto mb-2 animate-spin" />
+              <p className="text-xs text-gray-600">Loading 3D model...</p>
+            </div>
+          </div>
+        ) : selectedModel ? (
+          <iframe
+            id="embedded-human"
+            ref={iframeRef}
+            src={selectedModelUrl || `https://human.biodigital.com/viewer/?be=${selectedModel}&dk=${biodigitalKey}&ui-info=false&ui-menu=false`}
+            frameBorder="0"
+            style={{ width: '100%', height: '100%' }}
+            allowFullScreen={true}
+            loading="lazy"
+            className="border-0 w-full h-full"
+            title="3D Human Anatomy Viewer"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+            <div className="text-center text-gray-500">
+              <p className="text-xs">No model available</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Model Info - Only show in larger views */}
+      {selectedModel && !className?.includes('aspect-square') && (
+        <div className="mt-2 text-xs text-gray-500">
+          <div>Model: <span className="font-mono">{selectedModel}</span></div>
+        </div>
+      )}
+    </div>
+  )
+}
