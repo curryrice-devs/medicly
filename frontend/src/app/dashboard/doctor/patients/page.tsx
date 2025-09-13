@@ -30,7 +30,6 @@ export default function PatientsPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
   const [patients, setPatients] = useState<PatientSearchResult[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +44,9 @@ export default function PatientsPage() {
       setError(null)
 
       try {
+        console.log('🔍 Loading patients for doctor:', user.id)
         const patientsData = await doctorApi.getDoctorPatients(user.id)
+        console.log('📋 Patients loaded:', patientsData)
         setPatients(patientsData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load patients')
@@ -63,9 +64,7 @@ export default function PatientsPage() {
                          (patient.email && patient.email.toLowerCase().includes(searchLower)) ||
                          (patient.caseId && patient.caseId.toLowerCase().includes(searchLower))
 
-    const matchesStatus = statusFilter === 'all' || patient.relationshipStatus === statusFilter
-
-    return matchesSearch && matchesStatus
+    return matchesSearch
   })
 
   const getStatusColor = (status: string) => {
@@ -165,20 +164,12 @@ export default function PatientsPage() {
         
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Patient Management
-              </h1>
-              <p className="text-gray-600">
-                Manage your patients and track their progress
-              </p>
-            </div>
-            <Button className="bg-green-600 hover:bg-green-700 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Patient
-            </Button>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Patient Management
+          </h1>
+          <p className="text-gray-600">
+            Manage your patients and track their progress
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -201,83 +192,73 @@ export default function PatientsPage() {
                 <Activity className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Cases</p>
+                <p className="text-sm font-medium text-gray-600">Total Sessions</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.relationshipStatus === 'active').length}
+                  {patients.reduce((total, p) => total + p.totalSessions, 0)}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
-                <Clock className="w-6 h-6 text-yellow-600" />
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                <FileText className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-sm font-medium text-gray-600">Avg Sessions</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.relationshipStatus === 'pending').length}
+                  {patients.length > 0 ? Math.round(patients.reduce((total, p) => total + p.totalSessions, 0) / patients.length) : 0}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                <CheckCircle className="w-6 h-6 text-blue-600" />
+                <Calendar className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-sm font-medium text-gray-600">Recent Activity</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {patients.filter(p => p.relationshipStatus === 'completed').length}
+                  {patients.filter(p => p.lastSession && new Date(p.lastSession) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
+        {/* Search and Add Patient */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search patients..."
+                placeholder="Search patients by name, email, or case ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            
+
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="recent">Most Recent</SelectItem>
                 <SelectItem value="name">Name A-Z</SelectItem>
-                <SelectItem value="progress">Progress</SelectItem>
                 <SelectItem value="sessions">Sessions</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Button variant="outline" className="flex items-center">
-              <Filter className="w-4 h-4 mr-2" />
-              More Filters
+
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap"
+              onClick={() => router.push('/dashboard/doctor/patients/add')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Patient
             </Button>
           </div>
         </div>

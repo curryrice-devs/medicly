@@ -23,52 +23,87 @@ export async function GET() {
 
     const supabase = createClient(url, key)
 
-    // Fetch all patient profiles
-    const { data: patients, error: patientsError } = await supabase
+    // First, fetch all sessions
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('patient_id, created_at, status')
+      .order('created_at', { ascending: false })
+
+    if (sessionsError) {
+      console.error('[api/doctor/all-patients] sessions error:', sessionsError)
+      return NextResponse.json({ error: sessionsError.message }, { status: 500 })
+    }
+
+    // Get unique patient IDs from sessions
+    const patientIds = [...new Set(sessionsData?.map(s => s.patient_id) || [])]
+
+    if (patientIds.length === 0) {
+      console.log('[api/doctor/all-patients] No sessions found')
+      return NextResponse.json({ patients: [] }, { status: 200 })
+    }
+
+    // Fetch patient profiles for those IDs
+    const { data: patientProfiles, error: profilesError } = await supabase
       .from('patient_profiles')
-      .select('*')
-      .order('full_name')
+      .select('id, case_id, full_name, email, phone, age')
+      .in('id', patientIds)
 
-    if (patientsError) {
-      console.error('[api/doctor/all-patients] patients error:', patientsError)
-      return NextResponse.json({ error: patientsError.message }, { status: 500 })
+    if (profilesError) {
+      console.error('[api/doctor/all-patients] profiles error:', profilesError)
+      return NextResponse.json({ error: profilesError.message }, { status: 500 })
     }
 
-    // Fetch all doctor-patient relationships to determine assignment status
-    const { data: relationships, error: relationshipsError } = await supabase
-      .from('doctor_patient_relationships')
-      .select('doctor_id, patient_id, status, assigned_at')
-
-    if (relationshipsError) {
-      console.error('[api/doctor/all-patients] relationships error:', relationshipsError)
-      // Continue without relationships data
-    }
-
-    // Create a map of patient relationships
-    const relationshipsMap = new Map()
-    if (relationships) {
-      relationships.forEach(rel => {
-        relationshipsMap.set(rel.patient_id, rel)
+    // Create a map of profiles for easy lookup
+    const profilesMap = new Map()
+    if (patientProfiles) {
+      patientProfiles.forEach(profile => {
+        profilesMap.set(profile.id, profile)
       })
     }
 
-    // Map patients with relationship info and proper field mapping
-    const mappedPatients = (patients || []).map(patient => {
-      const relationship = relationshipsMap.get(patient.id)
+    // Group sessions by patient and aggregate data
+    const patientsMap = new Map()
 
-      return {
-        id: patient.id,
-        case_id: patient.case_id,
-        full_name: patient.full_name,
-        email: patient.email,
-        phone: patient.phone,
-        age: patient.age,
-        relationship_status: relationship ? relationship.status : 'unassigned',
-        assigned_at: relationship ? relationship.assigned_at : null,
-        last_session: null, // Could be enhanced with session data
-        total_sessions: 0   // Could be enhanced with session data
-      }
-    })
+    if (sessionsData) {
+      sessionsData.forEach(session => {
+        const patientId = session.patient_id
+        const profile = profilesMap.get(patientId)
+
+        if (!profile) return
+
+        if (patientsMap.has(patientId)) {
+          // Update existing patient data
+          const existing = patientsMap.get(patientId)
+          existing.totalSessions += 1
+
+          // Update last session if this one is more recent
+          if (new Date(session.created_at) > new Date(existing.lastSession)) {
+            existing.lastSession = session.created_at
+          }
+        } else {
+          // Create new patient entry
+          patientsMap.set(patientId, {
+            id: profile.id,
+            caseId: profile.case_id,
+            fullName: profile.full_name,
+            email: profile.email,
+            phone: profile.phone,
+            age: profile.age,
+            relationshipStatus: 'active', // Default to active since they have sessions
+            assignedAt: session.created_at,
+            lastSession: session.created_at,
+            totalSessions: 1
+          })
+        }
+      })
+    }
+
+    // Convert map to array and sort by name
+    const mappedPatients = Array.from(patientsMap.values()).sort((a, b) =>
+      (a.fullName || '').localeCompare(b.fullName || '')
+    )
+
+    console.log(`[api/doctor/all-patients] Returning ${mappedPatients.length} patients`)
 
     return NextResponse.json({
       patients: mappedPatients

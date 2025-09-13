@@ -2,15 +2,14 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  Home, 
-  Calendar, 
-  User, 
-  Settings, 
+import {
+  Home,
+  Calendar,
+  User,
+  Settings,
   Activity,
   FileText,
   Users,
-  BarChart3,
   Stethoscope,
   ChevronLeft,
   ChevronRight
