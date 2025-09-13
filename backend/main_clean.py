@@ -270,8 +270,7 @@ async def perform_two_stage_analysis(video_id: str):
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "started")
         analysis_package = key_frame_extractor.extract_key_frames(
             str(video_path), 
-            str(key_frames_dir),
-            str(angle_file)
+            str(key_frames_dir)
         )
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "completed")
         
@@ -280,10 +279,8 @@ async def perform_two_stage_analysis(video_id: str):
             raise HTTPException(status_code=500, detail=f"Key frame extraction failed: {analysis_package['error']}")
         
         # Perform two-stage analysis
-        analysis_result = two_stage_claude_analyzer.perform_two_stage_analysis(
-            str(video_path),
-            analysis_package,
-            str(OUTPUT_DIR)
+        analysis_result = two_stage_claude_analyzer.analyze_video_comprehensive(
+            analysis_package
         )
         
         # Save analysis result

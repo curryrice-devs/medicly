@@ -271,10 +271,63 @@ export default function CaseReviewRoute() {
                 <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
                 AI Analysis
               </h3>
-              <p className="text-gray-700 leading-relaxed mb-4">
-                {caseData.aiAnalysis}
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              
+              {/* Display AI Analysis properly */}
+              {caseData.aiAnalysis ? (
+                <div className="space-y-4">
+                  {/* Check if it's the new JSONB format */}
+                  {typeof caseData.aiAnalysis === 'object' && caseData.aiAnalysis.analysis ? (
+                    <>
+                      {/* Movement Overview */}
+                      {caseData.aiAnalysis.analysis.stage_1_movement_overview && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <h5 className="text-sm font-semibold text-green-900 mb-2">Movement Overview</h5>
+                          <p className="text-sm text-green-800 leading-relaxed">
+                            {typeof caseData.aiAnalysis.analysis.stage_1_movement_overview === 'string' 
+                              ? caseData.aiAnalysis.analysis.stage_1_movement_overview
+                              : JSON.stringify(caseData.aiAnalysis.analysis.stage_1_movement_overview)
+                            }
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Health Assessment */}
+                      {caseData.aiAnalysis.analysis.analysis_summary?.overall_health_assessment && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h5 className="text-sm font-semibold text-blue-900 mb-2">Health Assessment</h5>
+                          <p className="text-sm text-blue-800 leading-relaxed">
+                            {caseData.aiAnalysis.analysis.analysis_summary.overall_health_assessment}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Recommendations */}
+                      {caseData.aiAnalysis.analysis.analysis_summary?.main_recommendations && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <h5 className="text-sm font-semibold text-amber-900 mb-2">Recommendations</h5>
+                          <ul className="text-sm text-amber-800 space-y-1">
+                            {caseData.aiAnalysis.analysis.analysis_summary.main_recommendations.map((rec: string, idx: number) => (
+                              <li key={idx} className="flex items-start">
+                                <span className="mr-2">•</span>
+                                <span>{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Fallback for string format */
+                    <p className="text-gray-700 leading-relaxed">
+                      {typeof caseData.aiAnalysis === 'string' ? caseData.aiAnalysis : JSON.stringify(caseData.aiAnalysis)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">No AI analysis available</p>
+              )}
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-blue-900">
                     AI Confidence: {Math.round((caseData.aiConfidence || 0) * 100)}%
