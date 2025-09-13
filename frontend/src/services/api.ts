@@ -1,4 +1,4 @@
-import { PatientCase, CaseStats, Exercise } from '@/types/medical.types';
+import { PatientCase, CaseStats, Exercise, SessionStatus } from '@/types/medical.types';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { parseAIAnalysis, createFallbackAnalysis, AIAnalysisData } from '@/types/ai-analysis.types';
 
@@ -236,7 +236,7 @@ export const doctorApi = {
     }
   },
 
-  async updateCaseStatus(caseId: string, status: 'active' | 'rejected', notes?: string): Promise<boolean> {
+  async updateCaseStatus(caseId: string, status: SessionStatus, notes?: string): Promise<boolean> {
     console.log('[doctorApi.updateCaseStatus] updating case status:', { caseId, status, notes });
     try {
       const resp = await fetch(`/api/doctor/cases/${caseId}`, {

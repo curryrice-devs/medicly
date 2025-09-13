@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, XCircle, Edit3, Clock, AlertCircle, User, Calendar, Phone, Mail } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, XCircle, Edit3, Clock, AlertCircle, User, Calendar, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PatientCase } from '@/types/medical.types'
 import { doctorApi } from '@/services/api'
@@ -164,22 +164,15 @@ export default function CaseReviewRoute() {
     }
   }
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200'
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'low': return 'bg-green-100 text-green-800 border-green-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-6">
+        {/* Header - More Compact */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-4 mb-4">
             <Button 
               variant="outline" 
               size="sm"
@@ -191,22 +184,16 @@ export default function CaseReviewRoute() {
             </Button>
           </div>
           
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Case Review: {caseData.id}
-              </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Case Review: {caseData.id}
+            </h1>
+            <div className="flex items-center space-x-4">
               <p className="text-gray-600">
-                Patient {caseData.patientId} • {caseData.injuryType}
+                Patient {caseData.patientId} • {caseData.injuryType} • Submitted {new Date(caseData.submittedAt).toLocaleDateString()}
               </p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(caseData.status)}`}>
                 {caseData.status}
-              </span>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getUrgencyColor(caseData.urgency)}`}>
-                {caseData.urgency} priority
               </span>
             </div>
           </div>
@@ -225,51 +212,51 @@ export default function CaseReviewRoute() {
           onSaveExercise={handleSaveExercise}
         />
 
-        {/* Patient Info Section */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <User className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-600">Patient ID: {caseData.patientId}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                Submitted: {new Date(caseData.submittedAt).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Patient Video */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Calendar className="w-5 h-5 text-indigo-600 mr-2" />
-            Patient Video {caseData.processedVideoUrl && <span className="text-sm text-green-600 ml-2">(Processed with AI Analysis)</span>}
-          </h3>
-          <VideoPlayer src={caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl} />
-        </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                {/* Top Row - Video and AI Analysis Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
           
-          {/* Left Column - Patient Context */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <User className="w-5 h-5 text-green-600 mr-2" />
-                Patient Context
-              </h3>
-              <PatientContextPanel caze={caseData} />
+          {/* Left Column - Patient Video (Larger) */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Patient Video
+              {caseData.processedVideoUrl && (
+                <span className="text-sm text-green-600 ml-2">
+                  (AI Enhanced)
+                </span>
+              )}
+            </h3>
+            <div className="relative">
+              {/* Large video container with better aspect ratio */}
+              <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden shadow-inner">
+                {(caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl) ? (
+                  <video
+                    src={caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl}
+                    controls
+                    className="w-full h-full object-contain"
+                    preload="metadata"
+                    style={{ backgroundColor: '#000' }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <Video className="w-16 h-16 mx-auto mb-3" />
+                      <p className="text-lg font-medium">No video available</p>
+                      <p className="text-sm text-gray-500">Video will appear here when uploaded</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
 
           {/* Right Column - AI Analysis & Movement Metrics */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* AI Analysis */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
+            <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 AI Analysis
               </h3>
               
@@ -281,7 +268,7 @@ export default function CaseReviewRoute() {
                     <>
                       {/* Movement Overview */}
                       {caseData.aiAnalysis.analysis.stage_1_movement_overview && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                           <h5 className="text-sm font-semibold text-green-900 mb-2">Movement Overview</h5>
                           <p className="text-sm text-green-800 leading-relaxed">
                             {typeof caseData.aiAnalysis.analysis.stage_1_movement_overview === 'string' 
@@ -294,7 +281,7 @@ export default function CaseReviewRoute() {
                       
                       {/* Health Assessment */}
                       {caseData.aiAnalysis.analysis.analysis_summary?.overall_health_assessment && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                           <h5 className="text-sm font-semibold text-blue-900 mb-2">Health Assessment</h5>
                           <p className="text-sm text-blue-800 leading-relaxed">
                             {caseData.aiAnalysis.analysis.analysis_summary.overall_health_assessment}
@@ -304,7 +291,7 @@ export default function CaseReviewRoute() {
                       
                       {/* Recommendations */}
                       {caseData.aiAnalysis.analysis.analysis_summary?.main_recommendations && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                           <h5 className="text-sm font-semibold text-amber-900 mb-2">Recommendations</h5>
                           <ul className="text-sm text-amber-800 space-y-1">
                             {caseData.aiAnalysis.analysis.analysis_summary.main_recommendations.map((rec: string, idx: number) => (
@@ -328,32 +315,31 @@ export default function CaseReviewRoute() {
                 <p className="text-gray-500 italic">No AI analysis available</p>
               )}
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-blue-900">
                     AI Confidence: {Math.round((caseData.aiConfidence || 0) * 100)}%
                   </span>
                 </div>
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-800 leading-relaxed">
                   {typeof caseData.reasoning === 'string' ? caseData.reasoning : JSON.stringify(caseData.reasoning)}
                 </p>
               </div>
             </div>
 
             {/* Movement Metrics */}
-            {caseData.movementMetrics && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Clock className="w-5 h-5 text-purple-600 mr-2" />
+            {caseData.movementMetrics && caseData.movementMetrics.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">
                   Movement Metrics
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-3">
                   {caseData.movementMetrics.map((metric, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-600 mb-1">
+                    <div key={index} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-600">
                         {metric.label}
                       </p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-lg font-bold text-gray-900">
                         {metric.value}
                       </p>
                     </div>
@@ -364,10 +350,17 @@ export default function CaseReviewRoute() {
           </div>
         </div>
 
+        {/* Patient Context - Full Width Below */}
+        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Patient Context
+          </h3>
+          <PatientContextPanel caze={caseData} />
+        </div>
+
         {/* Exercise Recommendation */}
-        <div ref={exerciseSectionRef} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+        <div ref={exerciseSectionRef} className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Exercise Recommendation
           </h3>
           <RecommendationCard
@@ -389,31 +382,7 @@ export default function CaseReviewRoute() {
           />
         </div>
 
-        {/* Case Timeline */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Clock className="w-5 h-5 text-gray-600 mr-2" />
-            Case Timeline
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Case Submitted</p>
-                <p className="text-sm text-gray-600">
-                  {new Date(caseData.submittedAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Awaiting Review</p>
-                <p className="text-sm text-gray-500">Pending doctor approval</p>
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         {/* Modals */}
         <ExerciseSaveModal

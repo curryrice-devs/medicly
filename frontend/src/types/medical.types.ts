@@ -1,5 +1,8 @@
 export type UrgencyLevel = 'low' | 'medium' | 'high';
 
+// Session status types - centralized for consistency
+export type SessionStatus = 'pending' | 'active' | 'rejected' | 'completed' | 'feedback';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -44,7 +47,7 @@ export interface PatientCase {
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
-  status: 'pending' | 'active' | 'rejected' | 'completed' | 'feedback';
+  status: SessionStatus; // Updated to use the centralized type
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1

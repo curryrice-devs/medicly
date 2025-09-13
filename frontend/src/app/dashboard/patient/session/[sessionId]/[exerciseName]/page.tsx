@@ -435,11 +435,16 @@ export default function ExerciseDetailPage() {
       // Save analysis results to database
       try {
         console.log('💾 Saving analysis results to session...')
+        
+        // Extract structured analysis data for proper parsing on frontend
+        const structuredAnalysis = result?.analysis?.analysis || result?.analysis || result;
+        console.log('📊 Structured analysis data:', structuredAnalysis);
+        
         const analysisResponse = await fetch(`/api/sessions/${sessionId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ai_evaluation: result, // Save as JSONB object, not stringified
+            ai_evaluation: structuredAnalysis, // Save structured analysis for frontend parsing
             status: 'completed'
           })
         })
@@ -558,6 +563,20 @@ export default function ExerciseDetailPage() {
           </div>
         </div>
 
+        {/* 
+        UI Rendering Logic by Session Status:
+        
+        UPLOAD SECTION (only for new sessions):
+        - Show ONLY when: no videos exist AND status is not completed/feedback
+        
+        VIDEO DISPLAY SECTION: 
+        - Show when: any videos exist (new upload OR existing from database)
+        
+        ANALYSIS PROGRESS & NOTES SECTION:
+        - Show when: any video content exists OR session is completed/feedback
+        - This ensures completed sessions show their analysis results even without new uploads
+        */}
+        
         {/* Main Analysis Interface */}
         <div style={{ 
           display: 'flex', 
@@ -668,9 +687,24 @@ export default function ExerciseDetailPage() {
                 fontSize: '0.9rem', 
                 fontWeight: '600', 
                 color: 'hsl(var(--foreground))',
-                marginBottom: '8px'
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}>
                 Video Analysis
+                {(sessionStatus === 'completed' || sessionStatus === 'feedback') && (
+                  <span style={{
+                    fontSize: '0.65rem',
+                    color: '#0d4a2b',
+                    backgroundColor: 'rgba(13, 74, 43, 0.1)',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontWeight: '500'
+                  }}>
+                    Auto-playing
+                  </span>
+                )}
               </h3>
 
               {/* Side by Side Video Display */}
@@ -701,6 +735,9 @@ export default function ExerciseDetailPage() {
                       <video
                         src={originalVideoUrl}
                         controls
+                        autoPlay={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
+                        muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
+                        loop={false}
                       style={{
                           width: '100%', 
                           height: '100%',
@@ -713,8 +750,15 @@ export default function ExerciseDetailPage() {
                           console.error('❌ Original video failed to load:', e);
                           console.log('🔗 Attempted URL:', originalVideoUrl);
                         }}
+                        onLoadStart={() => {
+                          console.log('🔄 Original video loading started');
+                        }}
+                        onCanPlay={() => {
+                          console.log('✅ Original video ready to play');
+                        }}
+                        poster="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' fill='%23f3f4f6'%3e%3crect width='100%25' height='100%25'/%3e%3c/svg%3e"
                       />
-                    ) : isLoadingVideos ? (
+                    ) : isLoadingVideos || isUploading ? (
                       <div style={{ 
                         width: '100%', 
                         height: '100%',
@@ -722,11 +766,38 @@ export default function ExerciseDetailPage() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#6b7280',
-                        backgroundColor: '#f3f4f6'
+                        backgroundColor: '#f3f4f6',
+                        flexDirection: 'column',
+                        gap: '8px'
                       }}>
                         <div style={{ textAlign: 'center' }}>
-                          <Loader2 style={{ width: '16px', height: '16px', margin: '0 auto 4px' }} className="animate-spin" />
-                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Loading...</p>
+                          <Loader2 style={{ width: '20px', height: '20px', margin: '0 auto 8px', color: '#0d4a2b' }} className="animate-spin" />
+                          <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '500' }}>
+                            {isUploading ? 'Uploading video...' : 'Loading video...'}
+                          </p>
+                          {isUploading && (
+                            <>
+                              <p style={{ fontSize: '0.65rem', margin: '4px 0 0 0', color: '#6b7280' }}>
+                                {uploadProgress}% complete
+                              </p>
+                              <div style={{
+                                width: '120px',
+                                height: '3px',
+                                backgroundColor: '#e5e7eb',
+                                borderRadius: '2px',
+                                marginTop: '6px',
+                                overflow: 'hidden'
+                              }}>
+                                <div style={{
+                                  width: `${uploadProgress}%`,
+                                  height: '100%',
+                                  backgroundColor: '#0d4a2b',
+                                  borderRadius: '2px',
+                                  transition: 'width 0.3s ease'
+                                }} />
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -767,6 +838,9 @@ export default function ExerciseDetailPage() {
                     <video
                         src={processedVideoUrl}
                       controls
+                      autoPlay={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
+                      muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
+                      loop={false}
                       style={{ 
                         width: '100%', 
                         height: '100%',
@@ -779,6 +853,13 @@ export default function ExerciseDetailPage() {
                           console.error('❌ Processed video failed to load:', e);
                           console.log('🔗 Attempted URL:', processedVideoUrl);
                       }}
+                      onLoadStart={() => {
+                        console.log('🔄 Processed video loading started');
+                      }}
+                      onCanPlay={() => {
+                        console.log('✅ Processed video ready to play');
+                      }}
+                      poster="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' fill='%23000'%3e%3crect width='100%25' height='100%25'/%3e%3c/svg%3e"
                     />
                     ) : currentStep === 'complete' ? (
                       <div style={{ 
@@ -816,11 +897,36 @@ export default function ExerciseDetailPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                         color: '#6b7280',
-                        backgroundColor: '#f3f4f6'
+                        backgroundColor: '#f3f4f6',
+                        flexDirection: 'column',
+                        gap: '6px'
                     }}>
                       <div style={{ textAlign: 'center' }}>
-                          <Loader2 style={{ width: '14px', height: '14px', margin: '0 auto 3px' }} className="animate-spin" />
-                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Generating...</p>
+                          <Loader2 style={{ width: '18px', height: '18px', margin: '0 auto 6px', color: '#8b5cf6' }} className="animate-spin" />
+                          <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '500', color: '#374151' }}>
+                            {currentStep === 'processing_pose' ? 'Analyzing pose...' :
+                             currentStep === 'extracting_keyframes' ? 'Extracting frames...' :
+                             currentStep === 'claude_analysis' ? 'AI processing...' :
+                             'Generating analysis...'}
+                          </p>
+                          {stepProgress > 0 && (
+                            <div style={{
+                              width: '100px',
+                              height: '2px',
+                              backgroundColor: '#e5e7eb',
+                              borderRadius: '1px',
+                              marginTop: '6px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                width: `${stepProgress}%`,
+                                height: '100%',
+                                backgroundColor: '#8b5cf6',
+                                borderRadius: '1px',
+                                transition: 'width 0.3s ease'
+                              }} />
+                            </div>
+                          )}
                       </div>
                     </div>
                   )}
@@ -858,8 +964,8 @@ export default function ExerciseDetailPage() {
               </div>
             )}
 
-          {/* Analysis Progress and Notes Grid */}
-          {videoId && (
+          {/* Analysis Progress and Notes Grid - show for any video content OR completed/feedback sessions */}
+          {(videoId || originalVideoUrl || processedVideoUrl || sessionStatus === 'completed' || sessionStatus === 'feedback') && (
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: '1fr 1fr',
