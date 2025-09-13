@@ -26,16 +26,20 @@ export function usePatientCases(options: UsePatientCasesOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
 
   const load = useCallback(async () => {
+    console.log('[usePatientCases] load() start', { filters });
     setLoading(true);
     setError(null);
     try {
       const res = await doctorApi.listCases(filters);
+      console.log('[usePatientCases] listCases() result', { total: res.total, itemsLen: res.items?.length });
       setItems(res.items);
       setTotal(res.total);
       setStats(res.stats);
     } catch (e) {
+      console.error('[usePatientCases] load() error', e);
       setError(e instanceof Error ? e.message : 'Failed to load cases');
     } finally {
+      console.log('[usePatientCases] load() done');
       setLoading(false);
     }
   }, [filters]);
@@ -46,11 +50,11 @@ export function usePatientCases(options: UsePatientCasesOptions = {}) {
 
   // Real-time updates via WebSocket
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_WS_URL;
+    if (!url) return; // disable WS unless explicitly configured
     try {
-      const url = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8001/ws/doctor';
       const ws = new WebSocket(url);
       wsRef.current = ws;
-
       ws.addEventListener('message', (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -59,7 +63,6 @@ export function usePatientCases(options: UsePatientCasesOptions = {}) {
           }
         } catch {}
       });
-
       return () => {
         ws.close();
       };

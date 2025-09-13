@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 interface VideoUploadOptions {
   sessionId?: string;
@@ -71,6 +71,7 @@ export function useSupabaseVideoUpload(options: VideoUploadOptions = {}): UseSup
       }
 
       // Get current user
+      const supabase = supabaseBrowser();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         throw new Error('You must be logged in to upload videos');
