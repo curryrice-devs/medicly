@@ -534,31 +534,14 @@ export default function ExerciseDetailPage() {
   const exerciseDisplayName = exerciseName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   return (
-    <div style={{ 
-      flex: 1,
-      backgroundColor: 'hsl(var(--background))'
-    }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '8px' }}>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Header with Back Navigation */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '12px',
-          padding: '8px 0',
-          borderBottom: '1px solid hsl(var(--border))'
-        }}>
-          <div>
-            <h1 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: 'bold', 
-              color: 'hsl(var(--foreground))',
-              marginBottom: '0'
-            }}>
-              {exerciseDisplayName} Analysis
-            </h1>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {exerciseDisplayName} Analysis
+          </h1>
         </div>
 
         {/* 
@@ -576,44 +559,21 @@ export default function ExerciseDetailPage() {
         */}
         
         {/* Main Analysis Interface */}
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          gap: '12px',
-          minHeight: '40vh'
-        }}>
+        <div className="space-y-6">
           
             {/* Upload Section */}
             {!videoId && !originalVideoUrl && !processedVideoUrl && sessionStatus !== 'completed' && sessionStatus !== 'feedback' && (
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
-              borderRadius: '6px',
-              padding: '12px',
-              border: '1px solid hsl(var(--border))'
-              }}>
-                <h3 style={{ 
-                fontSize: '0.9rem', 
-                  fontWeight: '600', 
-                  color: 'hsl(var(--foreground))',
-                marginBottom: '8px'
-                }}>
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Upload Your Exercise Video
                 </h3>
                 
                 <div
-                  style={{
-                    border: selectedFile 
-                      ? '2px dashed #0d4a2b' 
-                      : '2px dashed hsl(var(--border))',
-                    backgroundColor: selectedFile 
-                      ? 'rgba(13, 74, 43, 0.05)' 
-                      : 'transparent',
-                  borderRadius: '6px',
-                  padding: '16px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                    selectedFile 
+                      ? 'border-green-600 bg-green-50' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <input
@@ -626,45 +586,32 @@ export default function ExerciseDetailPage() {
                   
                   {selectedFile ? (
                     <div>
-                      <CheckCircle2 style={{ width: '48px', height: '48px', color: '#0d4a2b', margin: '0 auto 16px' }} />
-                      <h4 style={{ 
-                        fontSize: '1.125rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '8px'
-                      }}>
+                      <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
                         {selectedFile.name}
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '16px' }}>
+                      <p className="text-sm text-gray-600 mb-4">
                         {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for analysis
                       </p>
                       <Button 
-                      onClick={(e) => {
-                        e.stopPropagation() // Prevent file picker from opening
-                        startAnalysis()
-                      }}
-                      disabled={isUploading}
-                        style={{ 
-                          backgroundColor: '#0d4a2b',
-                          gap: '8px'
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent file picker from opening
+                          startAnalysis()
                         }}
+                        disabled={isUploading}
+                        className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        <Play style={{ width: '16px', height: '16px' }} />
+                        <Play className="w-4 h-4 mr-2" />
                         Start AI Analysis
                       </Button>
                     </div>
                   ) : (
                     <div>
-                      <Upload style={{ width: '48px', height: '48px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 16px' }} />
-                      <h4 style={{ 
-                        fontSize: '1.125rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '8px'
-                      }}>
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
                         Drop your {exerciseDisplayName.toLowerCase()} video here
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
+                      <p className="text-sm text-gray-600">
                         or click to browse • MP4, AVI, MOV supported • Max 100MB
                       </p>
                     </div>
@@ -675,60 +622,27 @@ export default function ExerciseDetailPage() {
 
           {/* Video Display - Ultra Compact */}
             {(videoId || originalVideoUrl || processedVideoUrl) && (
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
-              borderRadius: '6px',
-              padding: '12px',
-                border: '1px solid hsl(var(--border))'
-              }}>
-              <h3 style={{ 
-                fontSize: '0.9rem', 
-                fontWeight: '600', 
-                color: 'hsl(var(--foreground))',
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                Video Analysis
-                {(sessionStatus === 'completed' || sessionStatus === 'feedback') && (
-                  <span style={{
-                    fontSize: '0.65rem',
-                    color: '#0d4a2b',
-                    backgroundColor: 'rgba(13, 74, 43, 0.1)',
-                    padding: '2px 6px',
-                    borderRadius: '10px',
-                    fontWeight: '500'
-                  }}>
-                    Auto-playing
-                  </span>
-                )}
-              </h3>
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <div className="flex items-center space-x-2 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Video Analysis
+                  </h3>
+                  {(sessionStatus === 'completed' || sessionStatus === 'feedback') && (
+                    <span className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                      Auto-playing
+                    </span>
+                  )}
+                </div>
 
               {/* Side by Side Video Display */}
-                <div style={{ 
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '12px',
-                marginBottom: '8px'
-                }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 
                 {/* Original Video */}
                 <div>
-                  <h4 style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '4px'
-                  }}>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">
                     Original Video
                   </h4>
-                  <div style={{ 
-                    backgroundColor: '#000',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    aspectRatio: '4/3'
-                  }}>
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video">
                     {originalVideoUrl ? (
                       <video
                         src={originalVideoUrl}
@@ -736,11 +650,7 @@ export default function ExerciseDetailPage() {
                         autoPlay={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                         muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                         loop={false}
-                      style={{
-                          width: '100%', 
-                          height: '100%',
-                          objectFit: 'contain'
-                        }}
+                        className="w-full h-full object-contain"
                         onLoadedData={() => {
                           console.log('✅ Original video loaded from Supabase');
                         }}
@@ -770,12 +680,12 @@ export default function ExerciseDetailPage() {
                       }}>
                         <div style={{ textAlign: 'center' }}>
                           <Loader2 style={{ width: '20px', height: '20px', margin: '0 auto 8px', color: '#0d4a2b' }} className="animate-spin" />
-                          <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '500' }}>
+                          <p style={{ fontSize: '0.875rem', margin: 0, fontWeight: '500' }}>
                             {isUploading ? 'Uploading video...' : 'Loading video...'}
                           </p>
                           {isUploading && (
                             <>
-                              <p style={{ fontSize: '0.65rem', margin: '4px 0 0 0', color: '#6b7280' }}>
+                              <p style={{ fontSize: '0.75rem', margin: '4px 0 0 0', color: '#6b7280' }}>
                                 {uploadProgress}% complete
                               </p>
                               <div style={{
@@ -809,7 +719,7 @@ export default function ExerciseDetailPage() {
                         backgroundColor: '#f3f4f6'
                       }}>
                         <div style={{ textAlign: 'center' }}>
-                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Upload video to begin</p>
+                          <p style={{ fontSize: '0.875rem', margin: 0 }}>Upload video to begin</p>
                         </div>
                       </div>
                     )}
@@ -818,20 +728,10 @@ export default function ExerciseDetailPage() {
 
                 {/* Pose Analysis Video */}
                 <div>
-                  <h4 style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '4px'
-                  }}>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">
                     Pose Analysis
                   </h4>
-                <div style={{ 
-                  backgroundColor: '#000',
-                    borderRadius: '4px',
-                  overflow: 'hidden',
-                    aspectRatio: '4/3'
-                }}>
+                  <div className="bg-black rounded-lg overflow-hidden aspect-video">
                     {processedVideoUrl ? (
                     <video
                         src={processedVideoUrl}
@@ -839,11 +739,7 @@ export default function ExerciseDetailPage() {
                       autoPlay={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                       muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                       loop={false}
-                      style={{ 
-                        width: '100%', 
-                        height: '100%',
-                        objectFit: 'contain'
-                      }}
+                      className="w-full h-full object-contain"
                         onLoadedData={() => {
                           console.log('✅ Processed video loaded');
                         }}
@@ -870,7 +766,7 @@ export default function ExerciseDetailPage() {
                         backgroundColor: '#f3f4f6'
                       }}>
                         <div style={{ textAlign: 'center' }}>
-                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Processing complete, video not available</p>
+                          <p style={{ fontSize: '0.875rem', margin: 0 }}>Processing complete, video not available</p>
                         </div>
                       </div>
                     ) : currentStep === 'idle' ? (
@@ -884,7 +780,7 @@ export default function ExerciseDetailPage() {
                         backgroundColor: '#f3f4f6'
                       }}>
                         <div style={{ textAlign: 'center' }}>
-                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Pose analysis will appear here</p>
+                          <p style={{ fontSize: '0.875rem', margin: 0 }}>Pose analysis will appear here</p>
                         </div>
                       </div>
                   ) : (
@@ -901,7 +797,7 @@ export default function ExerciseDetailPage() {
                     }}>
                       <div style={{ textAlign: 'center' }}>
                           <Loader2 style={{ width: '18px', height: '18px', margin: '0 auto 6px', color: '#8b5cf6' }} className="animate-spin" />
-                          <p style={{ fontSize: '0.75rem', margin: 0, fontWeight: '500', color: '#374151' }}>
+                          <p style={{ fontSize: '0.875rem', margin: 0, fontWeight: '500', color: '#374151' }}>
                             {currentStep === 'processing_pose' ? 'Analyzing pose...' :
                              currentStep === 'extracting_keyframes' ? 'Extracting frames...' :
                              currentStep === 'claude_analysis' ? 'AI processing...' :
@@ -933,28 +829,25 @@ export default function ExerciseDetailPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div style={{ 
-                  display: 'flex', 
-                gap: '6px'
-                }}>
+                <div className="flex space-x-3">
                   <Button 
                     onClick={resetAnalysis}
                     variant="outline"
-                  size="sm"
-                  style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
+                    size="sm"
+                    className="text-sm"
                   >
                     Upload New Video
                   </Button>
                   {currentStep === 'complete' && videoId && (
                     <Button
                       variant="outline"
-                    size="sm"
-                    style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
+                      size="sm"
+                      className="text-sm"
                       asChild
                     >
                       <a href={`http://localhost:8001/api/download/${videoId}`} download>
-                      <Download style={{ width: '10px', height: '10px' }} />
-                      Download
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
                       </a>
                     </Button>
                   )}
@@ -964,25 +857,11 @@ export default function ExerciseDetailPage() {
 
           {/* Analysis Progress and Notes Grid - show for any video content OR completed/feedback sessions */}
           {(videoId || originalVideoUrl || processedVideoUrl || sessionStatus === 'completed' || sessionStatus === 'feedback') && (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px'
-            }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
               {/* Analysis Progress */}
-            <div style={{ 
-              backgroundColor: 'hsl(var(--card))',
-                borderRadius: '6px',
-                padding: '12px',
-                border: '1px solid hsl(var(--border))'
-            }}>
-              <h3 style={{ 
-                  fontSize: '0.9rem', 
-                fontWeight: '600', 
-                color: 'hsl(var(--foreground))',
-                  marginBottom: '8px'
-              }}>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Analysis Progress
               </h3>
 
@@ -1004,7 +883,7 @@ export default function ExerciseDetailPage() {
                       <Activity style={{ width: '12px', height: '12px', color: 'hsl(var(--muted-foreground))' }} />
                   )}
                   <span style={{ 
-                      fontSize: '0.75rem', 
+                      fontSize: '0.875rem', 
                     fontWeight: '600',
                     color: currentStep === 'complete' ? '#0d4a2b' : 'hsl(var(--foreground))'
                   }}>
@@ -1021,10 +900,10 @@ export default function ExerciseDetailPage() {
                         alignItems: 'center',
                         marginBottom: '2px'
                       }}>
-                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                           Overall Progress
                         </span>
-                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                           {(() => {
                             const steps = Object.keys(stepLabels);
                             const currentIndex = steps.indexOf(currentStep);
@@ -1066,10 +945,10 @@ export default function ExerciseDetailPage() {
                         alignItems: 'center',
                         marginBottom: '2px'
                       }}>
-                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                           Upload Progress
                         </span>
-                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                           {uploadProgress}%
                         </span>
                       </div>
@@ -1110,7 +989,7 @@ export default function ExerciseDetailPage() {
                         backgroundColor: isCompleted || isPast ? '#0d4a2b' : isActive ? getStepColor(step as ProcessingStep) : '#e5e7eb'
                       }} />
                       <span style={{ 
-                          fontSize: '0.7rem',
+                          fontSize: '0.875rem',
                         color: isCompleted || isPast ? '#0d4a2b' : isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
                         fontWeight: isActive ? '600' : '400'
                       }}>
@@ -1127,7 +1006,7 @@ export default function ExerciseDetailPage() {
                     padding: '6px',
                     backgroundColor: 'rgba(13, 74, 43, 0.05)',
                     borderRadius: '3px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.875rem',
                     color: '#0d4a2b',
                     textAlign: 'center',
                     fontWeight: '500',
@@ -1140,68 +1019,28 @@ export default function ExerciseDetailPage() {
 
               {/* Doctor Feedback - only show if session status is 'feedback' AND doctor provided feedback */}
               {sessionStatus === 'feedback' && doctorFeedback && doctorFeedback.trim() && (
-                <div style={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '6px',
-                  padding: '12px',
-                  border: '2px solid #0d4a2b', // Green border to highlight it's from doctor
-                  boxShadow: '0 0 0 1px rgba(13, 74, 43, 0.1)'
-                }}>
-                  <h3 style={{ 
-                    fontSize: '0.9rem', 
-                    fontWeight: '600', 
-                    color: '#0d4a2b', // Green color to indicate doctor feedback
-                    marginBottom: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}>
-                    🩺 Feedback from Your Doctor
+                <div className="bg-white rounded-xl border-2 border-green-600 p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center space-x-2">
+                    <span>🩺</span>
+                    <span>Feedback from Your Doctor</span>
                   </h3>
-                  <div style={{ 
-                    backgroundColor: 'rgba(13, 74, 43, 0.05)', // Light green background
-                    borderRadius: '4px',
-                    padding: '10px',
-                    border: '1px solid rgba(13, 74, 43, 0.2)',
-                    fontSize: '0.8rem',
-                    lineHeight: '1.4',
-                    color: 'hsl(var(--foreground))',
-                    whiteSpace: 'pre-wrap' // Preserve line breaks
-                  }}>
-                    {doctorFeedback}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {doctorFeedback}
+                    </p>
                   </div>
-                  <p style={{ 
-                    fontSize: '0.7rem', 
-                    color: 'hsl(var(--muted-foreground))',
-                    marginTop: '6px',
-                    marginBottom: '0',
-                    fontStyle: 'italic'
-                  }}>
+                  <p className="text-sm text-gray-600 italic">
                     This feedback is based on your analysis and will help guide your recovery.
                   </p>
                 </div>
               )}
 
               {/* Patient Notes */}
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
-                borderRadius: '6px',
-                padding: '12px',
-                border: '1px solid hsl(var(--border))'
-              }}>
-                <h3 style={{ 
-                  fontSize: '0.9rem', 
-                  fontWeight: '600', 
-                  color: 'hsl(var(--foreground))',
-                  marginBottom: '6px'
-                }}>
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Notes for Your Doctor
                 </h3>
-                <p style={{ 
-                  fontSize: '0.75rem', 
-                  color: 'hsl(var(--muted-foreground))',
-                        marginBottom: '6px'
-                      }}>
+                <p className="text-sm text-gray-600 mb-4">
                   Add any symptoms or observations.
                 </p>
                 
@@ -1209,22 +1048,10 @@ export default function ExerciseDetailPage() {
                   value={patientNotes}
                   onChange={(e) => setPatientNotes(e.target.value)}
                   placeholder="Describe any pain or observations..."
-                  style={{
-                    width: '100%',
-                    minHeight: '60px',
-                    padding: '8px',
-                    borderRadius: '3px',
-                    border: '1px solid hsl(var(--border))',
-                    backgroundColor: 'hsl(var(--background))',
-                        color: 'hsl(var(--foreground))',
-                          fontSize: '0.75rem', 
-                    lineHeight: '1.3',
-                    resize: 'vertical',
-                    marginBottom: '6px'
-                  }}
+                  className="w-full min-h-[60px] p-3 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm leading-relaxed resize-vertical mb-4 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
                 
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div className="flex justify-end">
                   <Button
                     onClick={async () => {
                       if (!patientNotes.trim()) return
@@ -1263,15 +1090,11 @@ export default function ExerciseDetailPage() {
                     }}
                     disabled={!patientNotes.trim() || isSubmittingNotes}
                     size="sm"
-                    style={{ 
-                      backgroundColor: '#0d4a2b',
-                      gap: '3px',
-                      fontSize: '0.7rem'
-                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm"
                   >
                     {isSubmittingNotes ? 'Saving...' : 'Save Notes'}
                   </Button>
-                    </div>
+                </div>
                 </div>
               </div>
             )}

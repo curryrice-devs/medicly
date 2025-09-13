@@ -212,118 +212,63 @@ export default function PatientSessionDetailPage() {
 
 
   return (
-    <div style={{ 
-      flex: 1,
-      backgroundColor: 'hsl(var(--background))'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 12px' }}>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Header with Progress */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '24px',
-          padding: '16px 0',
-          borderBottom: '1px solid hsl(var(--border))'
-        }}>
-          <div>
-            <h1 style={{ 
-              fontSize: '1.75rem', 
-              fontWeight: '600', 
-              color: 'hsl(var(--foreground))',
-              marginBottom: '4px',
-              letterSpacing: '-0.01em'
-            }}>
-              Today's Session
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-              <span>{session.sessionsCompleted}/{session.totalSessions} sessions completed</span>
-              <span>•</span>
-              <span>Next: {session.nextSession}</span>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Today's Session
+              </h1>
+              <div className="flex items-center space-x-4 text-gray-600">
+                <span>{session.sessionsCompleted}/{session.totalSessions} sessions completed</span>
+                <span>•</span>
+                <span>Next: {session.nextSession}</span>
+              </div>
             </div>
-          </div>
-          <div style={{ 
-            fontSize: '0.875rem', 
-            color: 'hsl(var(--muted-foreground))',
-            textAlign: 'right'
-          }}>
-            <div style={{ fontWeight: '600', color: 'hsl(var(--foreground))' }}>
-              {completedExercises}/{totalExercises} exercises
+            <div className="text-right text-gray-600">
+              <div className="font-semibold text-gray-900">
+                {completedExercises}/{totalExercises} exercises
+              </div>
+              <div>analyzed today</div>
             </div>
-            <div>analyzed today</div>
           </div>
         </div>
 
         {/* Reminders & Alerts - Compact Horizontal */}
-        <section style={{ marginBottom: '32px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-            marginBottom: '12px' 
-          }}>
-            <Bell style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-            <h3 style={{ 
-              fontSize: '1rem', 
-              fontWeight: '600', 
-              color: 'hsl(var(--foreground))' 
-            }}>
+        <section className="mb-8">
+          <div className="flex items-center space-x-2 mb-4">
+            <Bell className="w-5 h-5 text-green-600" />
+            <h3 className="text-lg font-semibold text-gray-900">
               Reminders & Alerts
             </h3>
           </div>
           
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-            gap: '12px' 
-          }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {session.reminders?.map((reminder) => (
-              <div key={reminder.id} style={{ 
-                backgroundColor: 'hsl(var(--card))',
-                borderRadius: '6px',
-                padding: '12px',
-                border: `1px solid ${getPriorityColor(reminder.priority)}20`,
+              <div key={reminder.id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow" style={{ 
                 borderLeft: `3px solid ${getPriorityColor(reminder.priority)}`
               }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                    {reminder.type === 'appointment' && <Calendar style={{ width: '14px', height: '14px', color: getPriorityColor(reminder.priority) }} />}
-                    {reminder.type === 'exercise' && <Activity style={{ width: '14px', height: '14px', color: getPriorityColor(reminder.priority) }} />}
-                    {reminder.type === 'medication' && <Clock style={{ width: '14px', height: '14px', color: getPriorityColor(reminder.priority) }} />}
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: 'hsl(var(--foreground))',
-                        marginBottom: '2px'
-                      }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1">
+                    {reminder.type === 'appointment' && <Calendar className="w-4 h-4" style={{ color: getPriorityColor(reminder.priority) }} />}
+                    {reminder.type === 'exercise' && <Activity className="w-4 h-4" style={{ color: getPriorityColor(reminder.priority) }} />}
+                    {reminder.type === 'medication' && <Clock className="w-4 h-4" style={{ color: getPriorityColor(reminder.priority) }} />}
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900 mb-1">
                         {reminder.title}
                       </h4>
-                      <p style={{ 
-                        fontSize: '0.75rem', 
-                        color: 'hsl(var(--muted-foreground))',
-                        margin: 0
-                      }}>
+                      <p className="text-sm text-gray-600">
                         {reminder.message}
                       </p>
                     </div>
                   </div>
                   
-                  <div style={{ 
-                    padding: '2px 6px',
+                  <div className="px-2 py-1 rounded-full text-xs font-medium uppercase whitespace-nowrap" style={{ 
                     backgroundColor: `${getPriorityColor(reminder.priority)}15`,
-                    borderRadius: '8px',
-                    fontSize: '0.65rem',
-                    color: getPriorityColor(reminder.priority),
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    whiteSpace: 'nowrap'
+                    color: getPriorityColor(reminder.priority)
                   }}>
                     {reminder.date}
                   </div>
@@ -335,32 +280,21 @@ export default function PatientSessionDetailPage() {
 
         {/* Your Exercises - Tab-Based */}
         <section>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            marginBottom: '20px' 
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity style={{ width: '20px', height: '20px', color: '#0d4a2b' }} />
-              <h2 style={{ 
-                fontSize: '1.75rem', 
-                fontWeight: '600', 
-                color: 'hsl(var(--foreground))',
-                letterSpacing: '-0.01em'
-              }}>
-                Your Exercises
-              </h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Your Exercises
+                </h2>
+              </div>
             </div>
           </div>
 
           {/* Tab Navigation - Simple Underline Style */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '32px',
-            marginBottom: '24px',
-            borderBottom: '1px solid hsl(var(--border))'
-          }}>
+          <div className="flex space-x-8 mb-6 border-b border-gray-200">
             {[
               { key: 'todo', label: 'Todo', count: todoExercises.length },
               { key: 'completed', label: 'Completed', count: completedWithoutFeedback.length },
@@ -369,28 +303,16 @@ export default function PatientSessionDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                style={{
-                  padding: '12px 0',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: activeTab === tab.key ? '#0d4a2b' : 'hsl(var(--muted-foreground))',
-                  fontSize: '1rem',
-                  fontWeight: activeTab === tab.key ? '600' : '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderBottom: activeTab === tab.key ? '2px solid #0d4a2b' : '2px solid transparent',
-                  marginBottom: '-1px'
-                }}
+                className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+                  activeTab === tab.key 
+                    ? 'text-green-600 border-green-600 font-semibold' 
+                    : 'text-gray-500 border-transparent font-medium'
+                }`}
               >
                 <span>{tab.label}</span>
-                <span style={{ 
-                  fontSize: '0.8rem',
-                  color: activeTab === tab.key ? '#0d4a2b' : 'hsl(var(--muted-foreground))',
-                  fontWeight: '600'
-                }}>
+                <span className={`text-sm font-semibold ${
+                  activeTab === tab.key ? 'text-green-600' : 'text-gray-500'
+                }`}>
                   ({tab.count})
                 </span>
               </button>
@@ -398,27 +320,15 @@ export default function PatientSessionDetailPage() {
           </div>
           
           {/* Exercise Grid */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-            gap: '16px' 
-          }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {getFilteredExercises().map((exercise) => (
-                <div key={exercise.id} style={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  border: exercise.completed 
+                <div key={exercise.id} className={`bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow ${
+                  exercise.completed 
                     ? exercise.feedback 
-                      ? '2px solid #0d4a2b' 
-                      : '2px solid #6b7280'
-                    : '1px solid hsl(var(--border))',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 4px 12px rgba(13, 74, 43, 0.08)',
-                  backdropFilter: 'blur(10px)'
-                }}
-                className="hover-lift"
-                >
+                      ? 'border-2 border-green-600' 
+                      : 'border-2 border-gray-400'
+                    : 'border border-gray-200'
+                }`}>
                   
                   {/* Exercise Preview Video */}
                   <Link href={`/dashboard/patient/session/${sessionId}/${exercise.name.toLowerCase().replace(/\s+/g, '_')}`}>
@@ -514,87 +424,39 @@ export default function PatientSessionDetailPage() {
                   </Link>
                   
                   {/* Exercise Info */}
-                  <div style={{ padding: '16px' }}>
-                    <h3 style={{ 
-                      fontSize: '1.125rem', 
-                      fontWeight: '600', 
-                      color: 'hsl(var(--foreground))',
-                      marginBottom: '4px',
-                      letterSpacing: '-0.01em'
-                    }}>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       {exercise.name}
                     </h3>
                     
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '8px', 
-                      marginBottom: '12px',
-                      fontSize: '0.75rem',
-                      color: 'hsl(var(--muted-foreground))'
-                    }}>
+                    <div className="flex items-center space-x-2 mb-3 text-sm text-gray-600">
                       <span>{exercise.duration}</span>
                       <span>•</span>
                       <span>{exercise.sets}</span>
                     </div>
 
-                    <p style={{ 
-                      fontSize: '0.875rem', 
-                      color: 'hsl(var(--muted-foreground))',
-                      marginBottom: '12px',
-                      lineHeight: '1.4'
-                    }}>
+                    <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                       {exercise.description}
                     </p>
 
                     {/* Doctor's Feedback */}
                     {exercise.feedback && (
-                      <div style={{ 
-                        backgroundColor: 'rgba(13, 74, 43, 0.05)',
-                        border: '1px solid rgba(13, 74, 43, 0.2)',
-                        borderRadius: '6px',
-                        padding: '12px',
-                        marginBottom: '12px'
-                      }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '6px',
-                          marginBottom: '6px'
-                        }}>
-                          <FileText style={{ width: '12px', height: '12px', color: '#0d4a2b' }} />
-                          <span style={{ 
-                            fontSize: '0.75rem', 
-                            fontWeight: '600', 
-                            color: '#0d4a2b'
-                          }}>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-semibold text-green-800">
                             Feedback from {session.doctor.split(' ')[1]}
                           </span>
                         </div>
-                        <p style={{ 
-                          fontSize: '0.8rem', 
-                          color: 'hsl(var(--foreground))',
-                          lineHeight: '1.4',
-                          margin: 0
-                        }}>
+                        <p className="text-sm text-gray-700 leading-relaxed">
                           {exercise.feedback}
                         </p>
                       </div>
                     )}
 
                     {/* Click to Analyze Call-to-Action */}
-                    <div style={{ 
-                      padding: '12px',
-                      backgroundColor: 'rgba(13, 74, 43, 0.05)',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(13, 74, 43, 0.1)',
-                      textAlign: 'center'
-                    }}>
-                      <p style={{ 
-                        fontSize: '0.875rem', 
-                        color: '#0d4a2b',
-                        fontWeight: '600',
-                        margin: 0
-                      }}>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                      <p className="text-sm font-semibold text-green-800">
                         Click the video above for detailed AI analysis
                       </p>
                     </div>
