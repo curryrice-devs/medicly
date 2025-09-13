@@ -15,14 +15,14 @@ interface Treatment {
 interface CreateSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateSession: (sessionData: SessionFormData) => Promise<{ id: number; treatment: { name: string } }>;
+  onCreateSession: (sessionData: SessionFormData) => Promise<{ id: number; exercise?: { name: string }; treatment?: { name: string } }>;
   userId: string;
 }
 
 interface SessionFormData {
   patient_id: string;
   doctor_id?: string;
-  treatment_id: number;
+  treatment_id: string; // This will be the evaluation_metrics.id (text field)
   status: 'pending' | 'in_progress' | 'completed' | 'reviewed';
   description?: string;
 }
@@ -37,7 +37,7 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
 
   const [formData, setFormData] = useState<SessionFormData>({
     patient_id: userId,
-    treatment_id: 0,
+    treatment_id: '',
     status: 'pending' // Always pending until video uploaded
   })
 
@@ -63,12 +63,12 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
       const result = await response.json()
       console.log('🤖 AI exercise selection result:', result)
 
-      if (result.success && result.treatment) {
-        setSelectedTreatment(result.treatment)
+      if (result.success && result.exercise) {
+        setSelectedTreatment(result.exercise)
         setAiReasoning(result.reasoning)
         setFormData(prev => ({
           ...prev,
-          treatment_id: result.treatment.id,
+          treatment_id: result.exercise.id,
           description: description.trim()
         }))
       } else {
@@ -90,7 +90,7 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
       setAiReasoning('')
       setFormData({
         patient_id: userId,
-        treatment_id: 0,
+        treatment_id: '',
         status: 'pending'
       })
     }
@@ -114,13 +114,13 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
       setAiReasoning('')
       setFormData({
         patient_id: userId,
-        treatment_id: 0,
+        treatment_id: '',
         status: 'pending'
       })
       onClose()
 
       // Redirect to the session page with the exercise name
-      const exerciseName = createdSession.treatment.name.toLowerCase().replace(/\s+/g, '_')
+      const exerciseName = (createdSession.exercise?.name || createdSession.treatment?.name || 'exercise').toLowerCase().replace(/\s+/g, '_')
       router.push(`/dashboard/patient/session/${createdSession.id}/${exerciseName}`)
     } catch (error) {
       console.error('Failed to create session:', error)
