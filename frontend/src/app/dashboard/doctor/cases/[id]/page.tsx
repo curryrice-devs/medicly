@@ -5,57 +5,60 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, CheckCircle2, XCircle, Edit3, Clock, AlertCircle, User, Calendar, Phone, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PatientCase } from '@/types/medical.types'
+import { doctorApi } from '@/services/api'
 import { PatientContextPanel } from '../../components/ExerciseReview/PatientContextPanel'
 import { RecommendationCard } from '../../components/ExerciseReview/RecommendationCard'
 import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer'
-
-// Mock case data - in real app this would come from API
-const mockCaseData: Record<string, PatientCase> = {
-  'case-001': {
-    id: 'case-001',
-    patientId: 'P-12345',
-    videoUrl: '/api/video/123',
-    injuryType: 'Shoulder Impingement',
-    aiAnalysis: 'Limited range of motion detected in shoulder elevation. Patient shows compensatory movements in the cervical spine during arm elevation. Recommend gentle mobility exercises to improve shoulder range of motion.',
-    recommendedExercise: {
-      id: 'ex-001',
-      name: 'Wall Slides',
-      description: 'Gentle shoulder mobility exercise',
-      bodyPart: 'Shoulder',
-      injuryTypes: ['Shoulder Impingement'],
-      defaultSets: 3,
-      defaultReps: 10,
-      defaultFrequency: 'Daily'
-    },
-    status: 'pending',
-    submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    urgency: 'high',
-    aiConfidence: 0.87,
-    reasoning: 'High confidence due to clear movement pattern and patient history',
-    movementMetrics: [
-      { label: 'Shoulder Elevation', value: '45°' },
-      { label: 'External Rotation', value: '30°' },
-      { label: 'Pain Level', value: '7/10' }
-    ]
-  }
-}
 
 export default function CaseReviewRoute() {
   const params = useParams()
   const router = useRouter()
   const id = params?.id as string
-  const caseData = mockCaseData[id]
+  const [caseData, setCaseData] = React.useState<PatientCase | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let mounted = true
+    async function load() {
+      try {
+        setLoading(true)
+        const data = await doctorApi.getCaseById(id)
+        if (mounted) setCaseData(data)
+      } catch (e) {
+        if (mounted) setError(e instanceof Error ? e.message : 'Failed to load case')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    if (id) load()
+    return () => { mounted = false }
+  }, [id])
   const [isEditingRecommendation, setIsEditingRecommendation] = React.useState(false)
   const exerciseSectionRef = React.useRef<HTMLDivElement>(null)
 
-  if (!caseData) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-12">
+            <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Loading Case</h1>
+            <p className="text-gray-600 mb-6">Please wait while we load the case details.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !caseData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Case Not Found</h1>
-            <p className="text-gray-600 mb-6">The requested case could not be found.</p>
+            <p className="text-gray-600 mb-6">{error || 'The requested case could not be found.'}</p>
             <Button onClick={() => router.back()} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
