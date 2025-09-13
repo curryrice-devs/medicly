@@ -15,6 +15,7 @@ interface PatientProfile {
   id: string;
   case_id: string;
   full_name: string;
+  name?: string; // Add name field for profiles table compatibility
   email?: string;
   phone?: string;
   age?: number;
@@ -71,8 +72,10 @@ export function PatientContextPanel({ caze }: Props) {
         <div className="px-4 pb-4 space-y-3 text-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient ID</p>
-              <p className="text-gray-900 font-medium">#{caze.patientId}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient</p>
+              <p className="text-gray-900 font-medium">
+                {patientProfile?.full_name || patientProfile?.name || `#${caze.patientId}`}
+              </p>
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Injury Type</p>

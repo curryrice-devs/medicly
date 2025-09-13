@@ -41,6 +41,7 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
+  patientName?: string; // Patient name from profiles table
   videoUrl: string; // Keep for backwards compatibility - will use previdurl
   originalVideoUrl?: string; // previdurl - patient's original uploaded video
   processedVideoUrl?: string; // postvidurl - processed video with pose analysis

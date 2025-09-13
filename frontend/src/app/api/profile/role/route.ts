@@ -36,9 +36,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
+  // Get the user's name from auth metadata if not already in profile
+  const userName = user.user_metadata?.full_name || user.email;
+
   const { error } = await supabase
     .from("profiles")
-    .update({ role, onboarded: true })
+    .update({ 
+      role, 
+      onboarded: true,
+      name: userName 
+    })
     .eq("id", user.id);
 
   if (error) {
