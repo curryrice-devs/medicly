@@ -45,14 +45,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Update the user's role in profiles table
+    // Create or update the user's profile
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: user.id,
         role: 'client',
         onboarded: true
       })
-      .eq('id', user.id)
 
     if (profileError) {
       console.error('Error updating profile:', profileError)

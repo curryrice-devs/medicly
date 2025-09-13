@@ -41,12 +41,12 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ 
-      role, 
+    .upsert({
+      id: user.id,
+      role,
       onboarded: true,
-      name: userName 
-    })
-    .eq("id", user.id);
+      name: userName
+    });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
