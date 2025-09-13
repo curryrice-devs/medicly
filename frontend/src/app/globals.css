@@ -25,17 +25,17 @@
 }
 
 :root {
-  /* Core App Colors - Limited Palette */
+  /* Core App Colors - Green Palette */
   --color-white: 0 0% 100%;
   --color-black: 0 0% 0%;
   --color-dark-green: 158 75% 15%; /* Darker green #0d4a2b for better visibility */
-  --color-purple-accent: 250 75% 76%; /* #A08DF6 */
+  --color-medium-green: 158 65% 25%; /* Medium green for accents */
 
   /* Derived colors from core palette */
   --color-dark-green-light: 158 30% 95%; /* Very light green for backgrounds */
   --color-dark-green-medium: 158 50% 35%; /* Medium green for text */
   --color-dark-green-dark: 158 75% 12%; /* Very dark green for text */
-  --color-purple-light: 250 75% 96%; /* Very light purple for backgrounds */
+  --color-medium-green-light: 158 40% 90%; /* Light medium green for backgrounds */
 
   /* Base colors */
   --background: var(--color-white);
@@ -48,20 +48,20 @@
   /* Brand colors - Dark Green Primary */
   --primary: var(--color-dark-green);
   --primary-foreground: var(--color-white);
-  --secondary: var(--color-purple-light);
+  --secondary: var(--color-medium-green-light);
   --secondary-foreground: var(--color-dark-green-dark);
   --muted: var(--color-dark-green-light);
   --muted-foreground: var(--color-dark-green-medium);
-  --accent: var(--color-purple-light);
+  --accent: var(--color-medium-green-light);
   --accent-foreground: var(--color-dark-green);
 
   /* Status colors using core palette */
   --success: var(--color-dark-green);
   --success-light: var(--color-dark-green-light);
-  --warning: var(--color-purple-accent);
-  --warning-light: var(--color-purple-light);
-  --info: var(--color-purple-accent);
-  --info-light: var(--color-purple-light);
+  --warning: var(--color-medium-green);
+  --warning-light: var(--color-medium-green-light);
+  --info: var(--color-medium-green);
+  --info-light: var(--color-medium-green-light);
   --destructive: var(--color-black);
   --destructive-foreground: var(--color-white);
   --destructive-light: 0 0% 95%;
@@ -76,9 +76,9 @@
   --ring: var(--color-dark-green);
   --radius: 0.5rem;
 
-  /* Charts - using core palette only */
+  /* Charts - using green palette only */
   --chart-1: var(--color-dark-green);
-  --chart-2: var(--color-purple-accent);
+  --chart-2: var(--color-medium-green);
   --chart-3: var(--color-dark-green-medium);
   --chart-4: var(--color-black);
   --chart-5: var(--color-white);
@@ -156,9 +156,9 @@ video {
   border-radius: 8px;
 }
 
-/* Medical gradient backgrounds - using core colors only */
+/* Medical gradient backgrounds - using green colors only */
 .medical-gradient {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--warning)) 100%);
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(158 65% 25%) 100%);
 }
 
 .medical-gradient-subtle {
@@ -265,7 +265,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--warning)) 100%);
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(158 65% 25%) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -308,7 +308,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .progress-good {
-  background-color: #A08DF6; /* Purple accent for 60-79% */
+  background-color: #267d56; /* Medium green for 60-79% */
 }
 
 .progress-moderate {

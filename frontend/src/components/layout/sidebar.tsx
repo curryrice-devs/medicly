@@ -133,7 +133,7 @@ export function Sidebar() {
             <h1 style={{ 
               fontSize: '1.75rem', 
               fontWeight: '600', 
-              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #A08DF6 100%)',
+              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',

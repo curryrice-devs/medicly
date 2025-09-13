@@ -105,7 +105,7 @@ export default function UnauthedLanding() {
             fontSize: '4.5rem',
             fontFamily: 'Houschka Rounded, system-ui, -apple-system, sans-serif',
             fontWeight: '700',
-            background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 30%, #267d56 70%, #A08DF6 100%)',
+            background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -132,7 +132,7 @@ export default function UnauthedLanding() {
           margin: '0 auto 40px auto'
         }}>
           AI-powered rehabilitation tracking with intelligent pose analysis<br />
-          <span style={{ color: '#A08DF6', fontWeight: '500' }}>and personalized recovery insights</span>
+          <span style={{ color: '#1a6741', fontWeight: '500' }}>and personalized recovery insights</span>
         </p>
 
         {/* CTA Buttons */}
