@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { doctorApi } from '@/services/api'
-import { PatientProfile, TherapySession } from '@/types/medical.types'
+import { PatientProfile, PatientCase } from '@/types/medical.types'
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -34,13 +34,9 @@ export default function PatientDetailPage() {
   const patientId = params.id as string
 
   const [patient, setPatient] = useState<PatientProfile | null>(null)
-  const [sessions, setSessions] = useState<TherapySession[]>([])
+  const [cases, setCases] = useState<PatientCase[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editingSession, setEditingSession] = useState<string | null>(null)
-  const [sessionNotes, setSessionNotes] = useState('')
-  const [sessionStatus, setSessionStatus] = useState<'pending' | 'reviewed' | 'approved' | 'completed'>('reviewed')
-  const [savingNotes, setSavingNotes] = useState(false)
 
   useEffect(() => {
     const loadPatientData = async () => {
@@ -50,13 +46,19 @@ export default function PatientDetailPage() {
       setError(null)
 
       try {
-        const [patientData, sessionsData] = await Promise.all([
+        const [patientData, casesData] = await Promise.all([
           doctorApi.getPatientProfile(patientId),
-          doctorApi.getPatientSessions(patientId, user.id)
+          doctorApi.getPatientCases(patientId)
         ])
 
         setPatient(patientData)
-        setSessions(sessionsData)
+        setCases(casesData)
+
+        // If no cases are found, redirect back to patients list
+        if (casesData.length === 0) {
+          router.push('/dashboard/doctor/patients')
+          return
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load patient data')
       } finally {
@@ -65,46 +67,15 @@ export default function PatientDetailPage() {
     }
 
     loadPatientData()
-  }, [patientId, user?.id])
+  }, [patientId, user?.id, router])
 
-  const handleEditSession = (session: TherapySession) => {
-    setEditingSession(session.id)
-    setSessionNotes(session.doctorNotes || '')
-    setSessionStatus(session.status)
-  }
-
-  const handleSaveNotes = async (sessionId: string) => {
-    if (!user?.id) return
-
-    setSavingNotes(true)
-    try {
-      await doctorApi.updateSessionDoctorNotes(sessionId, sessionNotes, sessionStatus)
-      
-      // Update local state
-      setSessions(prev => prev.map(session => 
-        session.id === sessionId 
-          ? { ...session, doctorNotes: sessionNotes, status: sessionStatus }
-          : session
-      ))
-      
-      setEditingSession(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save notes')
-    } finally {
-      setSavingNotes(false)
-    }
-  }
-
-  const cancelEdit = () => {
-    setEditingSession(null)
-    setSessionNotes('')
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800'
-      case 'approved': return 'bg-blue-100 text-blue-800'
-      case 'reviewed': return 'bg-yellow-100 text-yellow-800'
+      case 'active': return 'bg-blue-100 text-blue-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'rejected': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -112,9 +83,10 @@ export default function PatientDetailPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed': return <CheckCircle className="w-4 h-4" />
-      case 'approved': return <CheckCircle className="w-4 h-4" />
-      case 'reviewed': return <Activity className="w-4 h-4" />
-      default: return <Clock className="w-4 h-4" />
+      case 'active': return <Activity className="w-4 h-4" />
+      case 'pending': return <Clock className="w-4 h-4" />
+      case 'rejected': return <X className="w-4 h-4" />
+      default: return <AlertCircle className="w-4 h-4" />
     }
   }
 
@@ -274,134 +246,79 @@ export default function PatientDetailPage() {
             </div>
           </div>
 
-          {/* Therapy Sessions */}
+          {/* Patient Cases */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Therapy Sessions</h2>
-                <p className="text-sm text-gray-600">{sessions.length} total sessions</p>
+                <h2 className="text-lg font-semibold text-gray-900">Patient Cases</h2>
+                <p className="text-sm text-gray-600">{cases.length} total cases</p>
               </div>
-              
+
               <div className="p-6">
-                {sessions.length === 0 ? (
+                {cases.length === 0 ? (
                   <div className="text-center py-12">
-                    <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions yet</h3>
-                    <p className="text-gray-600">This patient hasn't completed any therapy sessions yet.</p>
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No cases yet</h3>
+                    <p className="text-gray-600">This patient doesn't have any cases assigned yet.</p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {sessions.map((session) => (
-                      <div key={session.id} className="border border-gray-200 rounded-lg p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h3 className="text-lg font-medium text-gray-900">
-                                Session {new Date(session.sessionDate).toLocaleDateString()}
-                              </h3>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-                                {getStatusIcon(session.status)}
-                                <span className="ml-1 capitalize">{session.status}</span>
-                              </span>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getUrgencyColor(session.urgency)}`}>
-                                {session.urgency.toUpperCase()}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {session.injuryType && `Injury: ${session.injuryType} • `}
-                              Session type: {session.sessionType}
-                            </p>
+                  <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+                    {cases.map((patientCase) => (
+                      <div
+                        key={patientCase.id}
+                        className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/doctor/cases/${patientCase.id}`)}
+                      >
+                        {/* Case Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(patientCase.status)}`}>
+                              {getStatusIcon(patientCase.status)}
+                              <span className="ml-1 capitalize">{patientCase.status}</span>
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUrgencyColor(patientCase.urgency)}`}>
+                              {patientCase.urgency.toUpperCase()}
+                            </span>
                           </div>
-                          
-                          {editingSession !== session.id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditSession(session)}
-                            >
-                              <Edit3 className="w-3 h-3 mr-1" />
-                              Edit Notes
-                            </Button>
-                          )}
                         </div>
 
-                        {/* AI Analysis */}
-                        {session.aiAnalysis && (
-                          <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                            <h4 className="text-sm font-medium text-blue-900 mb-2">AI Analysis</h4>
-                            <p className="text-sm text-blue-800">{session.aiAnalysis}</p>
+                        {/* Case Content */}
+                        <div className="mb-4">
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {patientCase.injuryType}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Case ID: #{patientCase.id}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Submitted: {new Date(patientCase.submittedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        {/* AI Recommendation */}
+                        {patientCase.recommendedExercise && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 className="text-sm font-medium text-blue-900 mb-1">
+                              Recommended Exercise
+                            </h4>
+                            <p className="text-sm text-blue-800">
+                              {patientCase.recommendedExercise.name}
+                            </p>
+                            {patientCase.aiConfidence && (
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-blue-600">AI Confidence</span>
+                                <span className="text-xs font-medium text-blue-700">
+                                  {Math.round(patientCase.aiConfidence * 100)}%
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {/* Doctor Notes */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">Doctor Notes</h4>
-                          
-                          {editingSession === session.id ? (
-                            <div className="space-y-4">
-                              <textarea
-                                value={sessionNotes}
-                                onChange={(e) => setSessionNotes(e.target.value)}
-                                placeholder="Add your notes about this session..."
-                                className="w-full min-h-24 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
-                                rows={4}
-                              />
-                              
-                              <div className="flex items-center space-x-3">
-                                <Select value={sessionStatus} onValueChange={(value: any) => setSessionStatus(value)}>
-                                  <SelectTrigger className="w-32">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="completed">Completed</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSaveNotes(session.id)}
-                                  disabled={savingNotes}
-                                >
-                                  {savingNotes ? (
-                                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                  ) : (
-                                    <Save className="w-3 h-3 mr-1" />
-                                  )}
-                                  Save
-                                </Button>
-                                
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={cancelEdit}
-                                  disabled={savingNotes}
-                                >
-                                  <X className="w-3 h-3 mr-1" />
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 bg-gray-50 rounded-lg">
-                              {session.doctorNotes ? (
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                                  {session.doctorNotes}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-gray-500 italic">No notes added yet</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>Created: {new Date(session.createdAt).toLocaleString()}</span>
-                          {session.updatedAt !== session.createdAt && (
-                            <span>Updated: {new Date(session.updatedAt).toLocaleString()}</span>
-                          )}
+                        {/* Click indicator */}
+                        <div className="flex items-center text-xs text-gray-400">
+                          <span>Click to view case details</span>
+                          <ArrowLeft className="w-3 h-3 ml-1 rotate-180" />
                         </div>
                       </div>
                     ))}

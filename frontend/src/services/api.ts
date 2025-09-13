@@ -47,10 +47,12 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
   const pc: PatientCase = {
     id: String(s.id),
     patientId: s.patient_id ?? 'unknown',
-    patientName: s.patient?.name || undefined, // Extract patient name from joined profiles table
-    videoUrl: s.previdurl || '', // Keep for backwards compatibility
-    originalVideoUrl: s.previdurl || undefined,
-    processedVideoUrl: s.postvidurl || undefined,
+    patientName: s.profiles?.patient_profiles?.full_name,
+    patientEmail: s.profiles?.patient_profiles?.email,
+    patientPhone: s.profiles?.patient_profiles?.phone,
+    patientAge: s.profiles?.patient_profiles?.age,
+    patientCaseId: s.profiles?.patient_profiles?.case_id,
+    videoUrl: treatment?.video_link || '',
     injuryType: aiAnalysis.injuryType || 'General',
     aiAnalysis: aiAnalysis.summary,
     recommendedExercise,
@@ -118,7 +120,7 @@ export const doctorApi = {
       mapped = mapped.filter((c) => `${c.id} ${c.patientId}`.toLowerCase().includes(q));
     }
     // Status filter (server did not filter by status to keep code simple)
-    if (status) {
+    if (status && status !== 'all') {
       mapped = mapped.filter((c) => c.status === status);
     }
 
@@ -222,6 +224,29 @@ export const doctorApi = {
     }
   },
 
+  async getPatientCases(patientId: string): Promise<PatientCase[]> {
+    try {
+      console.log('[doctorApi.getPatientCases] fetching cases for patient:', patientId);
+
+      // Use existing listCases method to get all cases
+      const casesResponse = await this.listCases({
+        status: 'all', // Get cases regardless of status
+        perPage: 1000  // Get a large number to avoid pagination issues
+      });
+
+      // Filter cases for the specific patient
+      const patientCases = casesResponse.items.filter(caseItem =>
+        caseItem.patientId === patientId
+      );
+
+      console.log('[doctorApi.getPatientCases] found', patientCases.length, 'cases for patient', patientId);
+      return patientCases;
+    } catch (error) {
+      console.error('[doctorApi.getPatientCases] error:', error);
+      return [];
+    }
+  },
+
   async searchExercises(query: any): Promise<{ items: Exercise[], total: number }> {
     return {
       items: [],
@@ -232,26 +257,22 @@ export const doctorApi = {
   // Patient search and management
   async searchPatients(params: PatientSearchParams): Promise<{ items: PatientSearchResult[], total: number }> {
     try {
-      console.log('Searching patients with params:', params);
+      console.log('[doctorApi.searchPatients] fetching all patients via API route');
 
-      // First, try the RPC function
-      const { data, error } = await supabaseBrowser().rpc('search_patients', {
-        search_term: params.searchTerm || '',
-        doctor_id_param: params.doctorId || null
-      });
+      // Fetch all patients using the same pattern as listCases
+      const resp = await fetch('/api/doctor/all-patients', { cache: 'no-store' })
+      const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
 
-      if (error) {
-        console.error('Error calling search_patients RPC:', error);
-
-        // If RPC fails, try a direct query as fallback
-        console.log('RPC failed, trying direct query fallback...');
-        return await this.searchPatientsDirect(params);
+      if (!resp.ok) {
+        console.warn('[doctorApi.searchPatients] route error payload', payload)
+        throw new Error(`HTTP ${resp.status}`)
       }
 
-      console.log('RPC search_patients returned:', data);
+      const allPatients = payload.patients || []
+      console.log('[doctorApi.searchPatients] fetched', { count: allPatients.length })
 
-      // Map the database response to match the TypeScript interface
-      const mappedData = (data || []).map((item: any) => ({
+      // Map database response to TypeScript interface (same as before)
+      let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
         id: item.id,
         caseId: item.case_id,
         fullName: item.full_name,
@@ -264,11 +285,29 @@ export const doctorApi = {
         totalSessions: Number(item.total_sessions) || 0
       }));
 
-      console.log(`Found ${mappedData.length} patients`);
+      // Client-side filtering (same pattern as listCases)
+      if (params.searchTerm && params.searchTerm.trim()) {
+        const searchLower = params.searchTerm.toLowerCase();
+        mapped = mapped.filter((patient) => {
+          const matchesSearch = (patient.caseId && patient.caseId.toLowerCase().includes(searchLower)) ||
+                               (patient.fullName && patient.fullName.toLowerCase().includes(searchLower)) ||
+                               (patient.email && patient.email.toLowerCase().includes(searchLower));
+          return matchesSearch;
+        });
+      }
+
+      // Filter by doctor if specified (for assigned patients only)
+      if (params.doctorId) {
+        mapped = mapped.filter((patient) => {
+          return patient.relationshipStatus === 'active' || patient.relationshipStatus === 'inactive';
+        });
+      }
+
+      console.log(`[doctorApi.searchPatients] filtered to ${mapped.length} patients`);
 
       return {
-        items: mappedData,
-        total: mappedData.length
+        items: mapped,
+        total: mapped.length
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -343,20 +382,39 @@ export const doctorApi = {
 
 
   async getPatientProfile(patientId: string): Promise<PatientProfile | null> {
-    console.log('[doctorApi.getPatientProfile] fetching profile via API route for patientId:', patientId);
     try {
-      const resp = await fetch(`/api/doctor/patient-profile/${patientId}`, { cache: 'no-store' })
-      const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
+      const { data, error } = await supabaseBrowser()
+        .from('patient_profiles')
+        .select('*')
+        .eq('id', patientId)
+        .single();
 
-      if (!resp.ok) {
-        console.warn('[doctorApi.getPatientProfile] route error payload', payload)
-        return null
-      }
+      if (error) throw error;
 
-      console.log('[doctorApi.getPatientProfile] found profile:', payload.profile);
-      return payload.profile;
-    } catch (e) {
-      console.error('[doctorApi.getPatientProfile] unexpected error:', e);
+      if (!data) return null;
+
+      // Map snake_case database fields to camelCase TypeScript interface
+      const mappedProfile: PatientProfile = {
+        id: data.id,
+        caseId: data.case_id,
+        fullName: data.full_name,
+        email: data.email,
+        phone: data.phone,
+        age: data.age,
+        gender: data.gender,
+        address: data.address,
+        emergencyContactName: data.emergency_contact_name,
+        emergencyContactPhone: data.emergency_contact_phone,
+        medicalHistory: data.medical_history || [],
+        currentMedications: data.current_medications || [],
+        allergies: data.allergies || [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+
+      return mappedProfile;
+    } catch (error) {
+      console.error('Error fetching patient profile:', error);
       return null;
     }
   },
@@ -364,14 +422,50 @@ export const doctorApi = {
   // Patient profile management
   async createPatientProfile(profile: Omit<PatientProfile, 'id' | 'caseId' | 'createdAt' | 'updatedAt'>): Promise<PatientProfile | null> {
     try {
+      // Convert camelCase to snake_case for database
+      const dbProfile = {
+        id: profile.id,
+        full_name: profile.fullName,
+        email: profile.email,
+        phone: profile.phone,
+        age: profile.age,
+        gender: profile.gender,
+        address: profile.address,
+        emergency_contact_name: profile.emergencyContactName,
+        emergency_contact_phone: profile.emergencyContactPhone,
+        medical_history: profile.medicalHistory,
+        current_medications: profile.currentMedications,
+        allergies: profile.allergies
+      };
+
       const { data, error } = await supabaseBrowser()
         .from('patient_profiles')
-        .insert([profile])
+        .insert([dbProfile])
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      if (!data) return null;
+
+      // Map response back to camelCase
+      return {
+        id: data.id,
+        caseId: data.case_id,
+        fullName: data.full_name,
+        email: data.email,
+        phone: data.phone,
+        age: data.age,
+        gender: data.gender,
+        address: data.address,
+        emergencyContactName: data.emergency_contact_name,
+        emergencyContactPhone: data.emergency_contact_phone,
+        medicalHistory: data.medical_history || [],
+        currentMedications: data.current_medications || [],
+        allergies: data.allergies || [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
     } catch (error) {
       console.error('Error creating patient profile:', error);
       throw new Error('Failed to create patient profile');
@@ -380,15 +474,51 @@ export const doctorApi = {
 
   async updatePatientProfile(patientId: string, updates: Partial<PatientProfile>): Promise<PatientProfile | null> {
     try {
+      // Convert camelCase updates to snake_case for database
+      const dbUpdates: any = {};
+      if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
+      if (updates.email !== undefined) dbUpdates.email = updates.email;
+      if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+      if (updates.age !== undefined) dbUpdates.age = updates.age;
+      if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+      if (updates.address !== undefined) dbUpdates.address = updates.address;
+      if (updates.emergencyContactName !== undefined) dbUpdates.emergency_contact_name = updates.emergencyContactName;
+      if (updates.emergencyContactPhone !== undefined) dbUpdates.emergency_contact_phone = updates.emergencyContactPhone;
+      if (updates.medicalHistory !== undefined) dbUpdates.medical_history = updates.medicalHistory;
+      if (updates.currentMedications !== undefined) dbUpdates.current_medications = updates.currentMedications;
+      if (updates.allergies !== undefined) dbUpdates.allergies = updates.allergies;
+
+      dbUpdates.updated_at = new Date().toISOString();
+
       const { data, error } = await supabaseBrowser()
         .from('patient_profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(dbUpdates)
         .eq('id', patientId)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      if (!data) return null;
+
+      // Map response back to camelCase
+      return {
+        id: data.id,
+        caseId: data.case_id,
+        fullName: data.full_name,
+        email: data.email,
+        phone: data.phone,
+        age: data.age,
+        gender: data.gender,
+        address: data.address,
+        emergencyContactName: data.emergency_contact_name,
+        emergencyContactPhone: data.emergency_contact_phone,
+        medicalHistory: data.medical_history || [],
+        currentMedications: data.current_medications || [],
+        allergies: data.allergies || [],
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
     } catch (error) {
       console.error('Error updating patient profile:', error);
       throw new Error('Failed to update patient profile');
@@ -419,15 +549,22 @@ export const doctorApi = {
 
   async getDoctorPatients(doctorId: string): Promise<PatientSearchResult[]> {
     try {
-      const { data, error } = await supabaseBrowser().rpc('search_patients', {
-        search_term: '',
-        doctor_id_param: doctorId
-      });
+      console.log('[doctorApi.getDoctorPatients] fetching patients via API route for doctor:', doctorId);
 
-      if (error) throw error;
+      // Use the same working pattern as searchPatients
+      const resp = await fetch('/api/doctor/all-patients', { cache: 'no-store' })
+      const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
 
-      // Map the database response to match the TypeScript interface
-      const mappedData = (data || []).map((item: any) => ({
+      if (!resp.ok) {
+        console.warn('[doctorApi.getDoctorPatients] route error payload', payload)
+        throw new Error(`HTTP ${resp.status}`)
+      }
+
+      const allPatients = payload.patients || []
+      console.log('[doctorApi.getDoctorPatients] fetched', { count: allPatients.length })
+
+      // Map database response to TypeScript interface
+      let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
         id: item.id,
         caseId: item.case_id,
         fullName: item.full_name,
@@ -440,7 +577,13 @@ export const doctorApi = {
         totalSessions: Number(item.total_sessions) || 0
       }));
 
-      return mappedData;
+      // Filter for patients assigned to this specific doctor
+      mapped = mapped.filter((patient) => {
+        return patient.relationshipStatus === 'active' || patient.relationshipStatus === 'inactive';
+      });
+
+      console.log(`[doctorApi.getDoctorPatients] filtered to ${mapped.length} patients for doctor ${doctorId}`);
+      return mapped;
     } catch (error) {
       console.error('Error fetching doctor patients:', error);
       return [];
@@ -591,7 +734,7 @@ export const doctorApi = {
       console.log('=== Patient Search Debug ===');
 
       // Check current user
-      const { data: { user }, error: userError } = await supabaseBrowser().auth.getUser();
+      const { data: { user } } = await supabaseBrowser().auth.getUser();
       console.log('Current user:', user);
 
       // Check user profile and role

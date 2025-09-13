@@ -41,10 +41,12 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
-  patientName?: string; // Patient name from profiles table
-  videoUrl: string; // Keep for backwards compatibility - will use previdurl
-  originalVideoUrl?: string; // previdurl - patient's original uploaded video
-  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
+  patientName?: string; // From patient_profiles.full_name
+  patientEmail?: string; // From patient_profiles.email
+  patientPhone?: string; // From patient_profiles.phone
+  patientAge?: number; // From patient_profiles.age
+  patientCaseId?: string; // From patient_profiles.case_id
+  videoUrl: string;
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
