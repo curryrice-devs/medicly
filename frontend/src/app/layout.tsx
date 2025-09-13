@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientLayoutWrapper } from "@/components/layout/client-layout-wrapper";
+import { Toaster } from "@/components/ui/toaster";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -80,6 +81,7 @@ export default async function RootLayout({
           <ClientLayoutWrapper>
             {children}
           </ClientLayoutWrapper>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

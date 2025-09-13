@@ -38,11 +38,13 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
-  videoUrl: string;
+  videoUrl: string; // Keep for backwards compatibility - will use previdurl
+  originalVideoUrl?: string; // previdurl - patient's original uploaded video
+  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
-  status: 'pending' | 'active' | 'rejected' | 'completed';
+  status: 'pending' | 'active' | 'rejected' | 'completed' | 'feedback';
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1

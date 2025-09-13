@@ -98,7 +98,7 @@ export default function CaseReviewRoute() {
   }
 
   const handleExerciseChange = (changes: any) => {
-    setExerciseModifications(prev => ({ ...prev, ...changes }))
+    setExerciseModifications((prev: any) => ({ ...prev, ...changes }))
     setHasUnsavedChanges(true)
     setIsExerciseSaved(false)
   }
@@ -158,6 +158,7 @@ export default function CaseReviewRoute() {
       case 'pending': return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'active': return 'bg-green-100 text-green-800 border-green-200'
       case 'completed': return 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      case 'feedback': return 'bg-purple-100 text-purple-800 border-purple-200'
       case 'rejected': return 'bg-red-100 text-red-800 border-red-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -244,9 +245,9 @@ export default function CaseReviewRoute() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Calendar className="w-5 h-5 text-indigo-600 mr-2" />
-            Patient Video
+            Patient Video {caseData.processedVideoUrl && <span className="text-sm text-green-600 ml-2">(Processed with AI Analysis)</span>}
           </h3>
-          <VideoPlayer src={caseData.videoUrl} />
+          <VideoPlayer src={caseData.processedVideoUrl || caseData.originalVideoUrl || caseData.videoUrl} />
         </div>
 
         {/* Main Content Grid */}

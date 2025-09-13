@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 import { useSessionVideo } from '@/hooks/useSessionVideo'
+import { useToast } from '@/hooks/use-toast'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
 type VideoMode = 'original' | 'processed'
@@ -63,6 +64,7 @@ export default function ExerciseDetailPage() {
   const [isSubmittingNotes, setIsSubmittingNotes] = useState(false)
 
   const { user } = useAuth()
+  const { toast } = useToast()
   
   // Use session video hook following auctor_demo pattern
   const { 
@@ -70,6 +72,7 @@ export default function ExerciseDetailPage() {
     processedVideoUrl, 
     patientNotes: existingPatientNotes,
     aiEvaluation: existingAiEvaluation,
+    doctorFeedback,
     sessionStatus,
     isVideoReady, 
     isLoading: isLoadingVideos,
@@ -110,9 +113,16 @@ export default function ExerciseDetailPage() {
       setAnalysisResult(existingAiEvaluation)
       console.log('🤖 Loaded existing AI evaluation')
     }
-    if (sessionStatus === 'completed' && currentStep === 'idle') {
+    
+    // Session Status Flow:
+    // 'pending' -> waiting for doctor review
+    // 'active' -> approved by doctor, in progress  
+    // 'completed' -> analysis done, show video + progress + patient notes
+    // 'feedback' -> doctor provided feedback, show everything + doctor feedback
+    // 'rejected' -> rejected by doctor
+    if ((sessionStatus === 'completed' || sessionStatus === 'feedback') && currentStep === 'idle') {
       setCurrentStep('complete')
-      console.log('✅ Session already completed')
+      console.log(`✅ Session status: ${sessionStatus} - showing analysis results`)
     }
   }, [existingPatientNotes, existingAiEvaluation, sessionStatus])
 
@@ -557,7 +567,7 @@ export default function ExerciseDetailPage() {
         }}>
           
             {/* Upload Section */}
-            {!videoId && (
+            {!videoId && !originalVideoUrl && !processedVideoUrl && sessionStatus !== 'completed' && sessionStatus !== 'feedback' && (
               <div style={{ 
                 backgroundColor: 'hsl(var(--card))',
               borderRadius: '6px',
@@ -647,7 +657,7 @@ export default function ExerciseDetailPage() {
             )}
 
           {/* Video Display - Ultra Compact */}
-            {videoId && (
+            {(videoId || originalVideoUrl || processedVideoUrl) && (
               <div style={{ 
                 backgroundColor: 'hsl(var(--card))',
               borderRadius: '6px',
@@ -1024,6 +1034,50 @@ export default function ExerciseDetailPage() {
             )}
               </div>
 
+              {/* Doctor Feedback - only show if session status is 'feedback' AND doctor provided feedback */}
+              {sessionStatus === 'feedback' && doctorFeedback && doctorFeedback.trim() && (
+                <div style={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  border: '2px solid #0d4a2b', // Green border to highlight it's from doctor
+                  boxShadow: '0 0 0 1px rgba(13, 74, 43, 0.1)'
+                }}>
+                  <h3 style={{ 
+                    fontSize: '0.9rem', 
+                    fontWeight: '600', 
+                    color: '#0d4a2b', // Green color to indicate doctor feedback
+                    marginBottom: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    🩺 Feedback from Your Doctor
+                  </h3>
+                  <div style={{ 
+                    backgroundColor: 'rgba(13, 74, 43, 0.05)', // Light green background
+                    borderRadius: '4px',
+                    padding: '10px',
+                    border: '1px solid rgba(13, 74, 43, 0.2)',
+                    fontSize: '0.8rem',
+                    lineHeight: '1.4',
+                    color: 'hsl(var(--foreground))',
+                    whiteSpace: 'pre-wrap' // Preserve line breaks
+                  }}>
+                    {doctorFeedback}
+                  </div>
+                  <p style={{ 
+                    fontSize: '0.7rem', 
+                    color: 'hsl(var(--muted-foreground))',
+                    marginTop: '6px',
+                    marginBottom: '0',
+                    fontStyle: 'italic'
+                  }}>
+                    This feedback is based on your analysis and will help guide your recovery.
+                  </p>
+                </div>
+              )}
+
               {/* Patient Notes */}
               <div style={{ 
                 backgroundColor: 'hsl(var(--card))',
@@ -1084,13 +1138,21 @@ export default function ExerciseDetailPage() {
                         
                         if (response.ok) {
                           console.log('✅ Patient notes saved')
-                          alert('Notes saved successfully!')
+                          toast({
+                            title: "Success",
+                            description: "Notes saved successfully!",
+                            variant: "success",
+                          })
                         } else {
                           throw new Error('Failed to save notes')
                         }
                       } catch (error) {
                         console.error('❌ Failed to save notes:', error)
-                        alert('Failed to save notes. Please try again.')
+                        toast({
+                          title: "Error",
+                          description: "Failed to save notes. Please try again.",
+                          variant: "destructive",
+                        })
                       } finally {
                         setIsSubmittingNotes(false)
                       }
