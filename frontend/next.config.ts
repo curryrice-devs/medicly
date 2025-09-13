@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
+  output: "standalone",
+  outputFileTracingRoot: process.cwd(),
 };
 
 export default nextConfig;
