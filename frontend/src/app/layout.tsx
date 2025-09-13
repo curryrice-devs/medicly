@@ -57,7 +57,16 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  let initialUser: any = null;
+  interface InitialUser {
+    id: string;
+    email: string;
+    name: string;
+    avatar?: string;
+    role: string;
+    onboarded: boolean;
+  }
+
+  let initialUser: InitialUser | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -69,7 +78,7 @@ export default async function RootLayout({
       email: user.email!,
       name: (user.user_metadata?.full_name || user.email?.split("@")[0] || "User") as string,
       avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-      role: (profile?.role as any) || (user.user_metadata?.role as any) || "patient",
+      role: (profile?.role as string) || (user.user_metadata?.role as string) || "patient",
       onboarded: profile?.onboarded ?? false,
     };
   }

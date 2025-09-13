@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const response = NextResponse.json({ ok: true })
     const cookieStore = await cookies()
@@ -15,10 +15,10 @@ export async function POST(request: Request) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: any) {
+          set(name: string, value: string, options: { path?: string; domain?: string; maxAge?: number; expires?: Date; httpOnly?: boolean; secure?: boolean; sameSite?: 'strict' | 'lax' | 'none' }) {
             response.cookies.set({ name, value, ...options })
           },
-          remove(name: string, options: any) {
+          remove(name: string, options: { path?: string; domain?: string; maxAge?: number; expires?: Date; httpOnly?: boolean; secure?: boolean; sameSite?: 'strict' | 'lax' | 'none' }) {
             response.cookies.set({ name, value: '', ...options })
           },
         },

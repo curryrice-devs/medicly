@@ -259,7 +259,7 @@ export default function PatientDetailPage() {
                   <div className="text-center py-12">
                     <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No cases yet</h3>
-                    <p className="text-gray-600">This patient doesn't have any cases assigned yet.</p>
+                    <p className="text-gray-600">This patient doesn&apos;t have any cases assigned yet.</p>
                   </div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">

@@ -67,12 +67,12 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       return
     }
 
-    const mapUser = (u: any | null): User | null => {
+    const mapUser = (u: { id: string; email: string; user_metadata?: Record<string, unknown> } | null): User | null => {
       if (!u) return null
       const metadata = u.user_metadata || {}
       const name = metadata.full_name || metadata.name || u.email?.split("@")[0] || "User"
       const avatar = metadata.avatar_url || metadata.picture
-      const role: User["role"] = (metadata.role as any) || "client"
+      const role: User["role"] = (metadata.role as User["role"]) || "client"
       return {
         id: u.id,
         email: u.email,

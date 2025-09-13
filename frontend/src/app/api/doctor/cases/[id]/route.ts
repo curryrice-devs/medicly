@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,12 +36,12 @@ export async function PUT(
   }
 }
 
-async function updateCaseStatus(supabase: any, id: string, data: any) {
+async function updateCaseStatus(supabase: SupabaseClient, id: string, data: { status?: string; notes?: string }) {
   const { status, notes } = data
 
   console.log('[updateCaseStatus] received data:', { status, notes, id })
 
-  const updateData: any = {
+  const updateData: { status?: string; ai_evaluation?: string } = {
     status: status
   }
 
@@ -76,8 +76,8 @@ async function updateCaseStatus(supabase: any, id: string, data: any) {
   return NextResponse.json({ success: true, data: result }, { status: 200 })
 }
 
-async function updateExercise(supabase: any, id: string, data: any) {
-  const updateData: any = {}
+async function updateExercise(supabase: SupabaseClient, id: string, data: { sets?: number; reps?: number; exerciseId?: string; notes?: string; frequency?: string }) {
+  const updateData: { exercise_sets?: number; exercise_reps?: number; treatment_id?: string; ai_evaluation?: string } = {}
 
   // Only update fields that exist in the sessions table
   if (data.sets) updateData.exercise_sets = data.sets

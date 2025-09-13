@@ -48,13 +48,13 @@ export interface PatientCase {
   patientCaseId?: string; // From patient_profiles.case_id
   videoUrl: string;
   injuryType: string;
-  aiAnalysis: string | any; // Can be string or JSONB object
+  aiAnalysis: string | Record<string, unknown>; // Can be string or JSONB object
   recommendedExercise: Exercise;
   status: SessionStatus; // Updated to use the centralized type
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1
-  reasoning?: string | any; // Can be string or object
+  reasoning?: string | Record<string, unknown>; // Can be string or object
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
@@ -74,7 +74,7 @@ export interface DoctorActionLog {
   caseId: string;
   action: 'viewed' | 'accepted' | 'modified' | 'rejected' | 'autosaved';
   timestamp: string; // ISO
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface CaseStats {
@@ -123,7 +123,7 @@ export interface TherapySession {
   caseId?: string;
   sessionType: string;
   injuryType?: string;
-  sessionData?: any; // JSON data for video analysis, exercises, etc.
+  sessionData?: Record<string, unknown>; // JSON data for video analysis, exercises, etc.
   aiAnalysis?: string;
   doctorNotes?: string;
   status: 'pending' | 'reviewed' | 'approved' | 'completed';

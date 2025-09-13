@@ -207,7 +207,7 @@ export default function WelcomePage() {
     <main className="min-h-screen grid place-items-center bg-gray-50 px-6">
       <div className="bg-white border rounded-2xl shadow-sm p-8 w-full max-w-lg">
         <h1 className="text-2xl font-semibold text-gray-900">Welcome to Medicly</h1>
-        <p className="mt-2 text-gray-600">Tell us how you'll use the app.</p>
+        <p className="mt-2 text-gray-600">Tell us how you&apos;ll use the app.</p>
         {error && (
           <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">
             {error}
@@ -219,7 +219,7 @@ export default function WelcomePage() {
             onClick={() => chooseRole("client")}
             className="rounded-lg border p-5 text-left hover:bg-gray-50 disabled:opacity-60"
           >
-            <div className="text-lg font-medium text-gray-900">I'm a patient</div>
+            <div className="text-lg font-medium text-gray-900">I&apos;m a patient</div>
             <div className="text-sm text-gray-600 mt-1">Track therapy and progress</div>
           </button>
           <button
@@ -227,7 +227,7 @@ export default function WelcomePage() {
             onClick={() => chooseRole("doctor")}
             className="rounded-lg border p-5 text-left hover:bg-gray-50 disabled:opacity-60"
           >
-            <div className="text-lg font-medium text-gray-900">I'm a doctor</div>
+            <div className="text-lg font-medium text-gray-900">I&apos;m a doctor</div>
             <div className="text-sm text-gray-600 mt-1">Manage patients and notes</div>
           </button>
         </div>

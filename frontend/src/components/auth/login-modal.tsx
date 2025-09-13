@@ -177,7 +177,7 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
             <div className="text-center text-sm">
               {mode === 'login' ? (
                 <>
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button
                     type="button"
                     className="text-primary hover:underline"

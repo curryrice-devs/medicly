@@ -47,7 +47,7 @@ export function useApiQuery<T>(
 }
 
 // Hook for POST/PUT/DELETE requests (mutations)
-export function useApiMutation<TData, TVariables = any>(
+export function useApiMutation<TData, TVariables = Record<string, unknown>>(
   url: string,
   method: "POST" | "PUT" | "DELETE" | "PATCH" = "POST",
   options?: {
@@ -79,7 +79,7 @@ export function useApiMutation<TData, TVariables = any>(
 }
 
 // Utility for building query keys with parameters
-export function buildQueryKey(base: string, params?: Record<string, any>): string[] {
+export function buildQueryKey(base: string, params?: Record<string, unknown>): string[] {
   if (!params) return [base];
 
   const paramString = Object.entries(params)
@@ -95,7 +95,7 @@ export function buildQueryKey(base: string, params?: Record<string, any>): strin
 export function useApiQueryWithParams<T>(
   baseKey: string,
   url: string,
-  params?: Record<string, any>,
+  params?: Record<string, unknown>,
   options?: Omit<UseQueryOptions<T, Error, T, string[]>, "queryKey" | "queryFn">,
 ) {
   const queryKey = buildQueryKey(baseKey, params);

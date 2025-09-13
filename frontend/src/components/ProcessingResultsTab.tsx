@@ -15,9 +15,9 @@ const ProcessingResultsTab: React.FC<ProcessingResultsTabProps> = ({ videoId }) 
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('idle');
   const [stepProgress, setStepProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [keyFrames, setKeyFrames] = useState<any[]>([]);
+  const [keyFrames, setKeyFrames] = useState<Record<string, unknown>[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const stepLabels = {

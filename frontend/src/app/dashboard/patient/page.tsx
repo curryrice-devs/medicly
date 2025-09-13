@@ -18,14 +18,7 @@ import { useTreatments } from '@/hooks/useTreatments'
 import { CreateSessionModal } from '@/components/CreateSessionModal'
 import { SessionStatus } from '@/types/medical.types'
 
-interface ActiveSession {
-  id: string
-  title: string
-  doctor: string
-  nextSession: string
-  sessionsCompleted: number
-  totalSessions: number
-}
+// interface ActiveSession - unused
 
 interface UpcomingTask {
   id: string
@@ -76,7 +69,7 @@ export default function PatientDashboard() {
     )
   }
 
-  const handleCreateSession = async (sessionData: any) => {
+  const handleCreateSession = async (sessionData: { treatment_id: string; [key: string]: unknown }) => {
     await createSession(sessionData.treatment_id, sessionData)
   }
 
@@ -97,7 +90,7 @@ export default function PatientDashboard() {
   }
 
   // Remove old hardcoded upcoming tasks
-  const upcomingTasks: any[] = []
+  // const upcomingTasks: UpcomingTask[] = [] // Unused variable
 
   if (sessionsLoading || treatmentsLoading) {
     return (
@@ -206,7 +199,7 @@ export default function PatientDashboard() {
             ].map((filter) => (
               <button
                 key={filter.key}
-                onClick={() => setStatusFilter(filter.key as any)}
+                onClick={() => setStatusFilter(filter.key as 'all' | SessionStatus)}
                 style={{
                   padding: '6px 12px',
                   borderRadius: '20px',

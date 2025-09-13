@@ -52,6 +52,18 @@ export function useSessionVideo(sessionId: string) {
         status: session.status
       });
 
+      // Detailed URL analysis
+      console.log('🔍 Video URL Analysis:');
+      console.log('  - Original video (previdurl):', session.previdurl || 'NOT SET');
+      console.log('  - Processed video (postvidurl):', session.postvidurl || 'NOT SET');
+
+      if (session.postvidurl) {
+        console.log('  - Processed URL type:', session.postvidurl.includes('supabase') ? 'SUPABASE' : 'BACKEND');
+        console.log('  - Processed URL accessible test starting...');
+      } else {
+        console.warn('⚠️ ISSUE: postvidurl is not set - video processing may have failed or not completed');
+      }
+
       // Build video sources following auctor_demo pattern
       const videoSources: SessionVideoData = {
         isLoading: false,

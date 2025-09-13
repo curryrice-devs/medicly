@@ -1,11 +1,10 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // Removed unused import
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 export default function LandingPage() {
-  const router = useRouter();
   const supabase = supabaseBrowser();
 
   const handleGoogleSignIn = async () => {

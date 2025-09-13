@@ -7,12 +7,8 @@ import {
   Shield,
   Palette,
   Save,
-  Eye,
-  EyeOff,
   Mail,
   Phone,
-  MapPin,
-  Calendar,
   GraduationCap,
   Award
 } from 'lucide-react'
@@ -24,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const [showPassword, setShowPassword] = useState(false)
+  // const [showPassword, setShowPassword] = useState(false) // Removed unused state
   const [isSaving, setIsSaving] = useState(false)
 
   // Mock user settings data
@@ -71,7 +67,7 @@ export default function SettingsPage() {
     // Show success message
   }
 
-  const updateSetting = (section: string, key: string, value: any) => {
+  const updateSetting = (section: string, key: string, value: string | boolean | number) => {
     setSettings(prev => ({
       ...prev,
       [section]: {
@@ -83,7 +79,7 @@ export default function SettingsPage() {
 
   const SettingSection = ({ title, icon: Icon, children }: {
     title: string
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     children: React.ReactNode
   }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">

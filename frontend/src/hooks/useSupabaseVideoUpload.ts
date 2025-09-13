@@ -101,7 +101,7 @@ export function useSupabaseVideoUpload(options: VideoUploadOptions = {}): UseSup
       
       // Debug Supabase configuration
       console.log('🔍 Supabase URL from env:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-      console.log('🔍 Supabase client URL:', (supabase as any).supabaseUrl || 'URL not accessible');
+      console.log('🔍 Supabase client URL:', 'URL not accessible for security');
       console.log('🔍 Storage URL will be:', `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1`);
       
       // Test direct API access

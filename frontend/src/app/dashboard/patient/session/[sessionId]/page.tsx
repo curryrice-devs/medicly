@@ -235,7 +235,7 @@ export default function PatientSessionDetailPage() {
               marginBottom: '4px',
               letterSpacing: '-0.01em'
             }}>
-              Today's Session
+              Today&apos;s Session
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
               <span>{session.sessionsCompleted}/{session.totalSessions} sessions completed</span>

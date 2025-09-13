@@ -66,7 +66,7 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
     }))
   }
 
-  const handleInputChange = (field: keyof SessionFormData, value: any) => {
+  const handleInputChange = (field: keyof SessionFormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

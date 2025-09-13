@@ -22,7 +22,7 @@ export async function PUT(
     const supabase = createClient(url, serviceKey)
 
     // Update session status
-    const updateData: any = {
+    const updateData: { status: string; reviewed_at: string; rejection_reason?: string; doctor_notes?: string } = {
       status: status.toLowerCase(),
       reviewed_at: new Date().toISOString()
     }

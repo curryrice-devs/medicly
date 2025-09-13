@@ -45,6 +45,85 @@ interface AnalysisResult {
   error?: string
 }
 
+// Helper function to check if backend is available
+async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const response = await fetch('http://localhost:8001/health', {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000) // 3 second timeout
+    });
+    return response.ok;
+  } catch (error) {
+    console.warn('🔧 Backend health check failed:', error instanceof Error ? error.message : 'Unknown error');
+    return false;
+  }
+}
+
+// Diagnostic function to test video URL accessibility and format
+async function diagnoseVideoUrl(url: string): Promise<{ accessible: boolean; contentType?: string; size?: number; error?: string }> {
+  try {
+    console.log('🔍 Testing video URL accessibility:', url);
+
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const contentLength = response.headers.get('content-length');
+
+    const result = {
+      accessible: response.ok,
+      contentType,
+      size: contentLength ? parseInt(contentLength) : undefined,
+      error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
+    };
+
+    console.log('🔍 Video URL diagnosis:', result);
+    return result;
+
+  } catch (error) {
+    const result = {
+      accessible: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    console.error('🔍 Video URL diagnosis failed:', result);
+    return result;
+  }
+}
+
+// Helper function to validate video URL
+function isValidVideoUrl(url: string | null | undefined): url is string {
+  if (!url || typeof url !== 'string') {
+    console.warn('🔍 Video URL validation: URL is empty or not a string:', url);
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const isHttps = parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:';
+
+    if (!isHttps) {
+      console.warn('🔍 Video URL validation: URL must use HTTP/HTTPS protocol:', url);
+      return false;
+    }
+
+    // Check for common video file extensions or streaming endpoints
+    const validVideoPattern = /\.(mp4|webm|ogg|mov|avi)(\?.*)?$|\/stream\/|\/api\//i;
+    const hasValidPattern = validVideoPattern.test(url);
+
+    if (!hasValidPattern) {
+      console.warn('🔍 Video URL validation: URL does not appear to be a video or streaming endpoint:', url);
+    }
+
+    console.log('🔍 Video URL validation: URL appears valid:', url);
+    return true;
+  } catch (error) {
+    console.error('🔍 Video URL validation: Invalid URL format:', url, error);
+    return false;
+  }
+}
+
 export default function ExerciseDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -158,6 +237,24 @@ export default function ExerciseDetailPage() {
       refetchVideos()
     }
   }, [currentStep, analysisResult]) // Remove refetchVideos from dependencies
+
+  // Diagnostic effect: Test processed video URL when it's available
+  React.useEffect(() => {
+    if (processedVideoUrl && isValidVideoUrl(processedVideoUrl)) {
+      console.log('🎬 Processed video URL detected, running diagnostics...')
+      diagnoseVideoUrl(processedVideoUrl).then(result => {
+        if (!result.accessible) {
+          console.error('❌ DIAGNOSIS: Processed video URL is not accessible');
+          console.error('❌ This explains why video loading fails');
+          console.error('❌ Error details:', result.error);
+        } else {
+          console.log('✅ DIAGNOSIS: Processed video URL is accessible');
+          console.log('✅ Content-Type:', result.contentType);
+          console.log('✅ File size:', result.size ? `${Math.round(result.size / 1024 / 1024)}MB` : 'Unknown');
+        }
+      });
+    }
+  }, [processedVideoUrl])
 
   const stepLabels = {
     idle: 'Ready to analyze',
@@ -381,6 +478,9 @@ export default function ExerciseDetailPage() {
       if (processedVideoUrl) {
         try {
           console.log('💾 Saving processed video URL to session...')
+          console.log('🔗 Processed video URL to save:', processedVideoUrl)
+          console.log('📝 Session ID:', sessionId)
+
           const updateResponse = await fetch(`/api/sessions/${sessionId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -388,9 +488,14 @@ export default function ExerciseDetailPage() {
               postvidurl: processedVideoUrl
             })
           })
-          
+
+          console.log('📡 Update response status:', updateResponse.status)
+
           if (updateResponse.ok) {
             const updatedSession = await updateResponse.json()
+            console.log('✅ Successfully saved processed video URL to session')
+            console.log('📋 Updated session data:', updatedSession.data)
+            console.log('🔍 Verify postvidurl saved:', updatedSession.data?.postvidurl)
             console.log('✅ Processed video URL linked to session:', updatedSession.data)
           } else {
             const errorData = await updateResponse.json()
@@ -510,8 +615,11 @@ export default function ExerciseDetailPage() {
           console.log('📹 Using session postvidurl for processed video:', processedVideoUrl)
           return processedVideoUrl
         }
-        // Fallback to backend stream
-        return `http://localhost:8001/api/stream/${videoId}`
+        // Fallback to backend stream (may not be available)
+        const backendStreamUrl = `http://localhost:8001/api/stream/${videoId}`
+        console.warn('⚠️ No processed video URL found in session, falling back to backend stream:', backendStreamUrl)
+        console.warn('⚠️ Make sure backend server is running at localhost:8001')
+        return backendStreamUrl
         
       default:
         if (originalVideoUrl) {
@@ -834,7 +942,7 @@ export default function ExerciseDetailPage() {
                   overflow: 'hidden',
                     aspectRatio: '4/3'
                 }}>
-                    {processedVideoUrl ? (
+                    {isValidVideoUrl(processedVideoUrl) ? (
                     <video
                         src={processedVideoUrl}
                       controls
@@ -850,9 +958,51 @@ export default function ExerciseDetailPage() {
                           console.log('✅ Processed video loaded');
                         }}
                         onError={(e) => {
-                          console.error('❌ Processed video failed to load:', e);
+                          const video = e.target as HTMLVideoElement;
+                          const error = video.error;
+
+                          console.error('❌ Processed video failed to load');
                           console.log('🔗 Attempted URL:', processedVideoUrl);
-                      }}
+                          console.log('📄 URL type:', typeof processedVideoUrl);
+                          console.log('📏 URL length:', processedVideoUrl?.length);
+                          console.log('🔍 URL valid:', processedVideoUrl && processedVideoUrl.startsWith('http'));
+
+                          if (error) {
+                            const errorMessages = {
+                              1: 'MEDIA_ERR_ABORTED: Video loading was aborted',
+                              2: 'MEDIA_ERR_NETWORK: Network error occurred while loading video',
+                              3: 'MEDIA_ERR_DECODE: Error occurred while decoding video',
+                              4: 'MEDIA_ERR_SRC_NOT_SUPPORTED: Video format not supported or source not found'
+                            };
+
+                            console.error('🚨 MediaError Code:', error.code);
+                            console.error('🚨 MediaError Details:', errorMessages[error.code as keyof typeof errorMessages] || 'Unknown error');
+
+                            if (error.message) {
+                              console.error('🚨 MediaError Message:', error.message);
+                            }
+
+                            // Special handling for common backend connection issues
+                            if (error.code === 4 && processedVideoUrl?.includes('localhost:8001')) {
+                              console.error('🔧 SOLUTION: This appears to be a backend connectivity issue.');
+                              console.error('🔧 Check if your backend server is running at localhost:8001');
+                              console.error('🔧 Or ensure the processed video URL is properly saved to the session');
+                            }
+                          }
+
+                          // Test if URL is accessible
+                          if (processedVideoUrl) {
+                            fetch(processedVideoUrl, { method: 'HEAD' })
+                              .then(response => {
+                                console.log('🌐 URL accessibility test:', response.ok ? 'ACCESSIBLE' : 'NOT ACCESSIBLE');
+                                console.log('🌐 Response status:', response.status);
+                                console.log('🌐 Response headers:', response.headers.get('content-type'));
+                              })
+                              .catch(fetchError => {
+                                console.error('🌐 URL accessibility test failed:', fetchError.message);
+                              });
+                          }
+                        }}
                       onLoadStart={() => {
                         console.log('🔄 Processed video loading started');
                       }}
@@ -861,6 +1011,32 @@ export default function ExerciseDetailPage() {
                       }}
                       poster="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' fill='%23000'%3e%3crect width='100%25' height='100%25'/%3e%3c/svg%3e"
                     />
+                    ) : processedVideoUrl && !isValidVideoUrl(processedVideoUrl) ? (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#dc2626',
+                        backgroundColor: '#fef2f2',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        padding: '16px',
+                        textAlign: 'center'
+                      }}>
+                        <div>⚠️</div>
+                        <div style={{ fontSize: '0.8rem' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                            {processedVideoUrl?.includes('localhost:8001') ? 'Backend Server Not Available' : 'Invalid Video URL'}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                            {processedVideoUrl?.includes('localhost:8001')
+                              ? 'The backend server at localhost:8001 is not running. Start your backend server to view processed videos.'
+                              : 'The processed video URL is not valid. Check console for details.'}
+                          </div>
+                        </div>
+                      </div>
                     ) : currentStep === 'complete' ? (
                       <div style={{ 
                         width: '100%', 

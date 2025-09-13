@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
     // Get session statistics for each patient
     const patientIds = relationships?.map(r => r.patient_id) || []
-    let sessionsData: any[] = []
+    let sessionsData: { patient_id: string; status: string; created_at: string }[] = []
 
     if (patientIds.length > 0) {
       const { data: sessions, error: sessionsError } = await supabase

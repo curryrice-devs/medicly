@@ -13,7 +13,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { parseAIAnalysis, createFallbackAnalysis, AIAnalysisData } from '@/types/ai-analysis.types';
 
 // Helper function to create PatientCase from session data and AI analysis
-function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase {
+function createPatientCaseFromSession(s: Record<string, unknown>, treatmentsById: Record<string, unknown>): PatientCase {
   // Parse AI analysis JSON or create fallback
   const aiAnalysis = parseAIAnalysis(s.ai_evaluation || '') || createFallbackAnalysis(s.ai_evaluation || 'Awaiting AI evaluation');
 
@@ -56,7 +56,7 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
     injuryType: aiAnalysis.injuryType || 'General',
     aiAnalysis: aiAnalysis.summary,
     recommendedExercise,
-    status: (String(s.status).toLowerCase() as any) || 'pending',
+    status: (String(s.status).toLowerCase() as SessionStatus) || 'pending',
     submittedAt: s.created_at,
     urgency,
     aiConfidence: aiAnalysis.confidence,
@@ -74,7 +74,7 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
 }
 
 export const doctorApi = {
-  async listCases(filters: any): Promise<{ items: PatientCase[], total: number, stats: CaseStats }> {
+  async listCases(filters: { status?: string; urgency?: string; limit?: number; offset?: number }): Promise<{ items: PatientCase[], total: number, stats: CaseStats }> {
     const {
       status = 'pending',
       sort = 'submittedAt:desc',
@@ -87,7 +87,7 @@ export const doctorApi = {
 
     // Fetch sessions (no RLS filtering yet); optionally filter client-side
     console.log('[doctorApi.listCases] fetching sessions via /api/doctor/sessions')
-    let sessions: any[] | null = null
+    let sessions: Record<string, unknown>[] | null = null
     let treatmentsById: Record<number, { id: number; video_link: string | null; description: string | null }> = {}
     try {
       const resp = await fetch('/api/doctor/sessions', { cache: 'no-store' })
@@ -211,7 +211,7 @@ export const doctorApi = {
       const treatmentsById = payload.treatmentsById || {}
 
       // Find the specific session by ID
-      const s = sessions.find((session: any) => String(session.id) === String(id))
+      const s = sessions.find((session: Record<string, unknown>) => String(session.id) === String(id))
       if (!s) {
         console.warn('[doctorApi.getCaseById] session not found for id:', id)
         return null
@@ -247,7 +247,7 @@ export const doctorApi = {
     }
   },
 
-  async searchExercises(query: any): Promise<{ items: Exercise[], total: number }> {
+  async searchExercises(query: { term?: string; bodyPart?: string; limit?: number }): Promise<{ items: Exercise[], total: number }> {
     return {
       items: [],
       total: 0
@@ -272,7 +272,7 @@ export const doctorApi = {
       console.log('[doctorApi.searchPatients] fetched', { count: allPatients.length })
 
       // Map database response to TypeScript interface (same as before)
-      let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
+      let mapped: PatientSearchResult[] = allPatients.map((item: Record<string, unknown>) => ({
         id: item.id,
         caseId: item.case_id,
         fullName: item.full_name,
@@ -357,7 +357,7 @@ export const doctorApi = {
       console.log(`Direct search found ${profiles?.length || 0} patients`);
 
       // Map the results (simplified version without relationship data for now)
-      const mappedData = (profiles || []).map((profile: any) => ({
+      const mappedData = (profiles || []).map((profile: Record<string, unknown>) => ({
         id: profile.id,
         caseId: profile.case_id,
         fullName: profile.full_name,
@@ -475,7 +475,7 @@ export const doctorApi = {
   async updatePatientProfile(patientId: string, updates: Partial<PatientProfile>): Promise<PatientProfile | null> {
     try {
       // Convert camelCase updates to snake_case for database
-      const dbUpdates: any = {};
+      const dbUpdates: Record<string, unknown> = {};
       if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
       if (updates.email !== undefined) dbUpdates.email = updates.email;
       if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
@@ -564,7 +564,7 @@ export const doctorApi = {
       console.log('[doctorApi.getDoctorPatients] fetched', { count: allPatients.length })
 
       // Map database response to TypeScript interface
-      let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
+      let mapped: PatientSearchResult[] = allPatients.map((item: Record<string, unknown>) => ({
         id: item.id,
         caseId: item.case_id,
         fullName: item.full_name,
@@ -632,7 +632,7 @@ export const doctorApi = {
 
   async updateSessionDoctorNotes(sessionId: string, notes: string, status?: 'pending' | 'reviewed' | 'approved' | 'completed'): Promise<TherapySession | null> {
     try {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         doctor_notes: notes,
         updated_at: new Date().toISOString()
       };
@@ -679,7 +679,7 @@ export const doctorApi = {
     }
   },
 
-  async updateExercise(caseId: string, exerciseData: any): Promise<boolean> {
+  async updateExercise(caseId: string, exerciseData: { sets?: number; reps?: number; frequency?: string; notes?: string }): Promise<boolean> {
     console.log('[doctorApi.updateExercise] updating exercise:', { caseId, exerciseData });
     try {
       const resp = await fetch(`/api/doctor/cases/${caseId}`, {
@@ -701,7 +701,7 @@ export const doctorApi = {
     }
   },
 
-  async getPatients(doctorId: string): Promise<{ patients: any[], stats: any } | null> {
+  async getPatients(doctorId: string): Promise<{ patients: PatientSearchResult[], stats: Record<string, unknown> } | null> {
     console.log('[doctorApi.getPatients] fetching patients for doctor:', doctorId);
     try {
       const resp = await fetch(`/api/doctor/patients?doctorId=${encodeURIComponent(doctorId)}`, {
@@ -724,7 +724,7 @@ export const doctorApi = {
 
   // Debug function to help troubleshoot patient search issues
   async debugPatientSearch(): Promise<{
-    userInfo: any;
+    userInfo: Record<string, unknown>;
     totalPatients: number;
     userRole: string | null;
     canAccessPatients: boolean;

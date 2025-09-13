@@ -135,9 +135,9 @@ Please analyze this physical therapy video and return a JSON response with the f
 `;
 
 // Helper function to safely parse AI analysis JSON
-export function parseAIAnalysis(aiEvaluationData: any): AIAnalysisData | null {
+export function parseAIAnalysis(aiEvaluationData: unknown): AIAnalysisData | null {
   try {
-    let parsed: any;
+    let parsed: unknown;
 
     // Handle different input types
     if (typeof aiEvaluationData === 'string') {

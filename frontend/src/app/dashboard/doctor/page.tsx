@@ -7,7 +7,6 @@ import {
   Calendar,
   Loader2,
   AlertCircle,
-  TrendingUp,
   Clock,
   CheckCircle
 } from 'lucide-react'
@@ -84,7 +83,7 @@ export default function DoctorDashboard() {
             Welcome back, Dr. {user?.name?.split(' ')[1] || user?.name?.split(' ')[0]}
           </h1>
           <p className="text-gray-600">
-            Here's what's happening with your patients today
+            Here&apos;s what&apos;s happening with your patients today
           </p>
         </div>
 
@@ -180,7 +179,7 @@ export default function DoctorDashboard() {
                     ...partial,
                     page: 1, // Reset to first page when filters change
                     perPage: 20
-                  } as any)
+                  })
                 }}
               />
             </div>

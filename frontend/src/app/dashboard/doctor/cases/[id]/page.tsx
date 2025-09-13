@@ -24,7 +24,7 @@ export default function CaseReviewRoute() {
   // Exercise save state
   const [isExerciseSaved, setIsExerciseSaved] = React.useState(true) // Start as saved (no changes yet)
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
-  const [exerciseModifications, setExerciseModifications] = React.useState<any>({})
+  const [exerciseModifications, setExerciseModifications] = React.useState<{ sets?: number; reps?: number; frequency?: string; notes?: string }>({})
 
   // Modal states
   const [showExerciseSaveModal, setShowExerciseSaveModal] = React.useState(false)
@@ -97,8 +97,8 @@ export default function CaseReviewRoute() {
     }
   }
 
-  const handleExerciseChange = (changes: any) => {
-    setExerciseModifications((prev: any) => ({ ...prev, ...changes }))
+  const handleExerciseChange = (changes: { sets?: number; reps?: number; frequency?: string; notes?: string }) => {
+    setExerciseModifications((prev: { sets?: number; reps?: number; frequency?: string; notes?: string }) => ({ ...prev, ...changes }))
     setHasUnsavedChanges(true)
     setIsExerciseSaved(false)
   }
@@ -374,7 +374,7 @@ export default function CaseReviewRoute() {
               setIsExerciseSaved(true)
               setHasUnsavedChanges(false)
             }}
-            onModify={async (params: any, newExercise: any) => {
+            onModify={async (params: { sets?: number; reps?: number; frequency?: string; notes?: string }, newExercise: Exercise) => {
               console.log('Exercise modified:', params, newExercise)
               handleExerciseChange({ ...params, exerciseId: newExercise?.id })
               setIsEditingRecommendation(false)

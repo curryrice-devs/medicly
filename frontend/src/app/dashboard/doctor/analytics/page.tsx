@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
   const StatCard = ({ title, value, icon: Icon, change, changeType = 'neutral' }: {
     title: string
     value: string | number
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     change?: string
     changeType?: 'positive' | 'negative' | 'neutral'
   }) => (
