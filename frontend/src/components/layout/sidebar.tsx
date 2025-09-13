@@ -2,15 +2,14 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  Home, 
-  Calendar, 
-  User, 
-  Settings, 
+import {
+  Home,
+  Calendar,
+  User,
+  Settings,
   Activity,
   FileText,
   Users,
-  BarChart3,
   Stethoscope,
   ChevronLeft,
   ChevronRight
@@ -41,9 +40,6 @@ export function Sidebar() {
     
           const items = [
         { href: baseRoute, label: 'Dashboard', icon: Home },
-        ...(user?.role === 'doctor' ? [
-          { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 }
-        ] : []),
         { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
       ]
 

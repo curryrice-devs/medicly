@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { 
+import {
   Users,
   FileText,
   Calendar,
@@ -25,13 +25,13 @@ export default function DoctorDashboard() {
   const router = useRouter()
 
   // Use patient cases hook for real data
-  const { 
-    items: patientCases, 
-    loading: casesLoading, 
-    error: casesError, 
-    filters: caseFilters, 
+  const {
+    items: patientCases,
+    loading: casesLoading,
+    error: casesError,
+    filters: caseFilters,
     updateFilter: setCaseFilters,
-    stats: caseStats 
+    stats: caseStats
   } = usePatientCases({ initialStatus: 'pending' })
 
   const handleCaseOpen = (caseId: string) => {
@@ -99,8 +99,8 @@ export default function DoctorDashboard() {
                     <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
                     <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                     <p className={`text-sm mt-1 ${
-                      stat.changeType === 'positive' ? 'text-green-600' : 
-                      stat.changeType === 'negative' ? 'text-red-600' : 
+                      stat.changeType === 'positive' ? 'text-green-600' :
+                      stat.changeType === 'negative' ? 'text-red-600' :
                       'text-gray-600'
                     }`}>
                       {stat.change}

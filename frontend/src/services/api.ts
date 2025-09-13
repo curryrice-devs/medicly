@@ -592,18 +592,18 @@ export const doctorApi = {
       const allPatients = payload.patients || []
       console.log('[doctorApi.getDoctorPatients] fetched', { count: allPatients.length })
 
-      // Map database response to TypeScript interface
+      // Map database response to TypeScript interface - API already returns camelCase
       let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
         id: item.id,
-        caseId: item.case_id,
-        fullName: item.full_name,
+        caseId: item.caseId,
+        fullName: item.fullName,
         email: item.email,
         phone: item.phone,
         age: item.age,
-        relationshipStatus: item.relationship_status,
-        assignedAt: item.assigned_at,
-        lastSession: item.last_session,
-        totalSessions: Number(item.total_sessions) || 0
+        relationshipStatus: item.relationshipStatus,
+        assignedAt: item.assignedAt,
+        lastSession: item.lastSession,
+        totalSessions: Number(item.totalSessions) || 0
       }));
 
       // Filter for patients assigned to this specific doctor
