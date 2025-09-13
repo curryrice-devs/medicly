@@ -41,7 +41,6 @@ export function Sidebar() {
     const items = [
       { href: baseRoute, label: 'Dashboard', icon: Home },
       ...(user?.role === 'doctor' ? [
-        { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 },
         { href: '/dashboard/doctor/patients', label: 'Patients', icon: Users }
       ] : []),
       { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
