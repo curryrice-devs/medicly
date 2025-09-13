@@ -18,9 +18,10 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
 import { useVideoUpload } from '@/hooks/useVideoUpload'
+import { useSessionVideo } from '@/hooks/useSessionVideo'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
-type VideoMode = 'original' | 'processed' | 'overlay'
+type VideoMode = 'original' | 'processed'
 
 interface AnalysisResult {
   analysis_type?: string
@@ -60,11 +61,22 @@ export default function ExerciseDetailPage() {
   const [keyFrames, setKeyFrames] = useState<any[]>([])
   const [patientNotes, setPatientNotes] = useState<string>('')
   const [isSubmittingNotes, setIsSubmittingNotes] = useState(false)
-  const [processedVideoData, setProcessedVideoData] = useState<string | null>(null)
-  const [uploadResult, setUploadResult] = useState<any>(null)
 
   const { user } = useAuth()
-
+  
+  // Use session video hook following auctor_demo pattern
+  const { 
+    originalVideoUrl, 
+    processedVideoUrl, 
+    patientNotes: existingPatientNotes,
+    aiEvaluation: existingAiEvaluation,
+    sessionStatus,
+    isVideoReady, 
+    isLoading: isLoadingVideos,
+    error: videoError,
+    refetch: refetchVideos
+  } = useSessionVideo(sessionId)
+  
   // Use Supabase video upload hook
   const { 
     isUploading,
@@ -79,7 +91,8 @@ export default function ExerciseDetailPage() {
     onUploadComplete: (result) => {
       console.log('✅ Video uploaded to Supabase:', result)
       setVideoId(result.id)
-      setUploadResult(result)
+      // Refetch session videos to get updated URLs
+      setTimeout(() => refetchVideos(), 1000)
     },
     onUploadError: (error) => {
       console.error('❌ Supabase upload failed:', error)
@@ -87,13 +100,54 @@ export default function ExerciseDetailPage() {
     }
   })
 
-  // Auto-switch to pose overlay when analysis completes
+  // Load existing session data when available
   React.useEffect(() => {
-    if (currentStep === 'complete' && analysisResult) {
+    if (existingPatientNotes && !patientNotes) {
+      setPatientNotes(existingPatientNotes)
+      console.log('📝 Loaded existing patient notes')
+    }
+    if (existingAiEvaluation && !analysisResult) {
+      setAnalysisResult(existingAiEvaluation)
+      console.log('🤖 Loaded existing AI evaluation')
+    }
+    if (sessionStatus === 'completed' && currentStep === 'idle') {
+      setCurrentStep('complete')
+      console.log('✅ Session already completed')
+    }
+  }, [existingPatientNotes, existingAiEvaluation, sessionStatus])
+
+  // Fetch session data to get video URLs
+  const fetchSessionData = async () => {
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}`)
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          // setSessionData(result.data) // This state is no longer needed
+          console.log('📋 Session data loaded:', result.data)
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch session data:', error)
+    }
+  }
+
+  // Load session data on mount
+  React.useEffect(() => {
+    if (sessionId) {
+      fetchSessionData()
+    }
+  }, [sessionId])
+
+  // Auto-switch to processed video when analysis completes
+  React.useEffect(() => {
+    if (currentStep === 'complete' && analysisResult && videoMode !== 'processed') {
       console.log('🎯 Analysis complete, switching to processed video view')
       setVideoMode('processed')
+      // Refetch to get latest postvidurl
+      refetchVideos()
     }
-  }, [currentStep, analysisResult])
+  }, [currentStep, analysisResult]) // Remove refetchVideos from dependencies
 
   const stepLabels = {
     idle: 'Ready to analyze',
@@ -121,13 +175,21 @@ export default function ExerciseDetailPage() {
       const interval = 50
       const increment = 100 / (duration / interval)
       let progress = 0
+      let currentProgress = 0
       
       const timer = setInterval(() => {
         progress += increment
-        setStepProgress(Math.min(progress, 100))
+        const newProgress = Math.min(progress, 100)
+        
+        // Only update if progress actually changed
+        if (Math.floor(newProgress) !== Math.floor(currentProgress)) {
+          currentProgress = newProgress
+          setStepProgress(currentProgress)
+        }
         
         if (progress >= 100) {
           clearInterval(timer)
+          setStepProgress(100)
           resolve()
         }
       }, interval)
@@ -174,46 +236,14 @@ export default function ExerciseDetailPage() {
       setStepProgress(0)
       
       let currentVideoId: string
+      let uploadResult: any
       
-      try {
+             try {
         console.log('⬆️ Starting video upload to Supabase...')
-        const result = await uploadVideo(selectedFile)
-        currentVideoId = result.id
+        uploadResult = await uploadVideo(selectedFile)
+        currentVideoId = uploadResult.id
         setVideoId(currentVideoId)
-        setUploadResult(result)
         console.log('✅ Upload completed with video ID:', currentVideoId)
-        
-        // Wait for uploadedVideo state to be updated (optional, for additional data)
-        let attempts = 0
-        while (!uploadedVideo && attempts < 5) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-          attempts++
-          console.log(`⏳ Waiting for uploadedVideo state (${attempts}/5)`)
-        }
-        
-        // Save original video URL to session (previdurl)
-        try {
-          console.log('💾 Saving original video URL to session...')
-          const updateResponse = await fetch(`/api/sessions/${sessionId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              previdurl: result.url || result.signedUrl,
-              status: 'active' // Use correct enum value
-            })
-          })
-          
-          if (updateResponse.ok) {
-            const updatedSession = await updateResponse.json()
-            console.log('✅ Original video URL linked to session:', updatedSession.data)
-          } else {
-            const errorData = await updateResponse.json()
-            console.warn('⚠️ Failed to link original video URL to session:', errorData.error)
-          }
-        } catch (dbError) {
-          console.warn('⚠️ Database error linking original video to session:', dbError)
-          // Continue anyway - this is just for persistence
-        }
         
       } catch (uploadError) {
         console.error('❌ Video upload failed:', uploadError)
@@ -224,30 +254,77 @@ export default function ExerciseDetailPage() {
         throw new Error('Upload completed but no video ID received')
       }
 
+      // Wait for uploadedVideo state to be available
+      let attempts = 0
+      while (!uploadedVideo && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        attempts++
+        console.log(`⏳ Waiting for uploadedVideo state (${attempts}/10)`)
+      }
+      
+      // Save original video URL to session (previdurl)
+      try {
+        console.log('💾 Saving original video URL to session...')
+        const videoUrl = uploadResult.url || uploadResult.signedUrl || uploadedVideo?.url
+        
+        const updateResponse = await fetch(`/api/sessions/${sessionId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            previdurl: videoUrl,
+            status: 'active' // Use correct enum value
+          })
+        })
+         
+        if (updateResponse.ok) {
+          const updatedSession = await updateResponse.json()
+          console.log('✅ Original video URL linked to session:', updatedSession.data)
+          // Refetch session videos to update display
+          refetchVideos()
+        } else {
+          const errorData = await updateResponse.json()
+          console.warn('⚠️ Failed to link original video URL to session:', errorData.error)
+         }
+      } catch (dbError) {
+        console.warn('⚠️ Database error linking original video to session:', dbError)
+        // Continue anyway - this is just for persistence
+      }
+
       // Step 2: Process poses using backend (download from Supabase, process, upload back)
       setCurrentStep('processing_pose')
       setStepProgress(0)
       
       console.log('🔄 Starting pose processing for video:', currentVideoId)
-      console.log('📋 Using upload result:', uploadResult)
+      
+      // Debug: Check what data we have available
+      console.log('🔍 Debug data for processing:', {
+        currentVideoId,
+        uploadResult,
+        uploadedVideo,
+        sessionId
+      })
+      
+      const processingPayload = {
+        video_id: currentVideoId,
+        video_url: uploadResult?.url || uploadResult?.signedUrl || uploadedVideo?.url,
+        storage_path: uploadResult?.storagePath || uploadedVideo?.storagePath,
+        session_id: sessionId
+      }
+      
+      console.log('📋 Processing payload:', processingPayload)
       
       // Use the Supabase processing endpoint that will upload processed video back to bucket
       const processResponse = await fetch(`http://localhost:8001/api/process-supabase-video`, {
-        method: 'POST',
+          method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          video_url: uploadResult?.url || uploadResult?.signedUrl,
-          storage_path: uploadResult?.storagePath,
-          session_id: sessionId // Pass session ID for database updates
+        body: JSON.stringify(processingPayload)
         })
-      })
 
       if (!processResponse.ok) {
         const errorText = await processResponse.text()
         console.error('❌ Process response error:', errorText)
         throw new Error(`Pose processing failed: ${processResponse.status} - ${errorText}`)
-      }
+        }
 
       const processResult = await processResponse.json()
       console.log('✅ Pose processing started:', processResult)
@@ -391,8 +468,7 @@ export default function ExerciseDetailPage() {
     setError(null)
     setKeyFrames([])
     setPatientNotes('')
-    setProcessedVideoData(null)
-    setUploadResult(null)
+    // setProcessedVideoData(null) // This state is no longer needed
     resetUpload()
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -402,22 +478,29 @@ export default function ExerciseDetailPage() {
   const getVideoUrl = () => {
     if (!videoId) return null
     
-    // Use Supabase URLs when available, fallback to backend
+    // Use URLs from session data (database) when available
     switch (videoMode) {
       case 'original':
-        // For original video, try to use the upload result URL directly
-        if (uploadResult?.url || uploadResult?.signedUrl) {
-          console.log('📹 Using Supabase URL for original video:', uploadResult.url || uploadResult.signedUrl)
-          return uploadResult.url || uploadResult.signedUrl
+        // Priority: Session previdurl > Upload result > Backend fallback
+        if (originalVideoUrl) {
+          console.log('📹 Using session previdurl for original video:', originalVideoUrl)
+          return originalVideoUrl
         }
-        // Fallback to backend
+        // Fallback to backend (shouldn't be needed)
         return `http://localhost:8001/api/video/${videoId}`
+        
       case 'processed':
-        // For processed video, use backend stream (will be updated to Supabase later)
-        return processedVideoData || `http://localhost:8001/api/stream/${videoId}`
+        // Priority: Session postvidurl > Backend stream
+        if (processedVideoUrl) {
+          console.log('📹 Using session postvidurl for processed video:', processedVideoUrl)
+          return processedVideoUrl
+        }
+        // Fallback to backend stream
+        return `http://localhost:8001/api/stream/${videoId}`
+        
       default:
-        if (uploadResult?.url || uploadResult?.signedUrl) {
-          return uploadResult.url || uploadResult.signedUrl
+        if (originalVideoUrl) {
+          return originalVideoUrl
         }
         return `http://localhost:8001/api/video/${videoId}`
     }
@@ -473,104 +556,104 @@ export default function ExerciseDetailPage() {
           minHeight: '40vh'
         }}>
           
-          {/* Upload Section */}
-          {!videoId && (
-            <div style={{ 
-              backgroundColor: 'hsl(var(--card))',
+            {/* Upload Section */}
+            {!videoId && (
+              <div style={{ 
+                backgroundColor: 'hsl(var(--card))',
               borderRadius: '6px',
               padding: '12px',
               border: '1px solid hsl(var(--border))'
-            }}>
-              <h3 style={{ 
-                fontSize: '0.9rem', 
-                fontWeight: '600', 
-                color: 'hsl(var(--foreground))',
-                marginBottom: '8px'
               }}>
-                Upload Your Exercise Video
-              </h3>
-              
-              <div
-                style={{
-                  border: selectedFile 
-                    ? '2px dashed #0d4a2b' 
-                    : '2px dashed hsl(var(--border))',
-                  backgroundColor: selectedFile 
-                    ? 'rgba(13, 74, 43, 0.05)' 
-                    : 'transparent',
+                <h3 style={{ 
+                fontSize: '0.9rem', 
+                  fontWeight: '600', 
+                  color: 'hsl(var(--foreground))',
+                marginBottom: '8px'
+                }}>
+                  Upload Your Exercise Video
+                </h3>
+                
+                <div
+                  style={{
+                    border: selectedFile 
+                      ? '2px dashed #0d4a2b' 
+                      : '2px dashed hsl(var(--border))',
+                    backgroundColor: selectedFile 
+                      ? 'rgba(13, 74, 43, 0.05)' 
+                      : 'transparent',
                   borderRadius: '6px',
                   padding: '16px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-                
-                {selectedFile ? (
-                  <div>
-                    <CheckCircle2 style={{ width: '48px', height: '48px', color: '#0d4a2b', margin: '0 auto 16px' }} />
-                    <h4 style={{ 
-                      fontSize: '1.125rem', 
-                      fontWeight: '600', 
-                      color: 'hsl(var(--foreground))',
-                      marginBottom: '8px'
-                    }}>
-                      {selectedFile.name}
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '16px' }}>
-                      {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for analysis
-                    </p>
-                    <Button 
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  {selectedFile ? (
+                    <div>
+                      <CheckCircle2 style={{ width: '48px', height: '48px', color: '#0d4a2b', margin: '0 auto 16px' }} />
+                      <h4 style={{ 
+                        fontSize: '1.125rem', 
+                        fontWeight: '600', 
+                        color: 'hsl(var(--foreground))',
+                        marginBottom: '8px'
+                      }}>
+                        {selectedFile.name}
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '16px' }}>
+                        {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for analysis
+                      </p>
+                      <Button 
                       onClick={(e) => {
                         e.stopPropagation() // Prevent file picker from opening
                         startAnalysis()
                       }}
                       disabled={isUploading}
-                      style={{ 
-                        backgroundColor: '#0d4a2b',
-                        gap: '8px'
-                      }}
-                    >
-                      <Play style={{ width: '16px', height: '16px' }} />
-                      Start AI Analysis
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload style={{ width: '48px', height: '48px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 16px' }} />
-                    <h4 style={{ 
-                      fontSize: '1.125rem', 
-                      fontWeight: '600', 
-                      color: 'hsl(var(--foreground))',
-                      marginBottom: '8px'
-                    }}>
-                      Drop your {exerciseDisplayName.toLowerCase()} video here
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                      or click to browse • MP4, AVI, MOV supported • Max 100MB
-                    </p>
-                  </div>
-                )}
+                        style={{ 
+                          backgroundColor: '#0d4a2b',
+                          gap: '8px'
+                        }}
+                      >
+                        <Play style={{ width: '16px', height: '16px' }} />
+                        Start AI Analysis
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <Upload style={{ width: '48px', height: '48px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 16px' }} />
+                      <h4 style={{ 
+                        fontSize: '1.125rem', 
+                        fontWeight: '600', 
+                        color: 'hsl(var(--foreground))',
+                        marginBottom: '8px'
+                      }}>
+                        Drop your {exerciseDisplayName.toLowerCase()} video here
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
+                        or click to browse • MP4, AVI, MOV supported • Max 100MB
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Video Display - Ultra Compact */}
-          {videoId && (
-            <div style={{ 
-              backgroundColor: 'hsl(var(--card))',
+            {videoId && (
+              <div style={{ 
+                backgroundColor: 'hsl(var(--card))',
               borderRadius: '6px',
               padding: '12px',
-              border: '1px solid hsl(var(--border))'
-            }}>
+                border: '1px solid hsl(var(--border))'
+              }}>
               <h3 style={{ 
                 fontSize: '0.9rem', 
                 fontWeight: '600', 
@@ -581,12 +664,12 @@ export default function ExerciseDetailPage() {
               </h3>
 
               {/* Side by Side Video Display */}
-              <div style={{ 
+                <div style={{ 
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '12px',
                 marginBottom: '8px'
-              }}>
+                }}>
                 
                 {/* Original Video */}
                 <div>
@@ -604,21 +687,53 @@ export default function ExerciseDetailPage() {
                     overflow: 'hidden',
                     aspectRatio: '4/3'
                   }}>
-                    <video
-                      src={`http://localhost:8001/api/video/${videoId}`}
-                      controls
-                      style={{ 
+                    {originalVideoUrl ? (
+                      <video
+                        src={originalVideoUrl}
+                        controls
+                      style={{
+                          width: '100%', 
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                        onLoadedData={() => {
+                          console.log('✅ Original video loaded from Supabase');
+                        }}
+                        onError={(e) => {
+                          console.error('❌ Original video failed to load:', e);
+                          console.log('🔗 Attempted URL:', originalVideoUrl);
+                        }}
+                      />
+                    ) : isLoadingVideos ? (
+                      <div style={{ 
                         width: '100%', 
                         height: '100%',
-                        objectFit: 'contain'
-                      }}
-                      onLoadedData={() => {
-                        console.log('✅ Original video loaded');
-                      }}
-                      onError={(e) => {
-                        console.error('❌ Original video failed to load:', e);
-                      }}
-                    />
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#6b7280',
+                        backgroundColor: '#f3f4f6'
+                      }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <Loader2 style={{ width: '16px', height: '16px', margin: '0 auto 4px' }} className="animate-spin" />
+                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Loading...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#6b7280',
+                        backgroundColor: '#f3f4f6'
+                      }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Upload video to begin</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -632,45 +747,30 @@ export default function ExerciseDetailPage() {
                   }}>
                     Pose Analysis
                   </h4>
-                  <div style={{ 
-                    backgroundColor: '#000',
+                <div style={{ 
+                  backgroundColor: '#000',
                     borderRadius: '4px',
-                    overflow: 'hidden',
+                  overflow: 'hidden',
                     aspectRatio: '4/3'
-                  }}>
-                    {currentStep === 'complete' && processedVideoData ? (
-                      <video
-                        src={processedVideoData}
-                        controls
-                        style={{ 
-                          width: '100%', 
-                          height: '100%',
-                          objectFit: 'contain'
-                        }}
+                }}>
+                    {processedVideoUrl ? (
+                    <video
+                        src={processedVideoUrl}
+                      controls
+                      style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        objectFit: 'contain'
+                      }}
                         onLoadedData={() => {
                           console.log('✅ Processed video loaded');
                         }}
                         onError={(e) => {
                           console.error('❌ Processed video failed to load:', e);
-                        }}
-                      />
+                          console.log('🔗 Attempted URL:', processedVideoUrl);
+                      }}
+                    />
                     ) : currentStep === 'complete' ? (
-                      <video
-                        src={`http://localhost:8001/api/stream/${videoId}`}
-                        controls
-                        style={{ 
-                          width: '100%', 
-                          height: '100%',
-                          objectFit: 'contain'
-                        }}
-                        onLoadedData={() => {
-                          console.log('✅ Streamed processed video loaded');
-                        }}
-                        onError={(e) => {
-                          console.error('❌ Streamed processed video failed to load:', e);
-                        }}
-                      />
-                    ) : (
                       <div style={{ 
                         width: '100%', 
                         height: '100%',
@@ -681,50 +781,72 @@ export default function ExerciseDetailPage() {
                         backgroundColor: '#f3f4f6'
                       }}>
                         <div style={{ textAlign: 'center' }}>
-                          {currentStep === 'idle' ? (
-                            <p style={{ fontSize: '0.7rem', margin: 0 }}>Pose analysis will appear here</p>
-                          ) : (
-                            <>
-                              <Loader2 style={{ width: '14px', height: '14px', margin: '0 auto 3px' }} className="animate-spin" />
-                              <p style={{ fontSize: '0.7rem', margin: 0 }}>Generating...</p>
-                            </>
-                          )}
+                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Processing complete, video not available</p>
                         </div>
                       </div>
-                    )}
+                    ) : currentStep === 'idle' ? (
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#6b7280',
+                        backgroundColor: '#f3f4f6'
+                      }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Pose analysis will appear here</p>
+                        </div>
+                      </div>
+                  ) : (
+                    <div style={{ 
+                      width: '100%', 
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                        color: '#6b7280',
+                        backgroundColor: '#f3f4f6'
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                          <Loader2 style={{ width: '14px', height: '14px', margin: '0 auto 3px' }} className="animate-spin" />
+                          <p style={{ fontSize: '0.7rem', margin: 0 }}>Generating...</p>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </div>
-              </div>
+                </div>
 
-              {/* Action Buttons */}
-              <div style={{ 
-                display: 'flex', 
+                {/* Action Buttons */}
+                <div style={{ 
+                  display: 'flex', 
                 gap: '6px'
-              }}>
-                <Button 
-                  onClick={resetAnalysis}
-                  variant="outline"
+                }}>
+                  <Button 
+                    onClick={resetAnalysis}
+                    variant="outline"
                   size="sm"
                   style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
-                >
-                  Upload New Video
-                </Button>
-                {currentStep === 'complete' && videoId && (
-                  <Button
-                    variant="outline"
+                  >
+                    Upload New Video
+                  </Button>
+                  {currentStep === 'complete' && videoId && (
+                    <Button
+                      variant="outline"
                     size="sm"
                     style={{ gap: '3px', fontSize: '0.7rem', padding: '4px 8px' }}
-                    asChild
-                  >
-                    <a href={`http://localhost:8001/api/download/${videoId}`} download>
+                      asChild
+                    >
+                      <a href={`http://localhost:8001/api/download/${videoId}`} download>
                       <Download style={{ width: '10px', height: '10px' }} />
                       Download
-                    </a>
-                  </Button>
-                )}
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Analysis Progress and Notes Grid */}
           {videoId && (
@@ -735,46 +857,46 @@ export default function ExerciseDetailPage() {
             }}>
               
               {/* Analysis Progress */}
-              <div style={{ 
-                backgroundColor: 'hsl(var(--card))',
+            <div style={{ 
+              backgroundColor: 'hsl(var(--card))',
                 borderRadius: '6px',
                 padding: '12px',
                 border: '1px solid hsl(var(--border))'
-              }}>
-                <h3 style={{ 
+            }}>
+              <h3 style={{ 
                   fontSize: '0.9rem', 
-                  fontWeight: '600', 
-                  color: 'hsl(var(--foreground))',
+                fontWeight: '600', 
+                color: 'hsl(var(--foreground))',
                   marginBottom: '8px'
-                }}>
-                  Analysis Progress
-                </h3>
+              }}>
+                Analysis Progress
+              </h3>
 
-                {/* Current Step */}
+              {/* Current Step */}
                 <div style={{ marginBottom: '8px' }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
                     gap: '6px',
                     marginBottom: '4px'
-                  }}>
+                }}>
                     {isUploading ? (
                       <Loader2 style={{ width: '12px', height: '12px', color: getStepColor(currentStep) }} className="animate-spin" />
-                    ) : currentStep === 'complete' ? (
+                  ) : currentStep === 'complete' ? (
                       <CheckCircle2 style={{ width: '12px', height: '12px', color: '#0d4a2b' }} />
                     ) : currentStep !== 'idle' ? (
                       <Loader2 style={{ width: '12px', height: '12px', color: getStepColor(currentStep) }} className="animate-spin" />
-                    ) : (
+                  ) : (
                       <Activity style={{ width: '12px', height: '12px', color: 'hsl(var(--muted-foreground))' }} />
-                    )}
-                    <span style={{ 
+                  )}
+                  <span style={{ 
                       fontSize: '0.75rem', 
-                      fontWeight: '600',
-                      color: currentStep === 'complete' ? '#0d4a2b' : 'hsl(var(--foreground))'
-                    }}>
-                      {stepLabels[currentStep]}
-                    </span>
-                  </div>
+                    fontWeight: '600',
+                    color: currentStep === 'complete' ? '#0d4a2b' : 'hsl(var(--foreground))'
+                  }}>
+                    {stepLabels[currentStep]}
+                  </span>
+                </div>
 
                   {/* Overall Progress Bar */}
                   {currentStep !== 'idle' && (
@@ -798,14 +920,14 @@ export default function ExerciseDetailPage() {
                           })()}
                         </span>
                       </div>
-                      <div style={{ 
-                        width: '100%', 
-                        backgroundColor: 'hsl(var(--accent))', 
+                  <div style={{ 
+                    width: '100%', 
+                    backgroundColor: 'hsl(var(--accent))', 
                         borderRadius: '3px', 
                         height: '4px',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{ 
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
                           height: '4px',
                           backgroundColor: currentStep === 'complete' ? '#0d4a2b' : getStepColor(currentStep),
                           borderRadius: '3px',
@@ -846,48 +968,48 @@ export default function ExerciseDetailPage() {
                       }}>
                         <div style={{ 
                           height: '4px',
-                          backgroundColor: getStepColor(currentStep),
+                      backgroundColor: getStepColor(currentStep),
                           borderRadius: '3px',
                           width: `${uploadProgress}%`,
-                          transition: 'width 0.3s ease'
-                        }} />
+                      transition: 'width 0.3s ease'
+                    }} />
                       </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
 
-                {/* Step Indicators */}
+              {/* Step Indicators */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {Object.entries(stepLabels).map(([step, label]) => {
-                    const isActive = currentStep === step
-                    const isCompleted = step === 'complete' && currentStep === 'complete'
-                    const stepIndex = Object.keys(stepLabels).indexOf(step)
-                    const currentIndex = Object.keys(stepLabels).indexOf(currentStep)
-                    const isPast = stepIndex < currentIndex
-                    
-                    return (
+                {Object.entries(stepLabels).map(([step, label]) => {
+                  const isActive = currentStep === step
+                  const isCompleted = step === 'complete' && currentStep === 'complete'
+                  const stepIndex = Object.keys(stepLabels).indexOf(step)
+                  const currentIndex = Object.keys(stepLabels).indexOf(currentStep)
+                  const isPast = stepIndex < currentIndex
+                  
+                  return (
                       <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <div style={{ 
+                      <div style={{ 
                           width: '8px', 
                           height: '8px', 
-                          borderRadius: '50%',
-                          backgroundColor: isCompleted || isPast ? '#0d4a2b' : isActive ? getStepColor(step as ProcessingStep) : '#e5e7eb'
-                        }} />
-                        <span style={{ 
+                        borderRadius: '50%',
+                        backgroundColor: isCompleted || isPast ? '#0d4a2b' : isActive ? getStepColor(step as ProcessingStep) : '#e5e7eb'
+                      }} />
+                      <span style={{ 
                           fontSize: '0.7rem',
-                          color: isCompleted || isPast ? '#0d4a2b' : isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-                          fontWeight: isActive ? '600' : '400'
-                        }}>
-                          {label}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
+                        color: isCompleted || isPast ? '#0d4a2b' : isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+                        fontWeight: isActive ? '600' : '400'
+                      }}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+            </div>
 
                 {/* Analysis Complete Message */}
                 {currentStep === 'complete' && (
-                  <div style={{ 
+              <div style={{ 
                     padding: '6px',
                     backgroundColor: 'rgba(13, 74, 43, 0.05)',
                     borderRadius: '3px',
@@ -898,8 +1020,8 @@ export default function ExerciseDetailPage() {
                     marginTop: '8px'
                   }}>
                     Analysis sent to your doctor for review
-                  </div>
-                )}
+              </div>
+            )}
               </div>
 
               {/* Patient Notes */}
@@ -920,8 +1042,8 @@ export default function ExerciseDetailPage() {
                 <p style={{ 
                   fontSize: '0.75rem', 
                   color: 'hsl(var(--muted-foreground))',
-                  marginBottom: '6px'
-                }}>
+                        marginBottom: '6px'
+                      }}>
                   Add any symptoms or observations.
                 </p>
                 
@@ -936,8 +1058,8 @@ export default function ExerciseDetailPage() {
                     borderRadius: '3px',
                     border: '1px solid hsl(var(--border))',
                     backgroundColor: 'hsl(var(--background))',
-                    color: 'hsl(var(--foreground))',
-                    fontSize: '0.75rem',
+                        color: 'hsl(var(--foreground))',
+                          fontSize: '0.75rem', 
                     lineHeight: '1.3',
                     resize: 'vertical',
                     marginBottom: '6px'
@@ -983,10 +1105,10 @@ export default function ExerciseDetailPage() {
                   >
                     {isSubmittingNotes ? 'Saving...' : 'Save Notes'}
                   </Button>
+                    </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
     </div>

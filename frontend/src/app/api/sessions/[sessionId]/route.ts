@@ -9,6 +9,48 @@ function createSupabaseServer() {
   );
 }
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  try {
+    const supabase = createSupabaseServer();
+    const { sessionId } = await params;
+
+    console.log('📋 Fetching session:', sessionId);
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .select(`
+        *,
+        treatment:treatments(*)
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching session:', error);
+      return Response.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Fetched session:', data);
+
+    return Response.json({
+      success: true,
+      data: data
+    });
+  } catch (error) {
+    console.error('❌ Error in session GET:', error);
+    return Response.json(
+      { success: false, error: 'Failed to fetch session' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }

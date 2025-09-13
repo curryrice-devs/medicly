@@ -313,6 +313,10 @@ async def process_supabase_video(request: Request):
         
         def process_and_upload_task():
             try:
+                import requests
+                import os
+                from pathlib import Path
+                
                 logger.info(f"Starting processing for Supabase video {video_id}")
                 
                 # Process video with MediaPipe
@@ -323,14 +327,108 @@ async def process_supabase_video(request: Request):
                 processed_video_path = Path(actual_output_path) if success else OUTPUT_DIR / f"{video_id}_output.mp4"
                 
                 if success and processed_video_path.exists():
-                    # TODO: Upload processed video to Supabase bucket
-                    # For now, we'll use the backend streaming URL
-                    processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                    # Upload processed video to Supabase bucket
+                    try:
+                        
+                        # Read processed video file
+                        with open(processed_video_path, 'rb') as video_file:
+                            video_data = video_file.read()
+                        
+                        # Create storage path for processed video
+                        # Extract user_id from original storage_path if available
+                        user_id = storage_path.split('/')[0] if storage_path else 'unknown'
+                        processed_storage_path = f"{user_id}/processed/{video_id}_processed.mp4"
+                        
+                        logger.info(f"Uploading processed video to Supabase: {processed_storage_path}")
+                        
+                        # Upload to Supabase storage using direct API
+                        supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+                        supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+                        
+                        logger.info(f"Supabase credentials check - URL: {'SET' if supabase_url else 'MISSING'}, Key: {'SET' if supabase_key else 'MISSING'}")
+                        
+                        if supabase_url and supabase_key:
+                            upload_url = f"{supabase_url}/storage/v1/object/patient_videos/{processed_storage_path}"
+                            logger.info(f"Attempting upload to: {upload_url}")
+                            logger.info(f"Video file size: {len(video_data)} bytes")
+                            
+                            upload_response = requests.post(
+                                upload_url,
+                                headers={
+                                    'apikey': supabase_key,
+                                    'Authorization': f'Bearer {supabase_key}',
+                                    'Content-Type': 'video/mp4'
+                                },
+                                data=video_data
+                            )
+                            
+                            logger.info(f"Upload response: {upload_response.status_code} - {upload_response.text[:200]}")
+                            
+                            if upload_response.status_code == 200:
+                                logger.info(f"Processed video uploaded successfully to: {processed_storage_path}")
+                                
+                                # Create signed URL for the processed video
+                                try:
+                                    from supabase import create_client
+                                    supabase_client = create_client(supabase_url, supabase_key)
+                                    
+                                    logger.info(f"Creating signed URL for: {processed_storage_path}")
+                                    signed_url_result = supabase_client.storage.from_('patient_videos').create_signed_url(
+                                        processed_storage_path, 
+                                        60 * 60 * 24  # 24 hours
+                                    )
+                                    
+                                    logger.info(f"Signed URL result type: {type(signed_url_result)}")
+                                    logger.info(f"Signed URL result: {signed_url_result}")
+                                    
+                                    # Handle different response formats
+                                    if hasattr(signed_url_result, 'data') and signed_url_result.data:
+                                        # New format: result.data.signed_url
+                                        if hasattr(signed_url_result.data, 'signed_url'):
+                                            processed_video_url = signed_url_result.data.signed_url
+                                        # Old format: result.data['signedUrl']
+                                        elif isinstance(signed_url_result.data, dict) and 'signedUrl' in signed_url_result.data:
+                                            processed_video_url = signed_url_result.data['signedUrl']
+                                        else:
+                                            logger.warn(f"Unexpected signed URL data format: {signed_url_result.data}")
+                                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                                    elif isinstance(signed_url_result, dict):
+                                        # Direct dict format - this is what we're getting
+                                        if 'signedUrl' in signed_url_result:
+                                            processed_video_url = signed_url_result['signedUrl']
+                                            logger.info(f"Using signedUrl from direct dict response")
+                                        elif 'signedURL' in signed_url_result:
+                                            processed_video_url = signed_url_result['signedURL'] 
+                                            logger.info(f"Using signedURL from direct dict response")
+                                        elif 'data' in signed_url_result and 'signedUrl' in signed_url_result['data']:
+                                            processed_video_url = signed_url_result['data']['signedUrl']
+                                            logger.info(f"Using nested data.signedUrl from dict response")
+                                        else:
+                                            logger.warn(f"No signedUrl in response: {signed_url_result}")
+                                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                                    else:
+                                        logger.warn(f"Unexpected signed URL response format: {signed_url_result}")
+                                        processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                                    
+                                    logger.info(f"Final processed video URL: {processed_video_url}")
+                                    
+                                except Exception as signed_url_error:
+                                    logger.error(f"Error creating signed URL: {signed_url_error}")
+                                    processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                            else:
+                                logger.warn(f"Failed to upload processed video to Supabase: {upload_response.status_code} - {upload_response.text}")
+                                processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                        else:
+                            logger.warn("Missing Supabase credentials, using backend stream")
+                            processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                            
+                    except Exception as upload_error:
+                        logger.error(f"Error uploading processed video to Supabase: {upload_error}")
+                        processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
                     
                     # Update session with processed video URL (postvidurl)
                     if session_id:
                         try:
-                            import requests
                             session_update = requests.put(
                                 f"http://localhost:3000/api/sessions/{session_id}",
                                 json={"postvidurl": processed_video_url},
@@ -343,8 +441,8 @@ async def process_supabase_video(request: Request):
                         except Exception as e:
                             logger.warn(f"Error updating session with processed video URL: {e}")
                 else:
-                    processed_video_url = None
-                    logger.warn("Processed video file not found")
+                    processed_video_url = f"http://localhost:8001/api/stream/{video_id}"
+                    logger.warn("Processed video file not found, using backend stream")
                 
                 # Update status with URLs
                 processing_status[video_id] = {
@@ -589,6 +687,62 @@ async def export_logs():
     except Exception as e:
         logger.error(f"Error exporting logs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to export logs: {str(e)}")
+
+@app.get("/api/test-supabase-upload")
+async def test_supabase_upload():
+    """Test Supabase upload functionality"""
+    try:
+        import requests
+        import os
+        
+        # Check environment variables
+        supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+        supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        
+        logger.info(f"Testing Supabase upload - URL: {'SET' if supabase_url else 'MISSING'}, Key: {'SET' if supabase_key else 'MISSING'}")
+        
+        if not supabase_url or not supabase_key:
+            return {
+                "success": False,
+                "error": "Missing Supabase environment variables",
+                "supabase_url": "SET" if supabase_url else "MISSING",
+                "supabase_key": "SET" if supabase_key else "MISSING"
+            }
+        
+        # Create a small test file
+        test_data = b"test video data"
+        test_path = "test/test_upload.mp4"
+        
+        # Try uploading to Supabase
+        upload_url = f"{supabase_url}/storage/v1/object/patient_videos/{test_path}"
+        logger.info(f"Testing upload to: {upload_url}")
+        
+        upload_response = requests.post(
+            upload_url,
+            headers={
+                'apikey': supabase_key,
+                'Authorization': f'Bearer {supabase_key}',
+                'Content-Type': 'video/mp4'
+            },
+            data=test_data
+        )
+        
+        logger.info(f"Test upload response: {upload_response.status_code} - {upload_response.text}")
+        
+        return {
+            "success": upload_response.status_code == 200,
+            "status_code": upload_response.status_code,
+            "response_text": upload_response.text,
+            "upload_url": upload_url,
+            "test_data_size": len(test_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing Supabase upload: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn

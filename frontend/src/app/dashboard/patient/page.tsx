@@ -419,45 +419,6 @@ export default function PatientDashboard() {
         </section>
 
         
-
-        {/* Create New Session Section */}
-        {!treatmentsLoading && treatments.length > 0 && sessions.length === 0 && (
-          <div style={{ 
-            backgroundColor: 'hsl(var(--card))',
-            borderRadius: '12px',
-            padding: '20px',
-            marginTop: '24px',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ 
-              fontSize: '1.125rem', 
-              fontWeight: 'bold', 
-              color: 'hsl(var(--foreground))',
-              marginBottom: '12px'
-            }}>
-              Start Your First Exercise Session
-            </h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'hsl(var(--muted-foreground))',
-              marginBottom: '20px'
-            }}>
-              Create a personalized exercise session to begin your recovery journey
-            </p>
-            
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              style={{ 
-                backgroundColor: '#0d4a2b',
-                gap: '8px'
-              }}
-            >
-              <Plus style={{ width: '16px', height: '16px' }} />
-              Create Your First Session
-            </Button>
-          </div>
-        )}
-
         {/* Create Session Modal */}
         <CreateSessionModal
           isOpen={isModalOpen}
