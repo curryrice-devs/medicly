@@ -24,6 +24,13 @@ export function ExerciseBioDigitalPreview({ exercise, className = '', cachedMode
   // Get BioDigital model for this exercise
   const loadModel = async () => {
     try {
+      console.log('🎯 ExerciseBioDigitalPreview loading model for:', {
+        exerciseName: exercise.name,
+        category: exercise.category,
+        muscleGroups: exercise.muscleGroups,
+        cachedModelUrl
+      });
+
       // If we have a cached URL, use it directly
       if (cachedModelUrl) {
         console.log('📦 Using cached BioDigital model URL:', cachedModelUrl);
@@ -47,11 +54,14 @@ export function ExerciseBioDigitalPreview({ exercise, className = '', cachedMode
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           caseDescription: exerciseDescription,
-          bodyPart: exercise.muscleGroups?.[0] || 'General',
+          bodyPart: exercise.category || exercise.muscleGroups?.[0] || 'General',
+          injuryType: exercise.category || 'Exercise',
           aiAnalysis: {
             exercise: exercise.name,
+            description: exercise.description,
             category: exercise.category,
-            muscleGroups: exercise.muscleGroups
+            muscleGroups: exercise.muscleGroups,
+            bodyPart: exercise.category
           },
           sessionId,
           isExercisePreview: true
@@ -62,10 +72,11 @@ export function ExerciseBioDigitalPreview({ exercise, className = '', cachedMode
         const result = await response.json();
         console.log('✅ Got BioDigital model for exercise:', result.selectedModelId);
         setSelectedModel(result.selectedModelId);
-        setSelectedModelUrl(result.selectedModel?.viewerUrl || '');
+        setSelectedModelUrl(result.selectedModelUrl || '');
         setIsLoading(false);
       } else {
-        console.error('❌ Failed to get BioDigital model for exercise');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to get BioDigital model for exercise:', response.status, errorData);
         setIsLoading(false);
       }
     } catch (error) {

@@ -50,8 +50,8 @@ export const mockPatientCases: PatientCase[] = [
     aiAnalysis: 'Dynamic valgus during squat descent; suggests weak hip abductors.',
     recommendedExercise: {
       id: 'E-clamshell',
-      name: 'Side-Lying Clamshells',
-      description: 'Activate gluteus medius with controlled external rotation.',
+      name: 'Hip Strengthening - Clamshells',
+      description: 'Activate gluteus medius with controlled external rotation to address hip weakness contributing to knee valgus.',
       bodyPart: 'Hip',
       injuryTypes: ['Patellofemoral pain'],
       defaultSets: 3,

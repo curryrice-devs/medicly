@@ -15,7 +15,7 @@ interface BioDigitalViewerProps {
   sessionId?: string // Session ID to save URLs to database
 }
 
-export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cachedModelUrl, sessionId }: BioDigitalViewerProps) {
+export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cachedModelUrl, sessionId, className }: BioDigitalViewerProps & { className?: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedModel, setSelectedModel] = useState<string>('')
@@ -85,15 +85,15 @@ export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cac
   }, [problematicAreas, patientInfo])
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       {/* 3D Viewer */}
-      <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
+      <div className={`relative w-full bg-gray-100 rounded-lg overflow-hidden ${className || 'h-96'}`}>
         {/* Simple Loading/Model Display */}
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center">
-              <Loader2 className="w-8 h-8 text-blue-600 mx-auto mb-2 animate-spin" />
-              <p className="text-sm text-gray-600">Loading 3D model...</p>
+              <Loader2 className="w-6 h-6 text-blue-600 mx-auto mb-2 animate-spin" />
+              <p className="text-xs text-gray-600">Loading 3D model...</p>
             </div>
           </div>
         ) : selectedModel ? (
@@ -102,23 +102,23 @@ export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cac
             ref={iframeRef}
             src={selectedModelUrl || `https://human.biodigital.com/viewer/?be=${selectedModel}&dk=${biodigitalKey}&ui-info=false&ui-menu=false`}
             frameBorder="0"
-            style={{ aspectRatio: '4 / 3', width: '100%' }}
+            style={{ width: '100%', height: '100%' }}
             allowFullScreen={true}
             loading="lazy"
-            className="border-0"
+            className="border-0 w-full h-full"
             title="3D Human Anatomy Viewer"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center text-gray-500">
-              <p className="text-sm">No model available</p>
+              <p className="text-xs">No model available</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Model Info */}
-      {selectedModel && (
+      {/* Model Info - Only show in larger views */}
+      {selectedModel && !className?.includes('aspect-square') && (
         <div className="mt-2 text-xs text-gray-500">
           <div>Model: <span className="font-mono">{selectedModel}</span></div>
         </div>

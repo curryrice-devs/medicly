@@ -5,7 +5,7 @@
 
 export interface BioDigitalAPIModel {
   id: string;
-  title: string;
+  title?: string;
   name?: string;
   description?: string;
   systems?: string[];
