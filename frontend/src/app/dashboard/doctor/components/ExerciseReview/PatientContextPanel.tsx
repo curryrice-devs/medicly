@@ -15,6 +15,7 @@ interface PatientProfile {
   id: string;
   case_id: string;
   full_name: string;
+  name?: string; // Add name field for profiles table compatibility
   email?: string;
   phone?: string;
   age?: number;
@@ -45,7 +46,9 @@ export function PatientContextPanel({ caze }: Props) {
       try {
         const profile = await doctorApi.getPatientProfile(caze.patientId);
         console.log('[PatientContextPanel] received profile:', profile);
-        setPatientProfile(profile);
+        if (profile) {
+          setPatientProfile(profile);
+        }
       } catch (error) {
         console.error('Failed to fetch patient profile:', error);
       } finally {
@@ -71,8 +74,10 @@ export function PatientContextPanel({ caze }: Props) {
         <div className="px-4 pb-4 space-y-3 text-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient ID</p>
-              <p className="text-gray-900 font-medium">#{caze.patientId}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient</p>
+              <p className="text-gray-900 font-medium">
+                {patientProfile?.full_name || patientProfile?.name || `#${caze.patientId}`}
+              </p>
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Injury Type</p>
@@ -193,6 +198,16 @@ export function PatientContextPanel({ caze }: Props) {
             )}
           </div>
           
+          {/* Patient Notes Section */}
+          {caze.patientNotes && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Patient Notes</h4>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-900 whitespace-pre-wrap">{caze.patientNotes}</p>
+              </div>
+            </div>
+          )}
+
           {/* Recommended Exercise Section */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Recommended Exercise</h4>

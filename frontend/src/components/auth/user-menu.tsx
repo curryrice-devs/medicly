@@ -25,9 +25,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { useRouter } from 'next/navigation'
 
 export function UserMenu() {
   const { user, logout, isLoggingOut } = useAuth()
+  const router = useRouter()
 
   if (!user) return null
 
@@ -127,21 +129,14 @@ export function UserMenu() {
             
             console.debug('[menu] logout clicked')
             
-            // Set a timeout to ensure page reloads even if logout hangs
-            const reloadTimeout = setTimeout(() => {
-              console.debug('[menu] logout timeout - forcing reload...')
-              window.location.reload()
-            }, 1000)
-            
             try {
               await logout()
-              console.debug('[menu] logout completed, reloading page...')
-              clearTimeout(reloadTimeout)
-              window.location.reload()
+              console.debug('[menu] logout completed, redirecting to home...')
+              // The logout function now handles the redirect with router.push
             } catch (error) {
               console.error('[menu] logout failed:', error)
-              clearTimeout(reloadTimeout)
-              window.location.reload()
+              // Fallback redirect to home
+              router.push('/')
             }
           }}
           disabled={isLoggingOut}

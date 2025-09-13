@@ -34,11 +34,9 @@ export async function GET(request: Request) {
         notes,
         profiles!doctor_patient_relationships_patient_id_fkey (
           id,
-          full_name,
-          email,
-          phone,
-          age,
-          gender
+          name,
+          role,
+          created_at
         )
       `)
       .eq('doctor_id', doctorId)
@@ -68,7 +66,8 @@ export async function GET(request: Request) {
 
     // Calculate stats for each patient
     const patients = relationships?.map(relationship => {
-      const patient = relationship.profiles
+      // Handle profiles as array or single object
+      const patient = Array.isArray(relationship.profiles) ? relationship.profiles[0] : relationship.profiles
       const patientSessions = sessionsData.filter(s => s.patient_id === relationship.patient_id)
 
       // Calculate patient statistics
@@ -87,11 +86,11 @@ export async function GET(request: Request) {
 
       return {
         id: patient?.id || relationship.patient_id,
-        name: patient?.full_name || 'Unknown Patient',
-        email: patient?.email || '',
-        phone: patient?.phone || '',
-        age: patient?.age || null,
-        gender: patient?.gender || null,
+        name: patient?.name || 'Unknown Patient',
+        email: '',
+        phone: '',
+        age: null,
+        gender: null,
         injuryType,
         status: relationship.status, // from doctor_patient_relationships
         assignedAt: relationship.assigned_at,

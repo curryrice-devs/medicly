@@ -23,41 +23,23 @@ class TwoStageClaudeAnalyzer:
     
     def analyze_video_comprehensive(self, analysis_package: Dict) -> Dict:
         """
-        Perform comprehensive two-stage analysis
+        Perform comprehensive two-stage analysis with structured output
         """
         start_time = datetime.now()
         video_id = analysis_package.get('video_analysis', {}).get('video_path', 'unknown')
         
         try:
-            action_logger.log_processing_step("TWO_STAGE_ANALYSIS_START", video_id, "started")
-            print("🔍 Starting two-stage Claude analysis...")
+            action_logger.log_processing_step("TWO_STAGE_ANALYSIS", video_id, "started")
+            print("🔍 Starting comprehensive structured Claude analysis...")
             
-            # Stage 1: General movement overview from key frames
-            print("📸 Stage 1: Analyzing key frames for movement overview...")
-            action_logger.log_processing_step("STAGE_1_MOVEMENT_OVERVIEW", video_id, "started")
-            movement_overview = self._analyze_movement_overview(analysis_package)
-            action_logger.log_processing_step("STAGE_1_MOVEMENT_OVERVIEW", video_id, "completed")
-            
-            # Stage 2: Detailed health report with pose data
-            print("🦴 Stage 2: Creating detailed health report with pose data...")
-            action_logger.log_processing_step("STAGE_2_HEALTH_REPORT", video_id, "started")
-            health_report = self._analyze_health_with_pose_data(analysis_package, movement_overview)
-            action_logger.log_processing_step("STAGE_2_HEALTH_REPORT", video_id, "completed")
-            
-            # Combine results
-            comprehensive_analysis = {
-                'analysis_type': 'two_stage_comprehensive_analysis',
-                'timestamp': datetime.now().isoformat(),
-                'stage_1_movement_overview': movement_overview,
-                'stage_2_health_report': health_report,
-                'analysis_summary': self._create_analysis_summary(movement_overview, health_report)
-            }
+            # Use new structured analysis approach
+            structured_analysis = self._analyze_structured_comprehensive(analysis_package)
             
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             action_logger.log_processing_step("TWO_STAGE_ANALYSIS_COMPLETE", video_id, "completed", 
-                                            {"duration_ms": duration_ms, "movement_type": movement_overview.get('movement_type', 'unknown')})
-            print("✅ Two-stage analysis completed successfully!")
-            return comprehensive_analysis
+                                            {"duration_ms": duration_ms})
+            print("✅ Structured analysis completed successfully!")
+            return structured_analysis
             
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -65,7 +47,7 @@ class TwoStageClaudeAnalyzer:
             print(f"❌ Error in comprehensive analysis: {e}")
             return {
                 'error': str(e),
-                'analysis_type': 'two_stage_comprehensive_analysis',
+                'analysis_type': 'structured_comprehensive_analysis',
                 'timestamp': datetime.now().isoformat()
             }
     
@@ -149,6 +131,38 @@ class TwoStageClaudeAnalyzer:
                 'overall_assessment': 'Analysis failed due to technical error'
             }
     
+    def _analyze_structured_comprehensive(self, analysis_package: Dict) -> Dict:
+        """
+        Perform comprehensive analysis using structured prompt format
+        """
+        try:
+            key_frames = analysis_package.get('key_frames', [])
+            pose_analysis = analysis_package.get('pose_analysis', {})
+            video_info = analysis_package.get('video_analysis', {})
+            
+            # Create structured prompt
+            prompt = self._create_structured_analysis_prompt(video_info, key_frames, pose_analysis)
+            
+            # Call Claude API
+            response = self._call_claude_api(prompt, "structured_comprehensive")
+            
+            # Parse structured response
+            analysis_result = self._parse_structured_response(response)
+            
+            return {
+                'analysis_type': 'structured_comprehensive_analysis',
+                'timestamp': datetime.now().isoformat(),
+                'analysis': analysis_result
+            }
+            
+        except Exception as e:
+            print(f"❌ Error in structured comprehensive analysis: {e}")
+            return {
+                'error': str(e),
+                'analysis_type': 'structured_comprehensive_analysis',
+                'timestamp': datetime.now().isoformat()
+            }
+
     def _create_movement_overview_prompt(self, video_info: Dict, key_frames: List[Dict]) -> str:
         """
         Create prompt for movement overview analysis with images
@@ -344,6 +358,135 @@ This is a comprehensive health analysis, so be detailed and professional in your
         
         return prompt
     
+    def _create_structured_analysis_prompt(self, video_info: Dict, key_frames: List[Dict], pose_analysis: Dict) -> List:
+        """
+        Create structured prompt following the AI_ANALYSIS_PROMPT_EXAMPLE format
+        """
+        # Prepare key frame images for analysis
+        image_content = []
+        for frame in key_frames:
+            if frame.get('image_path') and os.path.exists(frame['image_path']):
+                with open(frame['image_path'], 'rb') as img_file:
+                    image_data = base64.b64encode(img_file.read()).decode('utf-8')
+                    image_content.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": image_data
+                        }
+                    })
+        
+        # Create comprehensive angle analysis summary
+        angle_analysis = self._create_comprehensive_angle_analysis(pose_analysis.get('angle_summary', {}))
+        
+        # Prepare key frame data for JSON serialization
+        key_frame_data = []
+        for frame in key_frames:
+            frame_data = {
+                'frame_number': frame.get('frame_number', 0),
+                'timestamp': frame.get('timestamp', 0),
+                'pose_data_available': frame.get('has_pose_data', False),
+                'angles': frame.get('pose_data', {}).get('angles', {}) if frame.get('pose_data') else {}
+            }
+            key_frame_data.append(frame_data)
+        
+        # Structured prompt text matching frontend expectations
+        text_content = f"""You are an expert physical therapist and biomechanics specialist analyzing a patient's movement video for physical therapy assessment.
+
+VIDEO INFORMATION:
+- Duration: {video_info.get('duration', 0):.1f} seconds
+- Total frames analyzed: {video_info.get('total_frames', 0)}
+- Pose detection frames: {pose_analysis.get('total_pose_frames', 0)}
+
+BIOMECHANICAL DATA:
+{json.dumps(angle_analysis, indent=2)}
+
+KEY FRAME ANALYSIS:
+{json.dumps(key_frame_data, indent=2)}
+
+Please analyze this physical therapy video and return a JSON response with the following structure:
+
+{{
+  "confidence": 0.85,
+  "primaryDiagnosis": "Rotator cuff impingement syndrome",
+  "injuryType": "Shoulder impingement", 
+  "bodyPart": "Shoulder",
+  "summary": "Patient demonstrates limited shoulder abduction with compensatory movements indicating rotator cuff weakness and possible impingement.",
+  "reasoning": "Observed painful arc between 60-120° of abduction, substitution patterns with trunk lean, and decreased external rotation strength.",
+  "movementMetrics": [
+    {{
+      "label": "Shoulder Abduction ROM",
+      "value": 140,
+      "unit": "degrees",
+      "normalRange": "0-180°",
+      "status": "limited"
+    }},
+    {{
+      "label": "Painful Arc",
+      "value": "Present",
+      "status": "concerning"
+    }}
+  ],
+  "rangeOfMotion": [
+    {{
+      "joint": "Glenohumeral",
+      "movement": "Abduction",
+      "degrees": 140,
+      "normalRange": "0-180°",
+      "status": "limited"
+    }}
+  ],
+  "compensatoryPatterns": [
+    "Trunk lateral lean during abduction",
+    "Early scapular elevation"
+  ],
+  "painIndicators": [
+    {{
+      "location": "Lateral deltoid",
+      "severity": 6,
+      "type": "aching",
+      "triggers": ["overhead movement", "sleeping on affected side"]
+    }}
+  ],
+  "functionalLimitations": [
+    "Difficulty reaching overhead",
+    "Pain with lifting objects"
+  ],
+  "urgencyLevel": "medium",
+  "urgencyReason": "Significant functional limitation but no acute injury",
+  "redFlags": [],
+  "recommendedExercise": {{
+    "name": "Pendulum swings",
+    "bodyPart": "Shoulder", 
+    "injuryTypes": ["Shoulder impingement", "Rotator cuff injury"],
+    "rationale": "Promotes gentle mobility while reducing impingement risk",
+    "contraindications": ["Acute inflammation", "Recent surgery"],
+    "progressionNotes": "Progress to active-assisted ROM as pain decreases"
+  }},
+  "exercisePrescription": {{
+    "sets": 3,
+    "reps": 10,
+    "frequency": "2x daily",
+    "duration": "2-3 weeks", 
+    "intensity": "low",
+    "modifications": ["Use lighter weight if needed", "Stop if pain increases"]
+  }},
+  "followUpRecommendations": {{
+    "timeframe": "1 week",
+    "monitorFor": ["Pain levels", "Range of motion improvement", "Sleep quality"],
+    "progressIndicators": ["Decreased pain with overhead reach", "Improved sleep position tolerance"],
+    "escalationCriteria": ["Worsening pain", "New neurological symptoms", "No improvement in 2 weeks"]
+  }}
+}}
+
+IMPORTANT: Return ONLY the JSON response, no additional text or explanations. Analyze the movement patterns, joint angles, and biomechanics visible in the video to provide accurate medical insights."""
+        
+        # Combine text and images
+        content = [{"type": "text", "text": text_content}] + image_content
+        
+        return content
+
     def _call_claude_api(self, prompt, prompt_type: str = "unknown") -> Dict:
         """
         Call Claude API with the given prompt (can be string or list with images)
@@ -566,6 +709,121 @@ This is a comprehensive health analysis, so be detailed and professional in your
                 'follow_up': {}
             }
     
+    def _parse_structured_response(self, response: Dict) -> Dict:
+        """
+        Parse structured JSON response from Claude
+        """
+        try:
+            response_text = response.get("content", [{}])[0].get("text", "")
+            
+            # Clean response text to extract JSON
+            response_text = response_text.strip()
+            
+            # Find JSON content (might be wrapped in markdown code blocks)
+            if "```json" in response_text:
+                json_start = response_text.find("```json") + 7
+                json_end = response_text.find("```", json_start)
+                response_text = response_text[json_start:json_end].strip()
+            elif response_text.startswith("{") and response_text.endswith("}"):
+                # Already clean JSON
+                pass
+            else:
+                # Try to find JSON object in the text
+                json_start = response_text.find("{")
+                json_end = response_text.rfind("}") + 1
+                if json_start >= 0 and json_end > json_start:
+                    response_text = response_text[json_start:json_end]
+            
+            # Parse JSON
+            parsed_response = json.loads(response_text)
+            
+            # Validate required fields
+            required_fields = ['confidence', 'primaryDiagnosis', 'summary', 'injuryType', 'bodyPart']
+            for field in required_fields:
+                if field not in parsed_response:
+                    print(f"⚠️ Missing required field: {field}")
+                    parsed_response[field] = self._get_default_value(field)
+            
+            # Ensure arrays exist
+            array_fields = ['movementMetrics', 'rangeOfMotion', 'compensatoryPatterns', 'painIndicators', 'functionalLimitations', 'redFlags']
+            for field in array_fields:
+                if field not in parsed_response or not isinstance(parsed_response[field], list):
+                    parsed_response[field] = []
+            
+            # Ensure nested objects exist
+            if 'recommendedExercise' not in parsed_response:
+                parsed_response['recommendedExercise'] = {
+                    "name": "General mobility exercises",
+                    "rationale": "Maintain mobility and function",
+                    "contraindications": [],
+                    "progressionNotes": ""
+                }
+            
+            if 'followUpRecommendations' not in parsed_response:
+                parsed_response['followUpRecommendations'] = {
+                    "timeframe": "1-2 weeks",
+                    "monitorFor": ["General progress"],
+                    "progressIndicators": ["Improved function"],
+                    "escalationCriteria": ["Worsening symptoms"]
+                }
+            
+            print("✅ Successfully parsed structured response")
+            return parsed_response
+            
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse JSON response: {e}")
+            return self._create_fallback_structured_response(response)
+        except Exception as e:
+            print(f"❌ Error parsing structured response: {e}")
+            return self._create_fallback_structured_response(response)
+
+    def _get_default_value(self, field: str) -> any:
+        """Get default values for required fields"""
+        defaults = {
+            'confidence': 0.8,
+            'primaryDiagnosis': 'Assessment pending',
+            'summary': 'Analysis in progress',
+            'injuryType': 'General',
+            'bodyPart': 'Multiple',
+            'reasoning': 'Analysis based on visual assessment',
+            'urgencyLevel': 'medium',
+            'urgencyReason': 'Standard follow-up recommended'
+        }
+        return defaults.get(field, '')
+
+    def _create_fallback_structured_response(self, response: Dict) -> Dict:
+        """Create fallback structured response when parsing fails"""
+        response_text = response.get("content", [{}])[0].get("text", "Analysis failed")
+        
+        return {
+            "confidence": 0.7,
+            "primaryDiagnosis": "Assessment pending",
+            "injuryType": "General", 
+            "bodyPart": "Multiple",
+            "summary": response_text[:500] + "..." if len(response_text) > 500 else response_text,
+            "reasoning": "Analysis based on available data",
+            "movementMetrics": [],
+            "rangeOfMotion": [],
+            "compensatoryPatterns": [],
+            "painIndicators": [],
+            "functionalLimitations": [],
+            "urgencyLevel": "medium",
+            "urgencyReason": "Standard follow-up recommended", 
+            "redFlags": [],
+            "recommendedExercise": {
+                "name": "General mobility exercises",
+                "rationale": "Maintain mobility and function",
+                "contraindications": [],
+                "progressionNotes": ""
+            },
+            "followUpRecommendations": {
+                "timeframe": "1-2 weeks",
+                "monitorFor": ["General progress"],
+                "progressIndicators": ["Improved function"],
+                "escalationCriteria": ["Worsening symptoms"]
+            }
+        }
+
     def _create_analysis_summary(self, movement_overview: Dict, health_report: Dict) -> Dict:
         """
         Create a summary of the two-stage analysis

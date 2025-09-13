@@ -1,5 +1,8 @@
 export type UrgencyLevel = 'low' | 'medium' | 'high';
 
+// Session status types - centralized for consistency
+export type SessionStatus = 'pending' | 'active' | 'rejected' | 'completed' | 'feedback';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -40,20 +43,31 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
-  videoUrl: string;
+  patientName?: string; // From patient_profiles.full_name
+  patientEmail?: string; // From patient_profiles.email
+  patientPhone?: string; // From patient_profiles.phone
+  patientAge?: number; // From patient_profiles.age
+  patientCaseId?: string; // From patient_profiles.case_id
+  videoUrl: string; // Keep for backwards compatibility
+  originalVideoUrl?: string; // previdurl - patient's original uploaded video
+  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
   injuryType: string;
-  aiAnalysis: string;
+  aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
-  status: 'pending' | 'active' | 'rejected' | 'completed';
+  status: SessionStatus; // Updated to use the centralized type
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1
-  reasoning?: string;
+  reasoning?: string | any; // Can be string or object
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
+<<<<<<< HEAD
   affected_model?: string; // URL to BioDigital model for AI analysis preview
   exercise_models?: string; // Comma-separated URLs to BioDigital models for recommended exercises
+=======
+  patientNotes?: string; // Patient's notes to the doctorasd
+>>>>>>> main
 }
 
 export interface PrescriptionParams {
@@ -80,6 +94,73 @@ export interface CaseStats {
   sessionsToday: number;
   highPriorityPending: number;
   activeCount: number;
+}
+
+// New types for patient profiles and relationships
+
+export interface PatientProfile {
+  id: string;
+  caseId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  medicalHistory?: string[];
+  currentMedications?: string[];
+  allergies?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DoctorPatientRelationship {
+  id: string;
+  doctorId: string;
+  patientId: string;
+  status: 'active' | 'inactive' | 'completed';
+  assignedAt: string;
+  notes?: string;
+}
+
+export interface TherapySession {
+  id: string;
+  patientId: string;
+  doctorId?: string;
+  caseId?: string;
+  sessionType: string;
+  injuryType?: string;
+  sessionData?: any; // JSON data for video analysis, exercises, etc.
+  aiAnalysis?: string;
+  doctorNotes?: string;
+  status: 'pending' | 'reviewed' | 'approved' | 'completed';
+  urgency: UrgencyLevel;
+  sessionDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatientSearchResult {
+  id: string;
+  caseId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  age?: number;
+  relationshipStatus: string;
+  assignedAt?: string;
+  lastSession?: string;
+  totalSessions: number;
+}
+
+export interface PatientSearchParams {
+  searchTerm?: string;
+  doctorId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
 }
 
  

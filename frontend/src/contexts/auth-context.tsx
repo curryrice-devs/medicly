@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from "@/lib/supabase/client"
 
 interface User {
@@ -48,6 +49,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const [user, setUser] = useState<User | null>(initialUser ?? null)
   const [isLoading, setIsLoading] = useState(!initialUser)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = supabaseBrowser()
@@ -122,7 +124,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       }
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, onboarded")
+        .select("role, onboarded, name")
         .eq("id", mapped.id)
         .maybeSingle()
       if (profileError) {
@@ -133,6 +135,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
         ...mapped,
         role: (profile?.role as User["role"]) || mapped.role,
         onboarded: profile?.onboarded ?? false,
+        name: profile?.name || mapped.name || mapped.email,
       })
     })
 
@@ -180,7 +183,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       return
     }
     
-    const supabase = supabaseBrowser()
+    const supabase = supabaseBrowser() 
     console.debug('[auth] logout() start')
     setIsLoggingOut(true)
     
@@ -206,10 +209,14 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       setUser(null)
       console.debug('[auth] logout() completed')
       
+      // Redirect to home page instead of reloading
+      router.push('/')
+      
     } catch (e) {
       console.error('[auth] logout() threw', e)
-      // Even on error, clear the user state
+      // Even on error, clear the user state and redirect
       setUser(null)
+      router.push('/')
     } finally {
       // Always clear loading state
       setIsLoggingOut(false)

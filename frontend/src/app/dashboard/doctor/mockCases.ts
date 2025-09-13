@@ -89,7 +89,7 @@ export const mockPatientCases: PatientCase[] = [
       defaultFrequency: 'Daily',
       difficulty: 'easy'
     },
-    status: 'approved',
+    status: 'completed',
     submittedAt: daysAgo(2),
     urgency: 'low',
     aiConfidence: 0.9,
@@ -114,7 +114,7 @@ export const mockPatientCases: PatientCase[] = [
       defaultFrequency: 'Daily',
       difficulty: 'easy'
     },
-    status: 'modified',
+    status: 'active',
     submittedAt: daysAgo(3),
     urgency: 'medium',
     aiConfidence: 0.62,

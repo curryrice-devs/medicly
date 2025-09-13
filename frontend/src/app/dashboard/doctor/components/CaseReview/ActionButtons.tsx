@@ -27,20 +27,7 @@ export function ActionButtons({
 }: Props) {
   // Don't show action buttons if case is not pending
   if (caseStatus !== 'pending') {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-        <div className="text-center">
-          <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-            caseStatus === 'active' ? 'bg-green-100 text-green-800' :
-            caseStatus === 'completed' ? 'bg-emerald-100 text-emerald-800' :
-            caseStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            Case Status: {caseStatus.charAt(0).toUpperCase() + caseStatus.slice(1)}
-          </div>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

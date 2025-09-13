@@ -7,15 +7,52 @@ export async function GET() {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
-    if (!url || !serviceKey) {
-      console.error('[api/doctor/sessions] Missing envs', { hasUrl: !!url, hasServiceKey: !!serviceKey })
-      return NextResponse.json({ error: 'Missing Supabase server env' }, { status: 500 })
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+
+    if (!url) {
+      console.error('[api/doctor/sessions] Missing Supabase URL')
+      return NextResponse.json({ error: 'Missing Supabase URL' }, { status: 500 })
     }
-    const supabase = createClient(url, serviceKey)
+
+    // Use service key if available, otherwise fall back to anon key with RLS
+    const key = serviceKey || anonKey
+    if (!key) {
+      console.error('[api/doctor/sessions] Missing both service and anon keys')
+      return NextResponse.json({ error: 'Missing Supabase keys' }, { status: 500 })
+    }
+
+    const supabase = createClient(url, key)
 
     const { data: sessions, error } = await supabase
       .from('sessions')
-      .select('id, created_at, patient_id, doctor_id, status, due_date, treatment_id, ai_evaluation, exercise_sets, exercise_reps, exercise_weight')
+      .select(`
+        id,
+        created_at,
+        patient_id,
+        doctor_id,
+        status,
+        due_date,
+        treatment_id,
+        ai_evaluation,
+        exercise_sets,
+        exercise_reps,
+        exercise_weight,
+        previdurl,
+        postvidurl,
+        patient_notes,
+        doctor_feedback,
+        profiles!sessions_patient_id_fkey (
+          id,
+          patient_profiles (
+            id,
+            full_name,
+            email,
+            phone,
+            age,
+            case_id
+          )
+        )
+      `)
       .order('created_at', { ascending: false })
       .limit(200)
 
