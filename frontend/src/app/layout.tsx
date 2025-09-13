@@ -77,7 +77,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en">
       <body className={`antialiased font-sans ${initialUser ? 'bg-white' : ''}`} suppressHydrationWarning={true}>
         <AuthProvider initialUser={initialUser}>
           {initialUser ? (
