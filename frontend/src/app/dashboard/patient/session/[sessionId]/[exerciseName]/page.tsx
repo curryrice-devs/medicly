@@ -281,8 +281,7 @@ export default function ExerciseDetailPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            previdurl: videoUrl,
-            status: 'active' // Use correct enum value
+            previdurl: videoUrl
           })
         })
          
@@ -444,8 +443,7 @@ export default function ExerciseDetailPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ai_evaluation: structuredAnalysis, // Save structured analysis for frontend parsing
-            status: 'completed'
+            ai_evaluation: structuredAnalysis // Save structured analysis for frontend parsing
           })
         })
         
