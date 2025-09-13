@@ -29,8 +29,8 @@ export function QueueFilters({ filters, onChange }: Props) {
         onChange={(e) => onChange({ status: e.target.value })}
       >
         <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="modified">Modified</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
         <option value="rejected">Rejected</option>
       </select>
       

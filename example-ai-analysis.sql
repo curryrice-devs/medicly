@@ -1,0 +1,179 @@
+-- Example AI analysis as JSONB for testing
+-- You can use this to update a session's ai_evaluation field
+
+UPDATE sessions
+SET ai_evaluation = '{
+  "confidence": 0.87,
+  "primaryDiagnosis": "Rotator cuff impingement syndrome with secondary subacromial bursitis",
+  "injuryType": "Shoulder impingement",
+  "bodyPart": "Shoulder",
+  "summary": "Patient demonstrates classic signs of rotator cuff impingement with compensatory movement patterns. Limited shoulder abduction with painful arc present between 60-120°. Substitution patterns include trunk lateral lean and early scapular elevation. External rotation weakness noted.",
+  "reasoning": "The painful arc during abduction, combined with compensatory trunk lean and early scapular elevation, strongly suggests subacromial impingement. The inability to maintain proper scapulohumeral rhythm and the visible discomfort during mid-range abduction are characteristic of rotator cuff involvement.",
+  "movementMetrics": [
+    {
+      "label": "Shoulder Abduction ROM",
+      "value": 140,
+      "unit": "degrees",
+      "normalRange": "0-180°",
+      "status": "limited"
+    },
+    {
+      "label": "Painful Arc",
+      "value": "Present",
+      "status": "concerning"
+    },
+    {
+      "label": "External Rotation",
+      "value": 45,
+      "unit": "degrees",
+      "normalRange": "0-90°",
+      "status": "limited"
+    },
+    {
+      "label": "Scapular Rhythm",
+      "value": "Disrupted",
+      "status": "concerning"
+    }
+  ],
+  "rangeOfMotion": [
+    {
+      "joint": "Glenohumeral",
+      "movement": "Abduction",
+      "degrees": 140,
+      "normalRange": "0-180°",
+      "status": "limited"
+    },
+    {
+      "joint": "Glenohumeral",
+      "movement": "External Rotation",
+      "degrees": 45,
+      "normalRange": "0-90°",
+      "status": "limited"
+    },
+    {
+      "joint": "Glenohumeral",
+      "movement": "Flexion",
+      "degrees": 160,
+      "normalRange": "0-180°",
+      "status": "limited"
+    }
+  ],
+  "compensatoryPatterns": [
+    "Trunk lateral lean during abduction",
+    "Early scapular elevation",
+    "Reduced scapulohumeral rhythm",
+    "Compensatory trunk extension during flexion"
+  ],
+  "painIndicators": [
+    {
+      "location": "Lateral deltoid",
+      "severity": 6,
+      "type": "aching",
+      "triggers": ["overhead movement", "sleeping on affected side", "reaching behind back"]
+    },
+    {
+      "location": "Anterior shoulder",
+      "severity": 4,
+      "type": "sharp",
+      "triggers": ["sudden movements", "lifting objects"]
+    }
+  ],
+  "functionalLimitations": [
+    "Difficulty reaching overhead",
+    "Pain with lifting objects above shoulder height",
+    "Disturbed sleep due to pain when lying on affected side",
+    "Reduced ability to reach behind back"
+  ],
+  "urgencyLevel": "medium",
+  "urgencyReason": "Significant functional limitation present but no acute injury signs. Condition may worsen without intervention.",
+  "redFlags": [],
+  "recommendedExercise": {
+    "treatmentId": 1,
+    "rationale": "Promotes gentle passive mobility while minimizing impingement risk. Gravity-assisted movement helps maintain joint nutrition and prevents adhesions without aggravating inflamed tissues.",
+    "contraindications": ["Acute severe pain", "Recent shoulder surgery", "Suspected fracture"],
+    "progressionNotes": "Progress to active-assisted ROM exercises as pain decreases and tolerance improves"
+  },
+  "exercisePrescription": {
+    "sets": 3,
+    "reps": 10,
+    "weight": 0,
+    "durationInWeeks": 3,
+    "frequencyDaily": 2,
+    "modifications": [
+      "Use lighter weight if needed (start with no weight)",
+      "Stop if pain increases beyond 3/10",
+      "Perform in standing position for better control",
+      "Focus on relaxation and gentle motion"
+    ]
+  },
+  "followUpRecommendations": {
+    "timeframe": "1 week",
+    "monitorFor": [
+      "Pain levels during activities of daily living",
+      "Range of motion improvement",
+      "Sleep quality",
+      "Functional task tolerance"
+    ],
+    "progressIndicators": [
+      "Decreased pain with overhead reach",
+      "Improved sleep position tolerance",
+      "Increased pain-free ROM",
+      "Reduced compensatory patterns"
+    ],
+    "escalationCriteria": [
+      "Worsening pain (>7/10)",
+      "New neurological symptoms",
+      "No improvement in pain or function after 2 weeks",
+      "Development of night pain that prevents sleep"
+    ]
+  }
+}'::jsonb
+WHERE id = 1; -- Replace with actual session ID
+
+-- Or insert a new session with this AI analysis
+-- Step 1: AI provides exerciseName, backend looks up treatment_id
+-- Step 2: Backend populates session with both AI JSON and resolved treatment_id
+
+-- Example lookup:
+-- SELECT id FROM treatments WHERE name = 'Pendulum swings'; -- Returns 1
+INSERT INTO sessions (
+  patient_id,
+  doctor_id,
+  status,
+  ai_evaluation,
+  treatment_id,
+  exercise_sets,
+  exercise_reps,
+  exercise_weight,
+  exercise_duration_in_weeks,
+  exercise_frequency_daily
+) VALUES (
+  'patient-uuid-here',
+  'doctor-uuid-here',
+  'pending',
+  '{
+    "confidence": 0.87,
+    "primaryDiagnosis": "Rotator cuff impingement syndrome with secondary subacromial bursitis",
+    "injuryType": "Shoulder impingement",
+    "bodyPart": "Shoulder",
+    "summary": "Patient demonstrates classic signs of rotator cuff impingement with compensatory movement patterns.",
+    "reasoning": "The painful arc during abduction, combined with compensatory trunk lean and early scapular elevation, strongly suggests subacromial impingement.",
+    "recommendedExercise": {
+      "rationale": "Promotes gentle passive mobility while minimizing impingement risk"
+    },
+    "exercisePrescription": {
+      "exerciseName": "Pendulum swings",
+      "sets": 3,
+      "reps": 10,
+      "weight": 0,
+      "durationInWeeks": 3,
+      "frequencyDaily": 2
+    }
+  }'::jsonb,
+  1,  -- treatment_id (looked up from exercisePrescription.exerciseName)
+  3,  -- exercise_sets (from AI exercisePrescription.sets)
+  10, -- exercise_reps (from AI exercisePrescription.reps)
+  0,  -- exercise_weight (from AI exercisePrescription.weight)
+  3,  -- exercise_duration_in_weeks (from AI exercisePrescription.durationInWeeks)
+  2   -- exercise_frequency_daily (from AI exercisePrescription.frequencyDaily)
+);

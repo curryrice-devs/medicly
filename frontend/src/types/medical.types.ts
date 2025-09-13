@@ -40,13 +40,13 @@ export interface PatientCase {
   patientId: string;
   videoUrl: string;
   injuryType: string;
-  aiAnalysis: string;
+  aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
-  status: 'pending' | 'approved' | 'modified' | 'rejected';
+  status: 'pending' | 'active' | 'rejected' | 'completed';
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1
-  reasoning?: string;
+  reasoning?: string | any; // Can be string or object
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
@@ -72,6 +72,10 @@ export interface CaseStats {
   pendingCount: number;
   completedToday: number;
   averageReviewTimeSec: number;
+  activePatients: number;
+  sessionsToday: number;
+  highPriorityPending: number;
+  activeCount: number;
 }
 
 // New types for patient profiles and relationships

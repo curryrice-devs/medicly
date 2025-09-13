@@ -1,25 +1,31 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
 import { 
-  LayoutDashboard, 
-  BarChart3,
+  Home, 
+  Calendar, 
+  User, 
   Settings, 
+  Activity,
+  FileText,
   Users,
+  BarChart3,
+  Stethoscope,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import Image from 'next/image'
-
 import { useAuth } from '@/contexts/auth-context'
 import { useSidebar } from '@/contexts/sidebar-context'
+import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 
 export function Sidebar() {
   const { isAuthenticated, user, logout } = useAuth()
   const { isCollapsed, toggleSidebar } = useSidebar()
   const pathname = usePathname()
+  const router = useRouter()
 
   const isActivePath = (path: string) => {
     const dashboardBase = user?.role === 'doctor' ? '/dashboard/doctor' : '/dashboard/patient'
@@ -34,7 +40,7 @@ export function Sidebar() {
     const baseRoute = user?.role === 'doctor' ? '/dashboard/doctor' : '/dashboard/patient'
     
           const items = [
-        { href: baseRoute, label: 'Dashboard', icon: LayoutDashboard },
+        { href: baseRoute, label: 'Dashboard', icon: Home },
         ...(user?.role === 'doctor' ? [
           { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 }
         ] : []),
@@ -229,21 +235,14 @@ export function Sidebar() {
             onClick={async () => {
               console.log('Sidebar logout clicked')
               
-              // Set a timeout to ensure page reloads even if logout hangs
-              const reloadTimeout = setTimeout(() => {
-                console.log('Logout timeout - forcing reload...')
-                window.location.reload()
-              }, 1000)
-              
               try {
                 await logout()
-                console.log('Logout completed, reloading page...')
-                clearTimeout(reloadTimeout)
-                window.location.reload()
+                console.log('Logout completed, redirecting to home...')
+                router.push('/')
               } catch (error) {
                 console.error('Logout failed:', error)
-                clearTimeout(reloadTimeout)
-                window.location.reload()
+                // Fallback redirect to home
+                router.push('/')
               }
             }}
             style={{
