@@ -21,10 +21,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('sessions')
-      .select(`
-        *,
-        treatment:treatments(*)
-      `)
+      .select('*')
       .eq('id', sessionId)
       .single();
 
@@ -38,9 +35,29 @@ export async function GET(
 
     console.log('✅ Fetched session:', data);
 
+    // Fetch evaluation data if evaluation_id exists
+    let evaluationData = null;
+    if (data.evaluation_id) {
+      const { data: evaluation } = await supabase
+        .from('evaluation_metrics')
+        .select('*')
+        .eq('id', data.evaluation_id)
+        .single();
+      evaluationData = evaluation;
+    }
+
+    // Format response to include evaluation as treatment for backward compatibility
+    const responseData = {
+      ...data,
+      treatment: evaluationData ? {
+        id: evaluationData.id,
+        name: evaluationData.name
+      } : null
+    };
+
     return Response.json({
       success: true,
-      data: data
+      data: responseData
     });
   } catch (error) {
     console.error('❌ Error in session GET:', error);
@@ -66,10 +83,7 @@ export async function PUT(
       .from('sessions')
       .update(updates)
       .eq('id', sessionId)
-      .select(`
-        *,
-        treatment:treatments(*)
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -82,9 +96,29 @@ export async function PUT(
 
     console.log('✅ Updated session:', data);
 
+    // Fetch evaluation data if evaluation_id exists
+    let evaluationData = null;
+    if (data.evaluation_id) {
+      const { data: evaluation } = await supabase
+        .from('evaluation_metrics')
+        .select('*')
+        .eq('id', data.evaluation_id)
+        .single();
+      evaluationData = evaluation;
+    }
+
+    // Format response to include evaluation as treatment for backward compatibility
+    const responseData = {
+      ...data,
+      treatment: evaluationData ? {
+        id: evaluationData.id,
+        name: evaluationData.name
+      } : null
+    };
+
     return Response.json({
       success: true,
-      data
+      data: responseData
     });
   } catch (error) {
     console.error('❌ Error in session PUT:', error);

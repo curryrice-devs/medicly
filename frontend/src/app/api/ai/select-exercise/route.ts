@@ -19,36 +19,36 @@ export async function POST(request: NextRequest) {
 
     console.log('🤖 AI Exercise Selection - Patient description:', description);
 
-    // Get available exercises from database
+    // Get available exercises from evaluation_metrics table
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: treatments, error } = await supabase
-      .from('treatments')
-      .select('id, name, description')
-      .order('id');
+    const { data: evaluationMetrics, error } = await supabase
+      .from('evaluation_metrics')
+      .select('id, name')
+      .order('name');
 
     if (error) {
-      console.error('❌ Error fetching treatments:', error);
+      console.error('❌ Error fetching evaluation metrics:', error);
       return NextResponse.json(
         { error: 'Failed to fetch available exercises' },
         { status: 500 }
       );
     }
 
-    if (!treatments || treatments.length === 0) {
+    if (!evaluationMetrics || evaluationMetrics.length === 0) {
       return NextResponse.json(
         { error: 'No exercises available in database' },
         { status: 500 }
       );
     }
 
-    console.log('📋 Available treatments:', treatments.length);
+    console.log('📋 Available evaluation exercises:', evaluationMetrics.length);
 
     // Create exercise list for Claude
-    const exerciseList = treatments.map(t =>
-      `ID: ${t.id} | Name: ${t.name} | Description: ${t.description || 'No description available'}`
+    const exerciseList = evaluationMetrics.map(e =>
+      `ID: ${e.id} | Name: ${e.name}`
     ).join('\n');
 
     const prompt = `You are an AI physical therapy assistant. A patient has described their problem, and you need to select the most appropriate exercise from the available options.
@@ -91,7 +91,7 @@ Do not include any other text, explanations, or formatting - only the JSON objec
       ]
     });
 
-    const aiResponseText = response.content[0].text;
+    const aiResponseText = response.content[0].type === 'text' ? response.content[0].text : '';
     console.log('🤖 Claude raw response:', aiResponseText);
 
     // Parse Claude's JSON response
@@ -110,25 +110,25 @@ Do not include any other text, explanations, or formatting - only the JSON objec
     }
 
     // Validate the selected exercise exists
-    const selectedTreatment = treatments.find(t => t.id === aiResult.exercise_id);
-    if (!selectedTreatment) {
+    const selectedExercise = evaluationMetrics.find(e => e.id === aiResult.exercise_id);
+    if (!selectedExercise) {
       console.error('❌ Claude selected invalid exercise ID:', aiResult.exercise_id);
-      // Fallback to first treatment
-      const fallbackTreatment = treatments[0];
+      // Fallback to first exercise
+      const fallbackExercise = evaluationMetrics[0];
       return NextResponse.json({
         success: true,
-        treatment: fallbackTreatment,
+        exercise: fallbackExercise,
         reasoning: 'AI selection failed, using default exercise',
         confidence: 0.5,
         aiResponse: aiResult
       });
     }
 
-    console.log('✅ AI selected exercise:', selectedTreatment.name, 'Confidence:', aiResult.confidence);
+    console.log('✅ AI selected exercise:', selectedExercise.name, 'Confidence:', aiResult.confidence);
 
     return NextResponse.json({
       success: true,
-      treatment: selectedTreatment,
+      exercise: selectedExercise,
       reasoning: aiResult.reasoning,
       confidence: aiResult.confidence,
       aiResponse: aiResult
