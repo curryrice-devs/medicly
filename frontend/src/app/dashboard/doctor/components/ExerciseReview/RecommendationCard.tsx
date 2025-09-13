@@ -9,7 +9,7 @@ import { ExerciseSearch } from '@/components/ExerciseDatabase/ExerciseSearch';
 interface Props {
   exercise: Exercise;
   confidence?: number; // 0-1
-  reasoning?: string;
+  reasoning?: string | object;
   initialEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
   onAccept?: () => Promise<void> | void;
@@ -57,7 +57,9 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
           </div>
           <p className="text-sm text-gray-600 mt-1">{selectedExercise.description}</p>
           {reasoning && (
-            <p className="text-xs text-gray-500 mt-2">Reasoning: {reasoning}</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Reasoning: {typeof reasoning === 'string' ? reasoning : JSON.stringify(reasoning)}
+            </p>
           )}
           {!editing ? (
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">

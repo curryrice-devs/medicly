@@ -268,7 +268,7 @@ export async function fetchMyBioDigitalModels(apiToken: string): Promise<BioDigi
     console.log('🔑 BioDigital API Key received:', apiToken ? `${apiToken.substring(0, 8)}...` : 'undefined');
     
     // Check if we have a valid API token
-    if (!apiToken || apiToken === 'YOUR_APP_KEY' || apiToken === 'YOUR_BIODIGITAL_KEY') {
+    if (!apiToken || apiToken === 'YOUR_APP_KEY' || apiToken === 'YOUR_BIODIGITAL_KEY' || apiToken === 'YOUR_DEVELOPER_KEY' || apiToken === 'YOUR_DEVELOPER_SECRET') {
       console.log('⚠️ No valid BioDigital API key provided, skipping API fetch');
       return [];
     }

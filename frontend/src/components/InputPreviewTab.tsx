@@ -108,7 +108,8 @@ const InputPreviewTab: React.FC<InputPreviewTabProps> = ({ videoId, onVideoProce
         if (analysisResponse.ok) {
           const result = await analysisResponse.json();
           console.log('Analysis result:', result);
-          setAnalysisResult(result);
+          // Extract the analysis from the response object
+          setAnalysisResult(result.analysis || result);
         } else {
           console.log('Two-stage analysis not available (API key may be missing)');
           setAnalysisResult({ message: 'Pose analysis completed. Two-stage analysis requires API key.' });

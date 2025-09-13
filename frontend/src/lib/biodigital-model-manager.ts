@@ -281,6 +281,11 @@ export class BioDigitalModelManager {
    */
   private loadFromCache(): void {
     try {
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+      }
+      
       const cached = localStorage.getItem('biodigital_models_cache');
       if (cached) {
         const data = JSON.parse(cached);

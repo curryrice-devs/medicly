@@ -195,7 +195,12 @@ export default function PatientsPage() {
       )}
 
       <div className="flex space-x-2">
-        <Button variant="outline" size="sm" className="flex-1">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1"
+          onClick={() => window.location.href = `/dashboard/doctor/patients/${patient.id}`}
+        >
           <Eye className="w-4 h-4 mr-2" />
           View Details
         </Button>

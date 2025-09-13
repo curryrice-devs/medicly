@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { SidebarProvider } from '@/contexts/sidebar-context'
 import { Sidebar } from '@/components/layout/sidebar'
-import { BreadcrumbNav } from '@/components/layout/breadcrumb-nav'
 import { LayoutContent } from '@/components/layout/layout-content'
 
 interface ClientLayoutWrapperProps {
@@ -25,7 +24,6 @@ export function ClientLayoutWrapper({ children }: ClientLayoutWrapperProps) {
         <div style={{ position: 'relative', minHeight: '100vh', backgroundColor: 'white' }}>
           <Sidebar />
           <LayoutContent>
-            <BreadcrumbNav />
             {children}
           </LayoutContent>
         </div>

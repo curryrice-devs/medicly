@@ -12,6 +12,8 @@ import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer'
 import { ActionButtons } from '../../components/CaseReview/ActionButtons'
 import { ExerciseSaveModal } from '../../components/CaseReview/ExerciseSaveModal'
 import { RejectionModal } from '../../components/CaseReview/RejectionModal'
+import { BioDigitalViewer } from '@/components/BioDigitalViewer'
+import { parseAIAnalysis, createFallbackAnalysis } from '@/types/ai-analysis.types'
 
 export default function CaseReviewRoute() {
   const params = useParams()
@@ -34,6 +36,64 @@ export default function CaseReviewRoute() {
   const [isApproving, setIsApproving] = React.useState(false)
   const [isRejecting, setIsRejecting] = React.useState(false)
   const [isSavingExercise, setIsSavingExercise] = React.useState(false)
+
+  // Helper function to get full AI analysis data
+  const getAIAnalysisData = React.useMemo(() => {
+    if (!caseData) return null;
+    
+    // Try to get the original ai_evaluation data from the session
+    // For now, we'll reconstruct it from the PatientCase data
+    const reconstructedAnalysis = {
+      confidence: caseData.aiConfidence || 0.8,
+      primaryDiagnosis: caseData.injuryType || 'Assessment pending',
+      injuryType: caseData.injuryType || 'General',
+      bodyPart: caseData.recommendedExercise?.bodyPart || '',
+      summary: caseData.aiAnalysis || 'Analysis pending',
+      reasoning: typeof caseData.reasoning === 'string' ? caseData.reasoning : 'Analysis in progress',
+      movementMetrics: caseData.movementMetrics || [],
+      rangeOfMotion: caseData.rangeOfMotion ? Object.entries(caseData.rangeOfMotion).map(([key, degrees]) => ({
+        joint: key.replace(/[A-Z]/g, ' $&').trim().split(' ')[0] || 'Joint',
+        movement: key.replace(/[A-Z]/g, ' $&').trim().split(' ').slice(1).join(' ') || 'movement',
+        degrees: degrees,
+        normalRange: '0-180°',
+        status: degrees < 90 ? 'limited' : degrees > 180 ? 'hypermobile' : 'normal'
+      })) : [],
+      compensatoryPatterns: [],
+      painIndicators: caseData.painIndicators ? caseData.painIndicators.map(indicator => {
+        const parts = indicator.split(': ');
+        const location = parts[0] || 'Unknown';
+        const rest = parts[1] || '';
+        const severityMatch = rest.match(/\((\d+)\/10\)/);
+        const severity = severityMatch ? parseInt(severityMatch[1]) : 5;
+        const type = rest.replace(/\(\d+\/10\)/, '').replace('pain', '').trim() || 'aching';
+        
+        return {
+          location,
+          severity,
+          type: type as any,
+          triggers: []
+        };
+      }) : [],
+      functionalLimitations: [],
+      urgencyLevel: caseData.urgency,
+      urgencyReason: `${caseData.urgency} priority case`,
+      redFlags: [],
+      recommendedExercise: {
+        name: caseData.recommendedExercise?.name,
+        rationale: 'Recommended based on assessment',
+        contraindications: caseData.recommendedExercise?.contraindications || [],
+        progressionNotes: caseData.recommendedExercise?.progressionLevels?.[0] || ''
+      },
+      followUpRecommendations: {
+        timeframe: '1-2 weeks',
+        monitorFor: ['Pain levels', 'Functional improvement'],
+        progressIndicators: ['Improved movement', 'Reduced pain'],
+        escalationCriteria: ['Worsening symptoms', 'No improvement']
+      }
+    };
+    
+    return reconstructedAnalysis;
+  }, [caseData]);
 
   React.useEffect(() => {
     let mounted = true
@@ -274,16 +334,22 @@ export default function CaseReviewRoute() {
               <p className="text-gray-700 leading-relaxed mb-4">
                 {caseData.aiAnalysis}
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-blue-900">
-                    AI Confidence: {Math.round((caseData.aiConfidence || 0) * 100)}%
-                  </span>
+              
+              {/* BioDigital Anatomical Model */}
+              {getAIAnalysisData && (
+                <div className="mt-4">
+                  <BioDigitalViewer 
+                    problematicAreas={[
+                      {
+                        name: caseData.bodyPart || 'General',
+                        description: `${getAIAnalysisData.summary} - ${getAIAnalysisData.primaryDiagnosis || caseData.injuryType || 'Movement analysis'}`
+                      }
+                    ]}
+                    patientId={caseData.patientId}
+                    patientInfo={getAIAnalysisData.summary}
+                  />
                 </div>
-                <p className="text-sm text-blue-800">
-                  {typeof caseData.reasoning === 'string' ? caseData.reasoning : JSON.stringify(caseData.reasoning)}
-                </p>
-              </div>
+              )}
             </div>
 
             {/* Movement Metrics */}

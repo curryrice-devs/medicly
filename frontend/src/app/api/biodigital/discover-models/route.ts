@@ -18,10 +18,43 @@ export async function GET(request: NextRequest) {
     }
   };
 
-  // Method 1: Try different Content API endpoint variations
-  console.log('🌐 Method 1: Testing Content API endpoint variations...');
+  // Method 1: Try working Content API first
+  console.log('🌐 Method 1: Testing working Content API...');
   try {
-    // Get OAuth token first
+    // Get models from the working Content API endpoint
+    const contentResponse = await fetch(`${request.nextUrl.origin}/api/biodigital/models/all`);
+    
+    if (contentResponse.ok) {
+      const contentData = await contentResponse.json();
+      
+      if (contentData.success && contentData.models && contentData.models.length > 0) {
+        console.log(`✅ Content API: Found ${contentData.models.length} models from library`);
+        
+        // Add library models
+        const libraryModels = contentData.models.map((model: any) => ({
+          id: model.id,
+          name: model.name,
+          source: 'Content API Library',
+          viewerUrl: model.viewerUrl || `https://human.biodigital.com/viewer/?be=${model.id}&dk=${biodigitalKey}`,
+          accessible: true,
+          thumbnail: model.thumbnail,
+          type: model.type,
+          flags: model.flags
+        }));
+        
+        results.discoveredModels.push(...libraryModels);
+        results.summary.workingModels += libraryModels.length;
+        
+        results.methods.push({
+          method: 'Content API Library',
+          endpoint: '/api/biodigital/models/all',
+          status: 'SUCCESS',
+          hasModels: true
+        });
+      }
+    }
+
+    // Also try OAuth for additional endpoints
     const oauthResponse = await fetch(`${request.nextUrl.origin}/api/biodigital/oauth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,22 +68,12 @@ export async function GET(request: NextRequest) {
       const { access_token } = await oauthResponse.json();
       console.log('✅ OAuth successful for discovery');
 
-      // Try various endpoint patterns
+      // Try additional endpoint patterns
       const endpointsToTry = [
-        '/content/v2/myhuman',
+        'myhuman',  // Use the working endpoint format
         '/content/v2/mycollections',
         '/content/v2/models',
-        '/content/v2/library',
-        '/content/v1/myhuman',
-        '/content/v1/models',
-        '/content/v1/library',
-        '/content/models',
-        '/content/library',
-        '/v2/myhuman',
-        '/v2/models',
-        '/v1/models',
-        '/models',
-        '/library'
+        '/content/v2/library'
       ];
 
       for (const endpoint of endpointsToTry) {
@@ -182,10 +205,16 @@ export async function GET(request: NextRequest) {
       
       while ((match = modelIdRegex.exec(html)) !== null) {
         const potentialId = match[1];
-        // Filter for likely model IDs (3-8 chars, alphanumeric)
+        // Filter for likely BioDigital model IDs
         if (potentialId.length >= 3 && potentialId.length <= 8 && 
             /^[A-Za-z0-9]+$/.test(potentialId) &&
-            potentialId !== '6PxP') { // Exclude the current model
+            potentialId !== '6PxP' && // Exclude the current model
+            // Exclude common web/CSS terms that aren't model IDs
+            !['viewport', 'keywords', 'author', 'icon', 'liga', 'calt', 'woff2', 'truetype', 
+              'print', 'all', 'module', 'css', 'html', 'body', 'head', 'meta', 'link', 
+              'script', 'style', 'div', 'span', 'img', 'svg', 'path', 'rect', 'text',
+              'font', 'size', 'color', 'width', 'height', 'left', 'right', 'top', 'bottom',
+              'none', 'auto', 'flex', 'grid', 'block', 'inline'].includes(potentialId.toLowerCase())) {
           foundIds.add(potentialId);
         }
       }

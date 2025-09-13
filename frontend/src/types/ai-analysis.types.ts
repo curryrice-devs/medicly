@@ -155,12 +155,51 @@ export function parseAIAnalysis(aiEvaluationData: any): AIAnalysisData | null {
       return null;
     }
 
-    // Validate required fields
-    if (!parsed.confidence || !parsed.primaryDiagnosis || !parsed.summary) {
-      return null;
+    // Handle API response format: {message, success, analysis}
+    if (parsed.analysis && typeof parsed.analysis === 'object') {
+      // Extract the actual analysis from the API response wrapper
+      parsed = parsed.analysis;
     }
 
-    return parsed as AIAnalysisData;
+    // Validate required fields for the old format
+    if (parsed.confidence && parsed.primaryDiagnosis && parsed.summary) {
+      return parsed as AIAnalysisData;
+    }
+
+    // Handle new two-stage analysis format
+    if (parsed.analysis_summary) {
+      const summary = parsed.analysis_summary;
+      return {
+        confidence: summary.confidence_level || 0.8,
+        primaryDiagnosis: summary.movement_identified || "Assessment pending",
+        injuryType: summary.movement_identified || "General",
+        bodyPart: "",
+        summary: summary.overall_health_assessment || "Analysis pending",
+        reasoning: summary.main_recommendations?.join('. ') || "Analysis in progress",
+        movementMetrics: [],
+        rangeOfMotion: [],
+        compensatoryPatterns: [],
+        painIndicators: summary.key_concerns?.map((concern: string, index: number) => ({
+          location: "Unknown",
+          severity: 5,
+          type: "aching" as any,
+          triggers: [concern]
+        })) || [],
+        functionalLimitations: [],
+        urgencyLevel: summary.technique_quality === 'poor' ? 'high' : 
+                     summary.technique_quality === 'excellent' ? 'low' : 'medium',
+        urgencyReason: summary.technique_quality ? `${summary.technique_quality} technique quality` : 'Assessment pending',
+        redFlags: [],
+        recommendedExercise: {
+          name: summary.movement_identified || "Exercise to be assigned",
+          contraindications: [],
+          progressionNotes: summary.main_recommendations?.join('. ')
+        }
+      } as AIAnalysisData;
+    }
+
+    // If none of the expected formats match, return null to fall back
+    return null;
   } catch (error) {
     console.error('Failed to parse AI analysis JSON:', error);
     return null;
@@ -168,13 +207,26 @@ export function parseAIAnalysis(aiEvaluationData: any): AIAnalysisData | null {
 }
 
 // Fallback function for backwards compatibility with existing text-only evaluations
-export function createFallbackAnalysis(textAnalysis: string): AIAnalysisData {
+export function createFallbackAnalysis(textAnalysis: string | any): AIAnalysisData {
+  // Handle case where an object is passed instead of a string
+  let summaryText: string;
+  if (typeof textAnalysis === 'object' && textAnalysis !== null) {
+    // If it's an object with message, success, analysis structure, extract a meaningful summary
+    if (textAnalysis.message && typeof textAnalysis.message === 'string') {
+      summaryText = textAnalysis.message;
+    } else {
+      summaryText = "Analysis data available but in unexpected format";
+    }
+  } else {
+    summaryText = textAnalysis || "Awaiting AI evaluation";
+  }
+
   return {
     confidence: 0.8,
     primaryDiagnosis: "Assessment pending",
     injuryType: "General",
     bodyPart: "",
-    summary: textAnalysis,
+    summary: summaryText,
     reasoning: "Legacy analysis format",
     movementMetrics: [],
     rangeOfMotion: [],

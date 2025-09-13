@@ -153,7 +153,8 @@ export default function ExerciseDetailPage() {
       }
 
       const result = await analysisResponse.json()
-      setAnalysisResult(result)
+      // Extract the analysis from the response object
+      setAnalysisResult(result.analysis || result)
       
       if (result.key_frames) {
         setKeyFrames(result.key_frames)
