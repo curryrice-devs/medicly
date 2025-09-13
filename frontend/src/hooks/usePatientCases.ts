@@ -3,7 +3,7 @@ import { PatientCase, CaseStats } from '@/types/medical.types';
 import { doctorApi } from '@/services/api';
 
 interface UsePatientCasesOptions {
-  initialStatus?: 'pending' | 'in-progress' | 'rejected' | 'completed';
+  initialStatus?: 'pending' | 'active' | 'rejected' | 'completed';
 }
 
 export function usePatientCases(options: UsePatientCasesOptions = {}) {

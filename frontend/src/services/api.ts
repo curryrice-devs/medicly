@@ -1,5 +1,61 @@
 import { PatientCase, CaseStats, Exercise } from '@/types/medical.types';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { parseAIAnalysis, createFallbackAnalysis, AIAnalysisData } from '@/types/ai-analysis.types';
+
+// Helper function to create PatientCase from session data and AI analysis
+function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase {
+  // Parse AI analysis JSON or create fallback
+  const aiAnalysis = parseAIAnalysis(s.ai_evaluation || '') || createFallbackAnalysis(s.ai_evaluation || 'Awaiting AI evaluation');
+
+  const treatment = s.treatment_id ? treatmentsById[s.treatment_id] : undefined;
+
+  // Create exercise info from database columns ONLY
+  const recommendedExercise: Exercise = {
+    id: `T-${s.treatment_id ?? 'session-' + s.id}`,
+    name: treatment?.name || treatment?.description || 'Exercise to be assigned',
+    description: treatment?.description || 'Exercise details will be available once assigned',
+    bodyPart: aiAnalysis.bodyPart || '',
+    injuryTypes: aiAnalysis.injuryType ? [aiAnalysis.injuryType] : [],
+    defaultSets: s.exercise_sets ?? 3,
+    defaultReps: s.exercise_reps ?? 8,
+    defaultFrequency: s.exercise_frequency_daily ? `${s.exercise_frequency_daily}x daily` : 'Daily',
+    videoUrl: treatment?.video_link || undefined,
+    contraindications: aiAnalysis.recommendedExercise?.contraindications || [],
+    progressionLevels: aiAnalysis.recommendedExercise?.progressionNotes ? [aiAnalysis.recommendedExercise.progressionNotes] : undefined,
+  };
+
+  // Use AI urgency if available, otherwise derive from due date
+  let urgency: PatientCase['urgency'] = aiAnalysis.urgencyLevel;
+  if (!urgency || urgency === 'medium') {
+    const due = s.due_date ? new Date(s.due_date) : null;
+    const daysUntilDue = due ? Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+    urgency = daysUntilDue !== null
+      ? (daysUntilDue <= 2 ? 'high' : daysUntilDue <= 7 ? 'medium' : 'low')
+      : 'medium';
+  }
+
+  const pc: PatientCase = {
+    id: String(s.id),
+    patientId: s.patient_id ?? 'unknown',
+    videoUrl: treatment?.video_link || '',
+    injuryType: aiAnalysis.injuryType || 'General',
+    aiAnalysis: aiAnalysis.summary,
+    recommendedExercise,
+    status: (String(s.status).toLowerCase() as any) || 'pending',
+    submittedAt: s.created_at,
+    urgency,
+    aiConfidence: aiAnalysis.confidence,
+    reasoning: aiAnalysis.reasoning,
+    movementMetrics: aiAnalysis.movementMetrics,
+    rangeOfMotion: aiAnalysis.rangeOfMotion.reduce((acc, rom) => {
+      acc[`${rom.joint}${rom.movement}`] = rom.degrees;
+      return acc;
+    }, {} as Record<string, number>),
+    painIndicators: aiAnalysis.painIndicators.map(p => `${p.location}: ${p.type} pain (${p.severity}/10)`),
+  };
+
+  return pc;
+}
 
 export const doctorApi = {
   async listCases(filters: any): Promise<{ items: PatientCase[], total: number, stats: CaseStats }> {
@@ -39,42 +95,8 @@ export const doctorApi = {
 
     // treatmentsById already supplied by route
 
-    // Map DB rows -> PatientCase
-    let mapped: PatientCase[] = sessions.map((s) => {
-      const treatment = s.treatment_id ? treatmentsById[s.treatment_id] : undefined;
-      const recommendedExercise: Exercise = {
-        id: `T-${treatment?.id ?? 'none'}`,
-        name: treatment?.description || 'Recommended Exercise',
-        description: treatment?.description || 'Automatically recommended exercise',
-        bodyPart: '',
-        injuryTypes: [],
-        defaultSets: s.exercise_sets ?? 3,
-        defaultReps: s.exercise_reps ?? 8,
-        defaultFrequency: 'Daily',
-        videoUrl: treatment?.video_link || undefined,
-      };
-
-      // Derive urgency from due date proximity
-      const due = s.due_date ? new Date(s.due_date) : null;
-      const daysUntilDue = due ? Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-      const urgency: PatientCase['urgency'] = daysUntilDue !== null
-        ? (daysUntilDue <= 2 ? 'high' : daysUntilDue <= 7 ? 'medium' : 'low')
-        : 'medium';
-
-      const pc: PatientCase = {
-        id: String(s.id),
-        patientId: s.patient_id ?? 'unknown',
-        videoUrl: treatment?.video_link || '',
-        injuryType: 'General',
-        aiAnalysis: s.ai_evaluation || 'Awaiting AI evaluation',
-        recommendedExercise,
-        status: (String(s.status).toLowerCase() as any) || 'pending',
-        submittedAt: s.created_at,
-        urgency,
-        aiConfidence: 0.8,
-      };
-      return pc;
-    });
+    // Map DB rows -> PatientCase using AI analysis
+    let mapped: PatientCase[] = sessions.map((s) => createPatientCaseFromSession(s, treatmentsById));
 
     // Search filter (client-side simple)
     if (search) {
@@ -122,9 +144,9 @@ export const doctorApi = {
       (c) => c.status === 'completed' && isSameDay(c.submittedAt)
     ).length;
 
-    // Calculate active patients (unique patient IDs with in-progress status)
+    // Calculate active patients (unique patient IDs with active status)
     const activePatients = new Set(
-      mapped.filter(c => c.status === 'in-progress').map(c => c.patientId)
+      mapped.filter(c => c.status === 'active').map(c => c.patientId)
     ).size;
 
     // Calculate sessions created today
@@ -135,8 +157,8 @@ export const doctorApi = {
       c.urgency === 'high' && c.status === 'pending'
     ).length;
 
-    // Calculate in-progress cases
-    const inProgressCount = mapped.filter(c => c.status === 'in-progress').length;
+    // Calculate active cases
+    const activeCount = mapped.filter(c => c.status === 'active').length;
 
     // Calculate average review time based on case complexity
     // Simple heuristic: pending cases take longer, high urgency cases are reviewed faster
@@ -153,7 +175,7 @@ export const doctorApi = {
         activePatients,
         sessionsToday,
         highPriorityPending,
-        inProgressCount
+        activeCount
       }
     };
   },
@@ -179,39 +201,7 @@ export const doctorApi = {
         return null
       }
 
-      const treatment = s.treatment_id ? treatmentsById[s.treatment_id] : undefined;
-      const recommendedExercise: Exercise = {
-        id: `T-${treatment?.id ?? 'none'}`,
-        name: treatment?.description || 'Recommended Exercise',
-        description: treatment?.description || 'Automatically recommended exercise',
-        bodyPart: '',
-        injuryTypes: [],
-        defaultSets: s.exercise_sets ?? 3,
-        defaultReps: s.exercise_reps ?? 8,
-        defaultFrequency: 'Daily',
-        videoUrl: treatment?.video_link || undefined,
-      };
-
-      const due = s.due_date ? new Date(s.due_date) : null;
-      const daysUntilDue = due ? Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-      const urgency: PatientCase['urgency'] = daysUntilDue !== null
-        ? (daysUntilDue <= 2 ? 'high' : daysUntilDue <= 7 ? 'medium' : 'low')
-        : 'medium';
-
-      const pc: PatientCase = {
-        id: String(s.id),
-        patientId: s.patient_id ?? 'unknown',
-        videoUrl: treatment?.video_link || '',
-        injuryType: 'General',
-        aiAnalysis: s.ai_evaluation || 'Awaiting AI evaluation',
-        recommendedExercise,
-        status: (String(s.status).toLowerCase() as any) || 'pending',
-        submittedAt: s.created_at,
-        urgency,
-        aiConfidence: 0.8,
-      };
-
-      return pc;
+      return createPatientCaseFromSession(s, treatmentsById);
     } catch (e) {
       console.error('[doctorApi.getCaseById] error:', e)
       return null
@@ -240,6 +230,71 @@ export const doctorApi = {
       return payload.profile;
     } catch (e) {
       console.error('[doctorApi.getPatientProfile] unexpected error:', e);
+      return null;
+    }
+  },
+
+  async updateCaseStatus(caseId: string, status: 'active' | 'rejected', notes?: string): Promise<boolean> {
+    console.log('[doctorApi.updateCaseStatus] updating case status:', { caseId, status, notes });
+    try {
+      const resp = await fetch(`/api/doctor/cases/${caseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', status, notes })
+      });
+
+      if (!resp.ok) {
+        console.error('[doctorApi.updateCaseStatus] failed:', resp.status);
+        return false;
+      }
+
+      console.log('[doctorApi.updateCaseStatus] success');
+      return true;
+    } catch (e) {
+      console.error('[doctorApi.updateCaseStatus] error:', e);
+      return false;
+    }
+  },
+
+  async updateExercise(caseId: string, exerciseData: any): Promise<boolean> {
+    console.log('[doctorApi.updateExercise] updating exercise:', { caseId, exerciseData });
+    try {
+      const resp = await fetch(`/api/doctor/cases/${caseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exercise', ...exerciseData })
+      });
+
+      if (!resp.ok) {
+        console.error('[doctorApi.updateExercise] failed:', resp.status);
+        return false;
+      }
+
+      console.log('[doctorApi.updateExercise] success');
+      return true;
+    } catch (e) {
+      console.error('[doctorApi.updateExercise] error:', e);
+      return false;
+    }
+  },
+
+  async getPatients(doctorId: string): Promise<{ patients: any[], stats: any } | null> {
+    console.log('[doctorApi.getPatients] fetching patients for doctor:', doctorId);
+    try {
+      const resp = await fetch(`/api/doctor/patients?doctorId=${encodeURIComponent(doctorId)}`, {
+        cache: 'no-store'
+      });
+
+      if (!resp.ok) {
+        console.error('[doctorApi.getPatients] failed:', resp.status);
+        return null;
+      }
+
+      const data = await resp.json();
+      console.log('[doctorApi.getPatients] success:', data);
+      return data;
+    } catch (e) {
+      console.error('[doctorApi.getPatients] error:', e);
       return null;
     }
   }
