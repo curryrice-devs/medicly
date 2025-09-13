@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useSupabaseVideoUpload } from "@/hooks/useSupabaseVideoUpload"
 import { formatBytes } from "@/lib/utils"
+import Link from 'next/link'
 
 interface SessionData {
   id: string
@@ -70,6 +71,7 @@ export default function PatientSessionDetailPage() {
   const sessionId = params?.sessionId as string
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'feedback'>('todo')
+  const [exerciseUploads, setExerciseUploads] = useState<Record<string, any>>({})
   const { isAuthenticated } = useAuth()
 
   // Mock session data with reminders/alerts
@@ -181,31 +183,7 @@ export default function PatientSessionDetailPage() {
 
   const session = getSessionData(sessionId)
 
-  // Use Supabase video upload with session ID
-  const {
-    uploadVideo,
-  } = useSupabaseVideoUpload({
-    sessionId: sessionId,
-    onUploadComplete: (videoId) => {
-      console.log('Video uploaded to Supabase:', videoId)
-    },
-    onUploadError: (error) => {
-      console.error('Supabase upload error:', error)
-    }
-  })
 
-  const handleExerciseVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>, exerciseId: string) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      console.log(`Uploading video for exercise ${exerciseId}:`, file.name)
-      try {
-        await uploadVideo(file)
-        console.log(`Upload complete for exercise ${exerciseId}`)
-      } catch (error) {
-        console.error(`Upload failed for exercise ${exerciseId}:`, error)
-      }
-    }
-  }
 
   const completedExercises = session.todaysExercises.filter(ex => ex.completed).length
   const totalExercises = session.todaysExercises.length
@@ -231,6 +209,8 @@ export default function PatientSessionDetailPage() {
     }
   }
 
+
+
   return (
     <div style={{ 
       flex: 1,
@@ -239,7 +219,7 @@ export default function PatientSessionDetailPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 12px' }}>
         
         {/* Header with Progress */}
-          <div style={{ 
+        <div style={{ 
           display: 'flex', 
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -270,9 +250,9 @@ export default function PatientSessionDetailPage() {
             <div style={{ fontWeight: '600', color: 'hsl(var(--foreground))' }}>
               {completedExercises}/{totalExercises} exercises
             </div>
-            <div>completed today</div>
+            <div>analyzed today</div>
           </div>
-          </div>
+        </div>
 
         {/* Reminders & Alerts - Compact Horizontal */}
         <section style={{ marginBottom: '32px' }}>
@@ -306,7 +286,7 @@ export default function PatientSessionDetailPage() {
                 borderLeft: `3px solid ${getPriorityColor(reminder.priority)}`
               }}>
                 <div style={{ 
-                  display: 'flex',
+                  display: 'flex', 
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '8px'
@@ -332,7 +312,7 @@ export default function PatientSessionDetailPage() {
                         {reminder.message}
                       </p>
                     </div>
-                </div>
+                  </div>
                   
                   <div style={{ 
                     padding: '2px 6px',
@@ -354,9 +334,9 @@ export default function PatientSessionDetailPage() {
 
         {/* Your Exercises - Tab-Based */}
         <section>
-                <div style={{ 
-                  display: 'flex',
-                  alignItems: 'center',
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
             justifyContent: 'space-between',
             marginBottom: '20px' 
           }}>
@@ -369,11 +349,11 @@ export default function PatientSessionDetailPage() {
               }}>
                 Your Exercises
               </h2>
-                </div>
-              </div>
+            </div>
+          </div>
 
           {/* Tab Navigation - Simple Underline Style */}
-                <div style={{ 
+          <div style={{ 
             display: 'flex', 
             gap: '32px',
             marginBottom: '24px',
@@ -410,201 +390,211 @@ export default function PatientSessionDetailPage() {
                   fontWeight: '600'
                 }}>
                   ({tab.count})
-                  </span>
+                </span>
               </button>
             ))}
           </div>
-
+          
           {/* Exercise Grid */}
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
             gap: '16px' 
           }}>
             {getFilteredExercises().map((exercise) => (
-              <div key={exercise.id} style={{ 
-                backgroundColor: 'hsl(var(--card))',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                border: exercise.completed 
+                <div key={exercise.id} style={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                                  border: exercise.completed 
                   ? exercise.feedback 
                     ? '2px solid #0d4a2b' 
                     : '2px solid #6b7280'
                   : '1px solid hsl(var(--border))',
-                transition: 'all 0.2s ease'
-              }}>
-                
-                {/* Exercise Preview Video - Smaller */}
-                <div style={{ 
-                  position: 'relative',
-                  aspectRatio: '16/9', 
-                  backgroundColor: '#f3f4f6'
+                  transition: 'all 0.2s ease'
                 }}>
-                  <img 
-                    src={exercise.videoUrl}
-                    alt={exercise.name}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'cover' 
-                    }}
-                  />
-              <div style={{ 
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}>
-                    <PlayCircle style={{ width: '20px', height: '20px', color: 'white' }} />
-                  </div>
-
-                  {/* Status Indicators */}
-          <div style={{ 
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    display: 'flex',
-                    gap: '4px'
-                  }}>
-                    {exercise.completed && (
+                  
+                  {/* Exercise Preview Video */}
+                  <Link href={`/dashboard/patient/session/${sessionId}/${exercise.name.toLowerCase().replace(/\s+/g, '_')}`}>
+                    <div style={{ 
+                      position: 'relative',
+                      aspectRatio: '16/9',
+                      backgroundColor: '#f3f4f6',
+                      cursor: 'pointer',
+                      borderRadius: '8px 8px 0 0',
+                      overflow: 'hidden'
+                    }}>
+                      <img 
+                        src={exercise.videoUrl}
+                        alt={exercise.name}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover',
+                          transition: 'transform 0.2s ease'
+                        }}
+                        className="hover:scale-105"
+                      />
                       <div style={{ 
-                        width: '24px',
-                        height: '24px',
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '48px',
+                        height: '48px',
                         borderRadius: '50%',
-                        backgroundColor: exercise.feedback ? '#0d4a2b' : '#6b7280',
-                  display: 'flex', 
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <CheckCircle2 style={{ width: '14px', height: '14px', color: 'white' }} />
-                      </div>
-                    )}
-                    {exercise.feedback && (
-                  <div style={{ 
-                        width: '24px',
-                        height: '24px',
-                    borderRadius: '50%', 
-                        backgroundColor: '#0d4a2b',
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                      }}
+                      className="hover:scale-110"
+                      >
+                        <PlayCircle style={{ width: '24px', height: '24px', color: 'white' }} />
+                      </div>
+                      
+                      {/* Click to analyze indicator */}
+                      <div style={{ 
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        padding: '4px 8px',
+                        backgroundColor: 'rgba(13, 74, 43, 0.9)',
+                        borderRadius: '12px',
+                        fontSize: '0.7rem',
+                        color: 'white',
+                        fontWeight: '600'
                       }}>
-                        <FileText style={{ width: '12px', height: '12px', color: 'white' }} />
-                    </div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Exercise Info - Compact */}
-                <div style={{ padding: '12px' }}>
-                  <h3 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '4px'
-                  }}>
-                    {exercise.name}
-                  </h3>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    marginBottom: '8px',
-                    fontSize: '0.75rem',
-                    color: 'hsl(var(--muted-foreground))'
-                  }}>
-                    <span>{exercise.duration}</span>
-                    <span>•</span>
-                    <span>{exercise.sets}</span>
-          </div>
-
-                  {/* Doctor's Feedback - Compact */}
-                  {exercise.feedback && (
-                    <div style={{ 
-                      backgroundColor: 'rgba(13, 74, 43, 0.05)',
-                      border: '1px solid rgba(13, 74, 43, 0.2)',
-                      borderRadius: '4px',
-                      padding: '8px',
-                      marginBottom: '8px'
-                    }}>
-          <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '4px',
-                        marginBottom: '4px'
+                        Click to analyze
+                      </div>
+                      
+                      {/* Status Indicators */}
+                      <div style={{ 
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        display: 'flex',
+                        gap: '4px'
                       }}>
-                        <FileText style={{ width: '10px', height: '10px', color: '#0d4a2b' }} />
-                        <span style={{ 
-                          fontSize: '0.7rem', 
-                          fontWeight: '600', 
-                          color: '#0d4a2b'
+                                              {exercise.completed && (
+                        <div style={{ 
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: exercise.feedback ? '#0d4a2b' : '#6b7280',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
-                          {session.doctor.split(' ')[1]}
-                        </span>
-            </div>
+                          <CheckCircle2 style={{ width: '16px', height: '16px', color: 'white' }} />
+                        </div>
+                      )}
+                      {exercise.feedback && (
+                          <div style={{ 
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            backgroundColor: '#0d4a2b',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <FileText style={{ width: '14px', height: '14px', color: 'white' }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                  
+                  {/* Exercise Info */}
+                  <div style={{ padding: '16px' }}>
+                    <h3 style={{ 
+                      fontSize: '1rem', 
+                      fontWeight: '600', 
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '4px'
+                    }}>
+                      {exercise.name}
+                    </h3>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '8px', 
+                      marginBottom: '12px',
+                      fontSize: '0.75rem',
+                      color: 'hsl(var(--muted-foreground))'
+                    }}>
+                      <span>{exercise.duration}</span>
+                      <span>•</span>
+                      <span>{exercise.sets}</span>
+                    </div>
+
+                    <p style={{ 
+                      fontSize: '0.875rem', 
+                      color: 'hsl(var(--muted-foreground))',
+                      marginBottom: '12px',
+                      lineHeight: '1.4'
+                    }}>
+                      {exercise.description}
+                    </p>
+
+                    {/* Doctor's Feedback */}
+                    {exercise.feedback && (
+                      <div style={{ 
+                        backgroundColor: 'rgba(13, 74, 43, 0.05)',
+                        border: '1px solid rgba(13, 74, 43, 0.2)',
+                        borderRadius: '6px',
+                        padding: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '6px',
+                          marginBottom: '6px'
+                        }}>
+                          <FileText style={{ width: '12px', height: '12px', color: '#0d4a2b' }} />
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: '600', 
+                            color: '#0d4a2b'
+                          }}>
+                            Feedback from {session.doctor.split(' ')[1]}
+                          </span>
+                        </div>
+                        <p style={{ 
+                          fontSize: '0.8rem', 
+                          color: 'hsl(var(--foreground))',
+                          lineHeight: '1.4',
+                          margin: 0
+                        }}>
+                          {exercise.feedback}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Click to Analyze Call-to-Action */}
+                    <div style={{ 
+                      padding: '12px',
+                      backgroundColor: 'rgba(13, 74, 43, 0.05)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(13, 74, 43, 0.1)',
+                      textAlign: 'center'
+                    }}>
                       <p style={{ 
-                        fontSize: '0.75rem', 
-                        color: 'hsl(var(--foreground))',
-                        lineHeight: '1.3',
+                        fontSize: '0.875rem', 
+                        color: '#0d4a2b',
+                        fontWeight: '600',
                         margin: 0
                       }}>
-                        {exercise.feedback}
+                        Click the video above for detailed AI analysis
                       </p>
                     </div>
-                  )}
-
-                  {/* Upload Video - Compact */}
-                  {!exercise.completed && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '4px',
-                        marginBottom: '4px'
-                      }}>
-                        <Video style={{ width: '10px', height: '10px', color: '#0d4a2b' }} />
-                        <span style={{ fontSize: '0.7rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>
-                          Upload video
-                      </span>
-                      </div>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={(e) => handleExerciseVideoSelect(e, exercise.id)}
-                        style={{ 
-                          fontSize: '0.7rem',
-                          padding: '4px',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '3px',
-                          width: '100%'
-                        }}
-                      />
-                    </div>
-                  )}
-                  
-                  <Button 
-                    size="sm"
-                    variant={exercise.completed ? "outline" : "default"}
-                    style={{ 
-                      width: '100%',
-                      backgroundColor: exercise.completed ? 'transparent' : '#0d4a2b',
-                      fontSize: '0.75rem',
-                      height: '28px'
-                    }}
-                  >
-                    {exercise.completed ? 'Completed ✓' : 'Mark Complete'}
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            }
           </div>
         </section>
       </div>
