@@ -426,7 +426,7 @@ export default function ExerciseDetailPage() {
 
       const result = await analysisResponse.json()
       console.log('🎉 Claude analysis result:', result)
-      setAnalysisResult(result)
+      setAnalysisResult(result?.analysis || result)
       
       if (result.key_frames) {
         setKeyFrames(result.key_frames)
@@ -439,7 +439,7 @@ export default function ExerciseDetailPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ai_evaluation: result, // Save as JSONB object, not stringified
+            ai_evaluation: result?.analysis ? result : { analysis: result }, // normalize to object with analysis key
             status: 'completed'
           })
         })
@@ -881,6 +881,26 @@ export default function ExerciseDetailPage() {
               }}>
                 Analysis Progress
               </h3>
+
+              {/* Troubleshooting when pose data missing */}
+              {currentStep === 'complete' && analysisResult && (analysisResult as any)?.analysis_summary?.overall_health_assessment?.toLowerCase().includes('insufficient pose data') && (
+                <div style={{ 
+                  backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                  border: '1px solid rgba(251, 191, 36, 0.4)',
+                  color: '#92400e',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>No pose data captured</div>
+                  <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.75rem' }}>
+                    <li>Ensure good lighting and full body in frame</li>
+                    <li>Place camera horizontally and stable</li>
+                    <li>Wear contrasting clothing against background</li>
+                    <li>Retry recording and re-upload</li>
+                  </ul>
+                </div>
+              )}
 
               {/* Current Step */}
                 <div style={{ marginBottom: '8px' }}>

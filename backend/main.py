@@ -503,11 +503,21 @@ async def perform_two_stage_analysis(video_id: str):
         key_frames_dir = OUTPUT_DIR / f"{video_id}_key_frames"
         key_frames_dir.mkdir(exist_ok=True)
         action_logger.log_file_operation("CREATE_DIR", key_frames_dir, True)
-        
-        # Extract key frames
+
+        # Build full analysis package including pose data from angles file
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "started")
-        analysis_package = key_frame_extractor.extract_key_frames(
-            str(video_path), 
+        try:
+            with open(angle_file, 'r') as f:
+                angle_payload = json.load(f)
+                angle_data = angle_payload.get('angle_data', [])
+        except Exception as e:
+            action_logger.log_error("ANGLE_DATA_READ_FAILED", str(e), {"video_id": video_id})
+            raise HTTPException(status_code=500, detail=f"Failed to read angle data: {str(e)}")
+
+        # Use enhanced extractor to attach pose data to frames and summarize angles
+        analysis_package = key_frame_extractor.create_analysis_package(
+            str(video_path),
+            angle_data,
             str(key_frames_dir)
         )
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "completed")

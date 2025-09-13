@@ -239,6 +239,22 @@ export default function CaseReviewRoute() {
               </span>
             </div>
           </div>
+          {/* Patient Notes surfaced for doctor */}
+          {(() => {
+            // Attempt to surface patient notes from sessions table via doctor API backing data
+            // doctorApi.getCaseById builds from /api/doctor/sessions which includes patient_notes
+            const anyCase: any = caseData as any
+            const patientNotes: string | undefined = anyCase.patientNotes || anyCase.patient_notes
+            if (!patientNotes || !patientNotes.trim()) return null
+            return (
+              <div className="mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Patient Notes</h4>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{patientNotes}</p>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Patient Video */}

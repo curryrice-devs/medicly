@@ -86,16 +86,29 @@ class TwoStageClaudeAnalyzer:
                     'interval': frame.get('interval', ''),
                     'has_pose_data': frame.get('has_pose_data', False)
                 }
-                
+
                 # Add pose data if available
                 if frame.get('pose_data'):
                     frame_data['pose_data'] = frame['pose_data']
-                
+
                 key_frame_data.append(frame_data)
             
             # Create prompt for movement overview
             prompt = self._create_movement_overview_prompt(video_info, key_frame_data)
             
+            # If no images or key frames, return a graceful placeholder
+            if not key_frames or all(not f.get('image_encoded') for f in key_frames):
+                return {
+                    'movement_type': 'unknown',
+                    'confidence': 0.0,
+                    'movement_description': 'Unable to parse response',
+                    'technique_quality': 'unknown',
+                    'key_observations': [],
+                    'obvious_concerns': [],
+                    'overall_assessment': 'Analysis failed',
+                    'recommendations': []
+                }
+
             # Call Claude API
             response = self._call_claude_api(prompt, "movement_overview")
             
@@ -134,6 +147,74 @@ class TwoStageClaudeAnalyzer:
                 movement_confidence
             )
             
+            # If no pose data at all, return a structured "insufficient data" report
+            angle_summary = pose_analysis.get('angle_summary') or {}
+            no_pose = (not angle_summary) and (not pose_analysis.get('pose_data_available')) and not any(
+                f.get('has_pose_data') for f in key_frames
+            )
+            if no_pose:
+                return {
+                    'overall_assessment': 'Unable to provide a detailed assessment due to insufficient pose data. No movement data or pose information was captured in the provided frames, making it impossible to conduct a thorough biomechanical analysis.',
+                    'movement_analysis': {
+                        'movement_type': 'unknown',
+                        'technique_quality': 'unable to assess',
+                        'movement_efficiency': 'unable to assess',
+                        'key_findings': [
+                            'No pose data available for analysis',
+                            'Movement type could not be determined'
+                        ],
+                        'concerns': [
+                            'Unable to assess movement patterns due to missing data'
+                        ],
+                        'recommendations': [
+                            'Recapture movement data with proper pose tracking',
+                            'Ensure recording equipment is functioning correctly',
+                            'Verify sensor placement and calibration'
+                        ]
+                    },
+                    'biomechanical_analysis': {
+                        'joint_analysis': {
+                            'knee': 'No data available for analysis',
+                            'hip': 'No data available for analysis',
+                            'ankle': 'No data available for analysis',
+                            'spine': 'No data available for analysis',
+                            'overall': 'Cannot perform biomechanical assessment without pose data'
+                        },
+                        'posture_assessment': 'Unable to assess posture without pose data',
+                        'movement_patterns': 'No movement patterns detected',
+                        'asymmetries': 'Cannot evaluate asymmetries without comparative data'
+                    },
+                    'health_insights': {
+                        'strengths': ['Cannot identify strengths without movement data'],
+                        'areas_for_improvement': ['Data capture and tracking system functionality', 'Movement recording protocol'],
+                        'risk_factors': ['Unable to assess physical risk factors', 'Technical limitations preventing proper assessment'],
+                        'positive_findings': ['No positive findings can be determined without data']
+                    },
+                    'recommendations': {
+                        'immediate_actions': [
+                            'Check recording equipment functionality',
+                            'Verify pose tracking system is properly calibrated',
+                            'Ensure adequate lighting and camera positioning',
+                            'Repeat movement capture with working system'
+                        ],
+                        'long_term_goals': [
+                            'Establish reliable movement capture protocol',
+                            'Implement regular system maintenance checks',
+                            'Create backup recording procedures'
+                        ],
+                        'exercises': ['Cannot provide specific exercise recommendations without movement analysis'],
+                        'precautions': [
+                            'Do not base any treatment decisions on this incomplete analysis',
+                            'Seek proper assessment with functioning measurement tools'
+                        ]
+                    },
+                    'follow_up': {
+                        'next_steps': ['Troubleshoot recording system', 'Schedule new movement assessment session', 'Verify all equipment is functioning before next attempt'],
+                        'monitoring': ['System functionality checks before recording', 'Data capture quality during recording', 'Proper pose tracking throughout movement'],
+                        'when_to_seek_help': 'Immediately consult with technical support to resolve data capture issues before attempting another movement analysis'
+                    }
+                }
+
             # Call Claude API
             response = self._call_claude_api(prompt, "health_analysis")
             
