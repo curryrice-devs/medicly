@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExerciseSearch } from '@/components/ExerciseDatabase/ExerciseSearch';
+import { ExerciseBioDigitalPreview } from '@/components/ExerciseBioDigitalPreview';
 
 interface Props {
   exercise: Exercise;
@@ -14,9 +15,11 @@ interface Props {
   onEditingChange?: (editing: boolean) => void;
   onAccept?: () => Promise<void> | void;
   onModify?: (params: PrescriptionParams, newExercise?: Exercise) => Promise<void> | void;
+  cachedModelUrl?: string; // Optional cached BioDigital model URL
+  sessionId?: string; // Session ID to save URLs to database
 }
 
-export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onAccept, onModify }: Props) {
+export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onAccept, onModify, cachedModelUrl, sessionId }: Props) {
   const [editing, setEditing] = useState(initialEditing);
   const [params, setParams] = useState<PrescriptionParams>({
     sets: exercise.defaultSets,
@@ -42,13 +45,16 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
 
   return (
     <div className="border border-gray-200 rounded-lg p-4">
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-4">
+        {/* Exercise Image */}
         {selectedExercise.imageUrl ? (
-          <img src={selectedExercise.imageUrl} alt={selectedExercise.name} className="w-16 h-16 object-cover rounded-lg" />
+          <img src={selectedExercise.imageUrl} alt={selectedExercise.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
         ) : (
-          <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">No Image</div>
+          <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs flex-shrink-0">No Image</div>
         )}
-        <div className="flex-1">
+        
+        {/* Exercise Info */}
+        <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">{selectedExercise.name}</h3>
             {typeof confidence === 'number' && (
@@ -151,6 +157,22 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
               </>
             )}
           </div>
+        </div>
+        
+        {/* BioDigital 3D Preview */}
+        <div className="w-64 flex-shrink-0">
+          <div className="text-xs text-gray-500 mb-2 font-medium">3D Preview</div>
+          <ExerciseBioDigitalPreview 
+            exercise={{
+              name: selectedExercise.name,
+              description: selectedExercise.description,
+              category: selectedExercise.category,
+              muscleGroups: selectedExercise.muscleGroups
+            }}
+            className="h-40"
+            cachedModelUrl={cachedModelUrl}
+            sessionId={sessionId}
+          />
         </div>
       </div>
     </div>

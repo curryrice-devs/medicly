@@ -11,9 +11,11 @@ interface BioDigitalViewerProps {
   }>
   patientId: string
   patientInfo?: any
+  cachedModelUrl?: string // Optional cached URL to use instead of calling Claude
+  sessionId?: string // Session ID to save URLs to database
 }
 
-export function BioDigitalViewer({ problematicAreas, patientId, patientInfo }: BioDigitalViewerProps) {
+export function BioDigitalViewer({ problematicAreas, patientId, patientInfo, cachedModelUrl, sessionId }: BioDigitalViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedModel, setSelectedModel] = useState<string>('')
@@ -30,11 +32,25 @@ export function BioDigitalViewer({ problematicAreas, patientId, patientInfo }: B
     }
     
     try {
+      // If we have a cached URL, use it directly
+      if (cachedModelUrl) {
+        console.log('📦 Using cached BioDigital model URL:', cachedModelUrl);
+        setSelectedModelUrl(cachedModelUrl);
+        // Extract model ID from URL for display
+        const modelIdMatch = cachedModelUrl.match(/be=([^&]+)/);
+        if (modelIdMatch) {
+          setSelectedModel(modelIdMatch[1]);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Otherwise, call Claude to get the model
       const caseDescription = problematicAreas.map(area => 
         `${area.name}: ${area.description || ''}`
       ).join('; ');
       
-      console.log('🚀 Getting model for case:', caseDescription);
+      console.log('🚀 Getting model for case via Claude:', caseDescription);
       
       const response = await fetch('/api/biodigital/select-model-for-case', {
         method: 'POST',
@@ -42,7 +58,9 @@ export function BioDigitalViewer({ problematicAreas, patientId, patientInfo }: B
         body: JSON.stringify({
           caseDescription,
           bodyPart: problematicAreas[0]?.name,
-          aiAnalysis: patientInfo
+          aiAnalysis: patientInfo,
+          sessionId,
+          isExercisePreview: false
         })
       });
 

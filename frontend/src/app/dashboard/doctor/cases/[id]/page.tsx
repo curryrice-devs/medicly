@@ -347,6 +347,8 @@ export default function CaseReviewRoute() {
                     ]}
                     patientId={caseData.patientId}
                     patientInfo={getAIAnalysisData.summary}
+                    cachedModelUrl={caseData.affected_model} // Use cached affected model URL if available
+                    sessionId={caseData.id} // Use case ID as session ID
                   />
                 </div>
               )}
@@ -398,6 +400,8 @@ export default function CaseReviewRoute() {
               handleExerciseChange({ ...params, exerciseId: newExercise?.id })
               setIsEditingRecommendation(false)
             }}
+            cachedModelUrl={caseData.exercise_models?.split(',')[0]} // Use first exercise model URL if available
+            sessionId={caseData.id} // Use case ID as session ID
           />
         </div>
 
