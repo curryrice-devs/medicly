@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Plus, Calendar, Activity, Target, Weight, Clock, Repeat } from 'lucide-react'
+import { X, Plus, Activity } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useTreatments } from '@/hooks/useTreatments'
+import { useRouter } from 'next/navigation'
 
 interface Treatment {
   id: number;
@@ -15,7 +16,7 @@ interface Treatment {
 interface CreateSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateSession: (sessionData: SessionFormData) => Promise<void>;
+  onCreateSession: (sessionData: SessionFormData) => Promise<{ id: number; treatment: { name: string } }>;
   userId: string;
 }
 
@@ -24,15 +25,10 @@ interface SessionFormData {
   doctor_id?: string;
   treatment_id: number;
   status: 'pending' | 'in_progress' | 'completed' | 'reviewed';
-  due_date?: string;
-  exercise_sets?: number;
-  exercise_reps?: number;
-  exercise_weight?: number;
-  exercise_duration_in_weeks?: number;
-  exercise_frequency_daily?: number;
 }
 
 export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }: CreateSessionModalProps) {
+  const router = useRouter()
   const { treatments, loading: treatmentsLoading, error: treatmentsError } = useTreatments()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null)
@@ -40,11 +36,7 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
   const [formData, setFormData] = useState<SessionFormData>({
     patient_id: userId,
     treatment_id: 0,
-    status: 'pending', // Always pending until video uploaded
-    exercise_sets: 3,
-    exercise_reps: 10,
-    exercise_duration_in_weeks: 4,
-    exercise_frequency_daily: 1,
+    status: 'pending' // Always pending until video uploaded
   })
 
   // Debug logging
@@ -83,20 +75,20 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
 
     try {
       setIsSubmitting(true)
-      await onCreateSession(formData)
-      
+      const createdSession = await onCreateSession(formData)
+
       // Reset form and close modal
       setFormData({
         patient_id: userId,
         treatment_id: 0,
-        status: 'pending',
-        exercise_sets: 3,
-        exercise_reps: 10,
-        exercise_duration_in_weeks: 4,
-        exercise_frequency_daily: 1,
+        status: 'pending'
       })
       setSelectedTreatment(null)
       onClose()
+
+      // Redirect to the session page with the exercise name
+      const exerciseName = createdSession.treatment.name.toLowerCase().replace(/\s+/g, '_')
+      router.push(`/dashboard/patient/session/${createdSession.id}/${exerciseName}`)
     } catch (error) {
       console.error('Failed to create session:', error)
       alert('Failed to create session. Please try again.')
@@ -239,195 +231,6 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
             </div>
           )}
 
-          {/* Exercise Parameters Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            {/* Sets */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: 'hsl(var(--foreground))',
-                marginBottom: '6px'
-              }}>
-                <Target style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-                Sets
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={formData.exercise_sets || ''}
-                onChange={(e) => handleInputChange('exercise_sets', parseInt(e.target.value) || 1)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-            </div>
-
-            {/* Reps */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: 'hsl(var(--foreground))',
-                marginBottom: '6px'
-              }}>
-                <Repeat style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-                Reps
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={formData.exercise_reps || ''}
-                onChange={(e) => handleInputChange('exercise_reps', parseInt(e.target.value) || 1)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-            </div>
-
-            {/* Weight */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: 'hsl(var(--foreground))',
-                marginBottom: '6px'
-              }}>
-                <Weight style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-                Weight (lbs)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="500"
-                value={formData.exercise_weight || ''}
-                onChange={(e) => handleInputChange('exercise_weight', parseInt(e.target.value) || 0)}
-                placeholder="Optional"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Duration and Frequency */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            {/* Duration */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: 'hsl(var(--foreground))',
-                marginBottom: '6px'
-              }}>
-                <Clock style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-                Duration (weeks)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="52"
-                value={formData.exercise_duration_in_weeks || ''}
-                onChange={(e) => handleInputChange('exercise_duration_in_weeks', parseInt(e.target.value) || 1)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-            </div>
-
-            {/* Frequency */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: 'hsl(var(--foreground))',
-                marginBottom: '6px'
-              }}>
-                <Calendar style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-                Frequency (times per day)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={formData.exercise_frequency_daily || ''}
-                onChange={(e) => handleInputChange('exercise_frequency_daily', parseInt(e.target.value) || 1)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid hsl(var(--border))',
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Due Date */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: 'hsl(var(--foreground))',
-              marginBottom: '6px'
-            }}>
-              <Calendar style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-              Due Date (optional)
-            </label>
-            <input
-              type="date"
-              value={formData.due_date || ''}
-              onChange={(e) => handleInputChange('due_date', e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                border: '1px solid hsl(var(--border))',
-                backgroundColor: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))'
-              }}
-            />
-          </div>
 
           {/* Action Buttons */}
           <div style={{

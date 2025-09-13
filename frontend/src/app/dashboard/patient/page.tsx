@@ -77,7 +77,8 @@ export default function PatientDashboard() {
   }
 
   const handleCreateSession = async (sessionData: any) => {
-    await createSession(sessionData.treatment_id, sessionData)
+    const result = await createSession(sessionData.treatment_id, sessionData)
+    return result
   }
 
   // Filter sessions by status
