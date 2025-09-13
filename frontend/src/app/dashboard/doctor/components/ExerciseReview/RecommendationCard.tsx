@@ -13,13 +13,13 @@ interface Props {
   reasoning?: string | object;
   initialEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
-  onAccept?: () => Promise<void> | void;
-  onModify?: (params: PrescriptionParams, newExercise?: Exercise) => Promise<void> | void;
+  onSave?: (params: PrescriptionParams, newExercise?: Exercise) => Promise<void> | void;
   cachedModelUrl?: string; // Optional cached BioDigital model URL
   sessionId?: string; // Session ID to save URLs to database
+  isSaving?: boolean; // Loading state for save operation
 }
 
-export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onAccept, onModify, cachedModelUrl, sessionId }: Props) {
+export function RecommendationCard({ exercise, confidence, reasoning, initialEditing = false, onEditingChange, onSave, cachedModelUrl, sessionId, isSaving = false }: Props) {
   const [editing, setEditing] = useState(initialEditing);
   const [params, setParams] = useState<PrescriptionParams>({
     sets: exercise.defaultSets,
@@ -150,13 +150,23 @@ export function RecommendationCard({ exercise, confidence, reasoning, initialEdi
           )}
           <div className="mt-4 flex items-center gap-2">
             {!editing ? (
-              <>
-                <Button size="sm" onClick={() => onAccept && onAccept()} className="bg-green-600 hover:bg-green-700 text-white">Accept</Button>
-                <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-gray-600 border-gray-300 hover:bg-gray-50">Edit</Button>
-              </>
+              <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-gray-600 border-gray-300 hover:bg-gray-50">Edit</Button>
             ) : (
               <>
-                <Button size="sm" disabled={!canSave} onClick={() => onModify && onModify(params, selectedExercise)} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">Save</Button>
+                <Button
+                  size="sm"
+                  disabled={!canSave || isSaving}
+                  onClick={async () => {
+                    if (onSave) {
+                      await onSave(params, selectedExercise);
+                      setEditing(false);
+                      onEditingChange?.(false);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </Button>
                 <Button size="sm" variant="outline" onClick={handleCancel} className="text-gray-600 border-gray-300 hover:bg-gray-50">Cancel</Button>
               </>
             )}

@@ -452,16 +452,39 @@ export default function CaseReviewRoute() {
             reasoning={caseData.reasoning}
             initialEditing={isEditingRecommendation}
             onEditingChange={setIsEditingRecommendation}
-            onAccept={async () => {
-              console.log('Exercise accepted')
-              setIsExerciseSaved(true)
-              setHasUnsavedChanges(false)
+            onSave={async (params: any, newExercise: any) => {
+              console.log('Saving exercise updates:', params, newExercise)
+              setIsSavingExercise(true)
+              try {
+                // Save exercise updates to database
+                const updates = {
+                  ...params,
+                  exerciseId: newExercise?.id,
+                  exerciseName: newExercise?.name,
+                  exerciseDescription: newExercise?.description
+                }
+                const success = await doctorApi.updateExercise(id, updates)
+                if (success) {
+                  setIsExerciseSaved(true)
+                  setHasUnsavedChanges(false)
+                  console.log('Exercise saved successfully to database')
+                  // Update local case data
+                  setCaseData(prev => prev ? {
+                    ...prev,
+                    recommendedExercise: newExercise
+                  } : null)
+                } else {
+                  throw new Error('Failed to save exercise updates')
+                }
+              } catch (error) {
+                console.error('Failed to save exercise:', error)
+                // Could show a toast notification here
+                alert('Failed to save exercise updates. Please try again.')
+              } finally {
+                setIsSavingExercise(false)
+              }
             }}
-            onModify={async (params: any, newExercise: any) => {
-              console.log('Exercise modified:', params, newExercise)
-              handleExerciseChange({ ...params, exerciseId: newExercise?.id })
-              setIsEditingRecommendation(false)
-            }}
+            isSaving={isSavingExercise}
             cachedModelUrl={caseData.exercise_models?.split(',')[0]} // Use first exercise model URL if available
             sessionId={caseData.id} // Use case ID as session ID
           />
