@@ -124,7 +124,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       }
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, onboarded")
+        .select("role, onboarded, name")
         .eq("id", mapped.id)
         .maybeSingle()
       if (profileError) {
@@ -135,6 +135,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
         ...mapped,
         role: (profile?.role as User["role"]) || mapped.role,
         onboarded: profile?.onboarded ?? false,
+        name: profile?.name || mapped.name || mapped.email,
       })
     })
 

@@ -37,6 +37,7 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
   const pc: PatientCase = {
     id: String(s.id),
     patientId: s.patient_id ?? 'unknown',
+    patientName: s.patient?.name || undefined, // Extract patient name from joined profiles table
     videoUrl: s.previdurl || '', // Keep for backwards compatibility
     originalVideoUrl: s.previdurl || undefined,
     processedVideoUrl: s.postvidurl || undefined,
