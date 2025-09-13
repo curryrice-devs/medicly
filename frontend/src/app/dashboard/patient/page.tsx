@@ -97,23 +97,7 @@ export default function PatientDashboard() {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 12px' }}>
         
         {/* Welcome Header */}
-        <div style={{ 
-          marginBottom: '24px',
-          padding: '16px 0',
-          borderBottom: '1px solid hsl(var(--border))'
-        }}>
-          <h1 style={{ 
-            fontSize: '1.75rem', 
-            fontWeight: 'bold', 
-            color: 'hsl(var(--foreground))',
-            marginBottom: '4px'
-          }}>
-            Welcome back, {user?.name?.split(' ')[0]}
-          </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))' }}>
-            Here's your rehabilitation progress overview
-          </p>
-        </div>
+
 
         {/* Active Sessions */}
         <section style={{ marginBottom: '32px' }}>

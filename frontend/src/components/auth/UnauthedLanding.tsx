@@ -10,7 +10,7 @@ export default function UnauthedLanding() {
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const handleGoogleSignIn = async () => {
-    const { data, error } = await supabaseBrowser().auth.signInWithOAuth({
+    const { data, error } = await supabaseBrowser.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo:

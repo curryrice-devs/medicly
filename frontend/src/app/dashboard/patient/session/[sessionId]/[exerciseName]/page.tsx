@@ -17,6 +17,8 @@ import Link from 'next/link'
 
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
+import { useSupabaseVideoUpload } from '@/hooks/useSupabaseVideoUpload'
+import { SupabaseVideoTest } from '@/components/debug/SupabaseVideoTest'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
 type VideoMode = 'original' | 'processed' | 'overlay'
@@ -44,13 +46,45 @@ export default function ExerciseDetailPage() {
   const [videoId, setVideoId] = useState<string>('')
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('idle')
   const [stepProgress, setStepProgress] = useState(0)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [videoMode, setVideoMode] = useState<VideoMode>('original')
   const [keyFrames, setKeyFrames] = useState<any[]>([])
 
   const { user } = useAuth()
+  
+  // Debug: Check environment variables
+  React.useEffect(() => {
+    console.log('🔧 Environment check:', {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing',
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+      user: user ? `✅ ${user.email}` : '❌ Not logged in'
+    })
+  }, [user])
+  
+  // Use Supabase video upload hook
+  const { 
+    isUploading,
+    uploadProgress,
+    uploadError,
+    uploadedVideo,
+    isProcessing,
+    processingStatus,
+    processedVideoUrl,
+    uploadVideo,
+    startProcessing,
+    reset: resetUpload
+  } = useSupabaseVideoUpload({
+    sessionId,
+    onUploadComplete: (videoId) => {
+      console.log('✅ Video uploaded successfully:', videoId)
+      setVideoId(videoId)
+    },
+    onUploadError: (error) => {
+      console.error('❌ Upload failed:', error)
+      setError(error)
+    }
+  })
 
   const stepLabels = {
     idle: 'Ready to analyze',
@@ -92,47 +126,147 @@ export default function ExerciseDetailPage() {
   }
 
   const startAnalysis = async () => {
-    if (!selectedFile) return
+    console.log('🚀 startAnalysis called!')
+    console.log('📁 selectedFile:', selectedFile)
+    
+    if (!selectedFile) {
+      console.log('❌ No file selected!')
+      return
+    }
 
-    setIsProcessing(true)
     setError(null)
+    setAnalysisResult(null)
+    setKeyFrames([])
 
     try {
-      // Step 1: Upload
+      console.log('🎬 Starting analysis...')
+      console.log('📁 Selected file:', selectedFile.name, selectedFile.size, selectedFile.type)
+      console.log('🔧 Environment check:', {
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing',
+        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+        apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
+        user: user ? `✅ ${user.email}` : '❌ Not logged in'
+      })
+      
+            // Step 1: Try Supabase upload first, fallback to direct upload
       setCurrentStep('uploading')
       setStepProgress(0)
       
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+      let currentVideoId: string | null = null
+      
+      try {
+        console.log('⬆️ Attempting Supabase upload...')
+        console.log('📊 Upload hook state before:', { isUploading, uploadProgress, uploadError, uploadedVideo })
+        
+        await uploadVideo(selectedFile)
+        
+        console.log('📊 Upload hook state after:', { isUploading, uploadProgress, uploadError, uploadedVideo })
+        
+        // Wait for state to update
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        currentVideoId = videoId || uploadedVideo?.id || null
+        console.log('✅ Supabase upload result:', { currentVideoId, uploadedVideo, videoId })
+        
+        if (!currentVideoId) {
+          throw new Error('Supabase upload completed but no video ID received')
+        }
+        
+      } catch (supabaseError) {
+        console.error('❌ Supabase upload failed:', supabaseError)
+        console.log('📊 Final upload state:', { isUploading, uploadProgress, uploadError, uploadedVideo })
+       
+        // Fallback to direct backend upload
+        console.log('🔄 Falling back to direct backend upload...')
+        const formData = new FormData()
+        formData.append('file', selectedFile)
 
-      const uploadResponse = await fetch('http://localhost:8001/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
+        // Simulate progress
+        const progressInterval = setInterval(() => {
+          setStepProgress(prev => Math.min(prev + 15, 90))
+        }, 300)
 
-      if (!uploadResponse.ok) {
-        throw new Error('Upload failed')
+        console.log('📡 Calling backend API:', 'http://localhost:8001/api/upload')
+        const uploadResponse = await fetch('http://localhost:8001/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        clearInterval(progressInterval)
+        setStepProgress(100)
+        
+        console.log('📡 Backend response status:', uploadResponse.status, uploadResponse.statusText)
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text()
+          console.error('❌ Upload response error:', errorText)
+          throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`)
+        }
+
+        const uploadResult = await uploadResponse.json()
+        currentVideoId = uploadResult.video_id
+        setVideoId(currentVideoId || '')
+        console.log('✅ Direct upload successful:', currentVideoId)
       }
-
-      const uploadResult = await uploadResponse.json()
-      const newVideoId = uploadResult.video_id
-      setVideoId(newVideoId)
-
-      await simulateStep('uploading', 2000)
+      
+      if (!currentVideoId) {
+        throw new Error('Upload failed - no video ID received')
+      }
 
       // Step 2: Process poses
       setCurrentStep('processing_pose')
       setStepProgress(0)
       
-      const processResponse = await fetch(`http://localhost:8001/api/process/${newVideoId}`, {
+      console.log('🔄 Starting pose processing for video:', currentVideoId)
+      const processResponse = await fetch(`http://localhost:8001/api/process/${currentVideoId}`, {
         method: 'POST',
       })
 
       if (!processResponse.ok) {
-        throw new Error('Pose processing failed')
+        const errorText = await processResponse.text()
+        console.error('❌ Process response error:', errorText)
+        throw new Error(`Pose processing failed: ${processResponse.status} - ${errorText}`)
       }
 
-      await simulateStep('processing_pose', 3000)
+      const processResult = await processResponse.json()
+      console.log('✅ Pose processing started:', processResult)
+
+      // Wait for processing to complete by polling status
+      console.log('⏳ Waiting for pose processing to complete...')
+      let processingComplete = false
+      let attempts = 0
+      const maxAttempts = 30 // 30 seconds max
+
+      while (!processingComplete && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
+        attempts++
+        
+        try {
+          const statusResponse = await fetch(`http://localhost:8001/api/status/${currentVideoId}`)
+          if (statusResponse.ok) {
+            const status = await statusResponse.json()
+            console.log(`📊 Processing status (${attempts}/30):`, status.status, status.message)
+            
+            if (status.status === 'completed') {
+              processingComplete = true
+              console.log('✅ Pose processing completed!')
+            } else if (status.status === 'error' || status.status === 'failed') {
+              throw new Error(`Processing failed: ${status.message}`)
+            }
+            
+            // Update progress based on status
+            setStepProgress(Math.min((attempts / maxAttempts) * 100, 90))
+          }
+        } catch (statusError) {
+          console.warn('⚠️ Status check failed:', statusError)
+        }
+      }
+
+      if (!processingComplete) {
+        throw new Error('Pose processing timed out after 30 seconds')
+      }
+
+      setStepProgress(100)
 
       // Step 3: Extract key frames
       setCurrentStep('extracting_keyframes')
@@ -144,12 +278,15 @@ export default function ExerciseDetailPage() {
       setCurrentStep('claude_analysis')
       setStepProgress(0)
 
-      const analysisResponse = await fetch(`http://localhost:8001/api/two-stage-analysis/${newVideoId}`, {
+      console.log('🧠 Starting AI analysis for video:', currentVideoId)
+      const analysisResponse = await fetch(`http://localhost:8001/api/two-stage-analysis/${currentVideoId}`, {
         method: 'POST',
       })
 
       if (!analysisResponse.ok) {
-        throw new Error('AI analysis failed')
+        const errorText = await analysisResponse.text()
+        console.error('❌ Analysis response error:', errorText)
+        throw new Error(`AI analysis failed: ${analysisResponse.status} - ${errorText}`)
       }
 
       const result = await analysisResponse.json()
@@ -161,13 +298,14 @@ export default function ExerciseDetailPage() {
 
       setStepProgress(100)
       setCurrentStep('complete')
+      
+      console.log('🎉 Analysis completed successfully!')
 
     } catch (error) {
+      console.error('❌ Analysis failed:', error)
       setError(error instanceof Error ? error.message : 'Analysis failed')
       setCurrentStep('idle')
       setStepProgress(0)
-    } finally {
-      setIsProcessing(false)
     }
   }
 
@@ -179,23 +317,27 @@ export default function ExerciseDetailPage() {
     setAnalysisResult(null)
     setError(null)
     setKeyFrames([])
+    resetUpload() // Reset Supabase upload state
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
   const getVideoUrl = () => {
-    if (!videoId) return null
+    if (!videoId && !uploadedVideo) return null
+    
+    const currentVideoId = videoId || uploadedVideo?.id
+    if (!currentVideoId) return null
     
     switch (videoMode) {
       case 'original':
-        return `http://localhost:8001/api/video/${videoId}`
+        return uploadedVideo?.storageUrl || `http://localhost:8001/api/video/${currentVideoId}`
       case 'processed':
-        return `http://localhost:8001/api/stream/${videoId}`
+        return processedVideoUrl || `http://localhost:8001/api/stream/${currentVideoId}`
       case 'overlay':
-        return `http://localhost:8001/api/stream/${videoId}?overlay=true`
+        return `http://localhost:8001/api/stream/${currentVideoId}?overlay=true`
       default:
-        return `http://localhost:8001/api/video/${videoId}`
+        return uploadedVideo?.storageUrl || `http://localhost:8001/api/video/${currentVideoId}`
     }
   }
 
@@ -238,6 +380,107 @@ export default function ExerciseDetailPage() {
             }}>
               {exerciseDisplayName} Analysis
             </h1>
+          </div>
+        </div>
+
+        {/* Debug Component - Remove this after testing */}
+        <SupabaseVideoTest />
+        
+        {/* Debug Panel */}
+        <div style={{ 
+          backgroundColor: '#f3f4f6', 
+          border: '1px solid #d1d5db', 
+          borderRadius: '8px', 
+          padding: '16px', 
+          marginBottom: '24px' 
+        }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
+            🔧 Debug Panel
+          </h3>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={async () => {
+                console.log('🧪 Testing backend connection...')
+                try {
+                  const response = await fetch('http://localhost:8001/api/health')
+                  const data = await response.json()
+                  console.log('✅ Backend health:', data)
+                  alert(`Backend status: ${data.status}`)
+                } catch (error) {
+                  console.error('❌ Backend connection failed:', error)
+                  alert('Backend connection failed - is it running on port 8001?')
+                }
+              }}
+              style={{ 
+                padding: '6px 12px', 
+                backgroundColor: '#3b82f6', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}
+            >
+              Test Backend
+            </button>
+            <button
+              onClick={() => {
+                console.log('🔍 Current state:', {
+                  selectedFile: selectedFile?.name,
+                  videoId,
+                  currentStep,
+                  isUploading,
+                  uploadProgress,
+                  uploadError,
+                  uploadedVideo: uploadedVideo?.id,
+                  user: user?.email,
+                  sessionId,
+                  exerciseName
+                })
+              }}
+              style={{ 
+                padding: '6px 12px', 
+                backgroundColor: '#10b981', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}
+            >
+              Log State
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedFile) {
+                  alert('Please select a file first')
+                  return
+                }
+                console.log('🧪 Testing direct upload only...')
+                try {
+                  const formData = new FormData()
+                  formData.append('file', selectedFile)
+                  const response = await fetch('http://localhost:8001/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                  })
+                  const result = await response.json()
+                  console.log('✅ Direct upload result:', result)
+                  alert(`Direct upload success: ${result.video_id}`)
+                } catch (error) {
+                  console.error('❌ Direct upload failed:', error)
+                  alert('Direct upload failed')
+                }
+              }}
+              style={{ 
+                padding: '6px 12px', 
+                backgroundColor: '#f59e0b', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}
+            >
+              Test Direct Upload
+            </button>
           </div>
         </div>
 
@@ -309,7 +552,7 @@ export default function ExerciseDetailPage() {
                       </p>
                       <Button 
                         onClick={startAnalysis}
-                        disabled={isProcessing}
+                        disabled={isUploading || isProcessing}
                         style={{ 
                           backgroundColor: '#0d4a2b',
                           gap: '8px'
@@ -476,7 +719,7 @@ export default function ExerciseDetailPage() {
                   gap: '8px',
                   marginBottom: '8px'
                 }}>
-                  {isProcessing ? (
+                  {(isUploading || isProcessing) ? (
                     <Loader2 style={{ width: '16px', height: '16px', color: getStepColor(currentStep) }} className="animate-spin" />
                   ) : currentStep === 'complete' ? (
                     <CheckCircle2 style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
@@ -493,7 +736,7 @@ export default function ExerciseDetailPage() {
                 </div>
 
                 {/* Progress Bar */}
-                {isProcessing && (
+                {(isUploading || isProcessing) && (
                   <div style={{ 
                     width: '100%', 
                     backgroundColor: 'hsl(var(--accent))', 
@@ -505,7 +748,7 @@ export default function ExerciseDetailPage() {
                       height: '8px',
                       backgroundColor: getStepColor(currentStep),
                       borderRadius: '6px',
-                      width: `${stepProgress}%`,
+                      width: isUploading ? `${uploadProgress}%` : `${stepProgress}%`,
                       transition: 'width 0.3s ease'
                     }} />
                   </div>
@@ -543,7 +786,7 @@ export default function ExerciseDetailPage() {
             </div>
 
             {/* Error Display */}
-            {error && (
+            {(error || uploadError) && (
               <div style={{ 
                 backgroundColor: 'rgba(239, 68, 68, 0.05)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -558,7 +801,7 @@ export default function ExerciseDetailPage() {
                   </span>
                 </div>
                 <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>
-                  {error}
+                  {error || uploadError}
                 </p>
               </div>
             )}

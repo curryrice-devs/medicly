@@ -240,6 +240,32 @@ async def get_angle_data(video_id: str):
         filename=angle_file_path.name
     )
 
+@app.post("/api/process-supabase")
+async def process_supabase_video(request: Request):
+    """Process video from Supabase storage"""
+    try:
+        body = await request.json()
+        video_id = body.get('video_id')
+        video_url = body.get('video_url')
+        storage_path = body.get('storage_path')
+        
+        if not all([video_id, video_url, storage_path]):
+            raise HTTPException(status_code=400, detail="Missing required fields: video_id, video_url, storage_path")
+        
+        logger.info(f"Processing Supabase video: {video_id} from {storage_path}")
+        
+        # For now, just return success - you can implement actual processing later
+        return {
+            "success": True,
+            "video_id": video_id,
+            "message": "Supabase video processing started",
+            "storage_path": storage_path
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing Supabase video: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process Supabase video: {str(e)}")
+
 @app.post("/api/two-stage-analysis/{video_id}")
 async def perform_two_stage_analysis(video_id: str):
     """Perform comprehensive two-stage Claude analysis with key frames and pose data"""
