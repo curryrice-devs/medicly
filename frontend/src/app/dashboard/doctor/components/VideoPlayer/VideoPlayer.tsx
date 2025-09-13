@@ -19,7 +19,7 @@ export function VideoPlayer({ src }: Props) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="relative overflow-hidden rounded-lg bg-gray-100">
-        <video ref={videoRef} src={src} className="w-full" controls={false} />
+        <video ref={videoRef} src={src || undefined} className="w-full" controls={false} />
       </div>
       <div className="mt-4 flex items-center gap-2">
         <button onClick={() => stepFrame(-1)} className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700">Prev</button>

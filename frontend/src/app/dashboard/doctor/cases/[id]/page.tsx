@@ -9,6 +9,9 @@ import { doctorApi } from '@/services/api'
 import { PatientContextPanel } from '../../components/ExerciseReview/PatientContextPanel'
 import { RecommendationCard } from '../../components/ExerciseReview/RecommendationCard'
 import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer'
+import { ActionButtons } from '../../components/CaseReview/ActionButtons'
+import { ExerciseSaveModal } from '../../components/CaseReview/ExerciseSaveModal'
+import { RejectionModal } from '../../components/CaseReview/RejectionModal'
 
 export default function CaseReviewRoute() {
   const params = useParams()
@@ -17,6 +20,20 @@ export default function CaseReviewRoute() {
   const [caseData, setCaseData] = React.useState<PatientCase | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+
+  // Exercise save state
+  const [isExerciseSaved, setIsExerciseSaved] = React.useState(true) // Start as saved (no changes yet)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
+  const [exerciseModifications, setExerciseModifications] = React.useState<any>({})
+
+  // Modal states
+  const [showExerciseSaveModal, setShowExerciseSaveModal] = React.useState(false)
+  const [showRejectionModal, setShowRejectionModal] = React.useState(false)
+
+  // Action states
+  const [isApproving, setIsApproving] = React.useState(false)
+  const [isRejecting, setIsRejecting] = React.useState(false)
+  const [isSavingExercise, setIsSavingExercise] = React.useState(false)
 
   React.useEffect(() => {
     let mounted = true
@@ -36,6 +53,73 @@ export default function CaseReviewRoute() {
   }, [id])
   const [isEditingRecommendation, setIsEditingRecommendation] = React.useState(false)
   const exerciseSectionRef = React.useRef<HTMLDivElement>(null)
+
+  // Action handlers
+  const handleApprove = async () => {
+    if (!isExerciseSaved) {
+      setShowExerciseSaveModal(true)
+      return
+    }
+
+    setIsApproving(true)
+    try {
+      const success = await doctorApi.updateCaseStatus(id, 'active')
+      if (success) {
+        // Update local state
+        setCaseData(prev => prev ? { ...prev, status: 'active' as const } : null)
+        // Could show success toast here
+        console.log('Case approved successfully')
+      }
+    } catch (e) {
+      console.error('Failed to approve case:', e)
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  const handleReject = () => {
+    setShowRejectionModal(true)
+  }
+
+  const handleConfirmRejection = async (reason: string, notes?: string) => {
+    setIsRejecting(true)
+    try {
+      const success = await doctorApi.updateCaseStatus(id, 'rejected', notes || reason)
+      if (success) {
+        setCaseData(prev => prev ? { ...prev, status: 'rejected' as const } : null)
+        setShowRejectionModal(false)
+        console.log('Case rejected successfully')
+      }
+    } catch (e) {
+      console.error('Failed to reject case:', e)
+    } finally {
+      setIsRejecting(false)
+    }
+  }
+
+  const handleExerciseChange = (changes: any) => {
+    setExerciseModifications(prev => ({ ...prev, ...changes }))
+    setHasUnsavedChanges(true)
+    setIsExerciseSaved(false)
+  }
+
+  const handleSaveExercise = async () => {
+    setIsSavingExercise(true)
+    try {
+      const success = await doctorApi.updateExercise(id, exerciseModifications)
+      if (success) {
+        setIsExerciseSaved(true)
+        setHasUnsavedChanges(false)
+        setShowExerciseSaveModal(false)
+        console.log('Exercise saved successfully')
+      }
+    } catch (e) {
+      console.error('Failed to save exercise:', e)
+    } finally {
+      setIsSavingExercise(false)
+    }
+  }
+
 
   if (loading) {
     return (
@@ -72,7 +156,7 @@ export default function CaseReviewRoute() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'in-progress': return 'bg-green-100 text-green-800 border-green-200'
+      case 'active': return 'bg-green-100 text-green-800 border-green-200'
       case 'completed': return 'bg-emerald-100 text-emerald-800 border-emerald-200'
       case 'rejected': return 'bg-red-100 text-red-800 border-red-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
@@ -128,50 +212,30 @@ export default function CaseReviewRoute() {
         </div>
 
         {/* Action Buttons */}
+        <ActionButtons
+          caseStatus={caseData.status}
+          isExerciseSaved={isExerciseSaved}
+          hasUnsavedChanges={hasUnsavedChanges}
+          isApproving={isApproving}
+          isRejecting={isRejecting}
+          isSavingExercise={isSavingExercise}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onSaveExercise={handleSaveExercise}
+        />
+
+        {/* Patient Info Section */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <User className="w-5 h-5 text-gray-400" />
-                <span className="text-sm text-gray-600">Patient ID: {caseData.patientId}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <span className="text-sm text-gray-600">
-                  Submitted: {new Date(caseData.submittedAt).toLocaleDateString()}
-                </span>
-              </div>
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
+              <User className="w-5 h-5 text-gray-400" />
+              <span className="text-sm text-gray-600">Patient ID: {caseData.patientId}</span>
             </div>
-            
-            <div className="flex items-center space-x-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center space-x-2"
-                onClick={() => {
-                  setIsEditingRecommendation(true)
-                  // Scroll to exercise section and trigger change exercise
-                  setTimeout(() => {
-                    exerciseSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
-                    // Trigger the change exercise button click after a short delay
-                    setTimeout(() => {
-                      const changeExerciseBtn = document.querySelector('[data-change-exercise]') as HTMLButtonElement
-                      changeExerciseBtn?.click()
-                    }, 500)
-                  }, 100)
-                }}
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>Modify</span>
-              </Button>
-              <Button variant="outline" size="sm" className="flex items-center space-x-2 text-red-600 border-red-200 hover:bg-red-50">
-                <XCircle className="w-4 h-4" />
-                <span>Reject</span>
-              </Button>
-              <Button size="sm" className="flex items-center space-x-2 bg-green-600 hover:bg-green-700">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Approve</span>
-              </Button>
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <span className="text-sm text-gray-600">
+                Submitted: {new Date(caseData.submittedAt).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -217,7 +281,7 @@ export default function CaseReviewRoute() {
                   </span>
                 </div>
                 <p className="text-sm text-blue-800">
-                  {caseData.reasoning}
+                  {typeof caseData.reasoning === 'string' ? caseData.reasoning : JSON.stringify(caseData.reasoning)}
                 </p>
               </div>
             </div>
@@ -252,7 +316,7 @@ export default function CaseReviewRoute() {
             <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
             Exercise Recommendation
           </h3>
-          <RecommendationCard 
+          <RecommendationCard
             exercise={caseData.recommendedExercise}
             confidence={caseData.aiConfidence}
             reasoning={caseData.reasoning}
@@ -260,12 +324,13 @@ export default function CaseReviewRoute() {
             onEditingChange={setIsEditingRecommendation}
             onAccept={async () => {
               console.log('Exercise accepted')
-              // Handle accept logic
+              setIsExerciseSaved(true)
+              setHasUnsavedChanges(false)
             }}
             onModify={async (params: any, newExercise: any) => {
               console.log('Exercise modified:', params, newExercise)
+              handleExerciseChange({ ...params, exerciseId: newExercise?.id })
               setIsEditingRecommendation(false)
-              // Handle modify logic
             }}
           />
         </div>
@@ -295,6 +360,27 @@ export default function CaseReviewRoute() {
             </div>
           </div>
         </div>
+
+        {/* Modals */}
+        <ExerciseSaveModal
+          isOpen={showExerciseSaveModal}
+          onClose={() => setShowExerciseSaveModal(false)}
+          onSaveAndApprove={async () => {
+            await handleSaveExercise()
+            // After saving, proceed with approval
+            if (isExerciseSaved) {
+              await handleApprove()
+            }
+          }}
+          isSaving={isSavingExercise}
+        />
+
+        <RejectionModal
+          isOpen={showRejectionModal}
+          onClose={() => setShowRejectionModal(false)}
+          onConfirmRejection={handleConfirmRejection}
+          isRejecting={isRejecting}
+        />
       </div>
     </div>
   )

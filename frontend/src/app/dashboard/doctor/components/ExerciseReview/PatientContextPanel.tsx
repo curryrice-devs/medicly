@@ -86,7 +86,7 @@ export function PatientContextPanel({ caze }: Props) {
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</p>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                 caze.status === 'pending' ? 'bg-blue-100 text-blue-800' :
-                caze.status === 'in-progress' ? 'bg-green-100 text-green-800' :
+                caze.status === 'active' ? 'bg-green-100 text-green-800' :
                 caze.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
                 'bg-red-100 text-red-800'
               }`}>

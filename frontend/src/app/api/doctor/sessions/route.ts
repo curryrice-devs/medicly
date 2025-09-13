@@ -25,11 +25,11 @@ export async function GET() {
     }
 
     const treatmentIds = Array.from(new Set((sessions || []).map(s => s.treatment_id).filter((v): v is number => !!v)))
-    let treatmentsById: Record<number, { id: number; video_link: string | null; description: string | null }> = {}
+    let treatmentsById: Record<number, { id: number; video_link: string | null; description: string | null; name: string | null }> = {}
     if (treatmentIds.length > 0) {
       const { data: treatments, error: trError } = await supabase
         .from('treatments')
-        .select('id, video_link, description')
+        .select('id, video_link, description, name')
         .in('id', treatmentIds)
       if (trError) {
         console.error('[api/doctor/sessions] treatments error', trError)
