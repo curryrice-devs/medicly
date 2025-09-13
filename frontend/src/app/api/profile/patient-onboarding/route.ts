@@ -45,21 +45,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Create or update the user's profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        role: 'client',
-        onboarded: true
-      })
+    // Create or update the user's profile using the same pattern as doctor role API
+    const userName = user.user_metadata?.full_name || fullName || user.email;
 
-    if (profileError) {
-      console.error('Error updating profile:', profileError)
-      return NextResponse.json(
-        { error: 'Failed to update profile' },
-        { status: 500 }
-      )
+    // Use update instead of upsert to ensure the profile exists and is properly updated
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        role: 'client',
+        onboarded: true,
+        name: userName
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      // If update fails, try insert (for new users)
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: user.id,
+          role: 'client',
+          onboarded: true,
+          name: userName
+        });
+
+      if (insertError) {
+        console.error('Error creating profile:', insertError)
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
     }
 
     // Create patient profile
@@ -82,12 +95,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Wait longer to ensure database propagation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Verify the profile was actually updated before returning
+    const { data: verifyProfile, error: verifyError } = await supabase
+      .from('profiles')
+      .select('role, onboarded, name')
+      .eq('id', user.id)
+      .single()
+
+    console.log('[patient-onboarding-api] Profile verification:', { verifyProfile, verifyError, userId: user.id });
+
+    if (!verifyProfile?.onboarded) {
+      console.error('[patient-onboarding-api] Profile verification failed - onboarded is still false');
+      return NextResponse.json({ error: 'Profile update failed' }, { status: 500 });
+    }
+
+    if (verifyProfile.role !== 'client') {
+      console.error('[patient-onboarding-api] Profile verification failed - role is not client:', verifyProfile.role);
+      return NextResponse.json({ error: 'Role update failed' }, { status: 500 });
+    }
+
     // Refresh the session to ensure updated data is available
     await supabase.auth.refreshSession()
 
     return NextResponse.json({
       success: true,
-      message: 'Patient profile created successfully'
+      message: 'Patient profile created successfully',
+      profile: verifyProfile
     })
 
   } catch (error) {

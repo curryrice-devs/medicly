@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Role = "client" | "doctor";
 
@@ -13,7 +12,6 @@ interface PatientInfo {
 }
 
 export default function WelcomePage() {
-  const router = useRouter();
   const [step, setStep] = useState<"role" | "patient-info">("role");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +39,7 @@ export default function WelcomePage() {
         }
 
         // Wait longer to ensure database update fully propagates
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Hard redirect with full page reload to ensure fresh auth state
         window.location.replace("/dashboard/doctor");
@@ -90,9 +88,11 @@ export default function WelcomePage() {
         throw new Error(data?.error || `Failed to complete onboarding (${res.status})`);
       }
 
-      // Small delay to ensure database update propagates before redirect
-      await new Promise(resolve => setTimeout(resolve, 100));
-      router.replace("/dashboard");
+      // Wait longer to ensure database update fully propagates
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Hard redirect with full page reload to ensure fresh auth state
+      window.location.replace("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error");
       setSubmitting(false);

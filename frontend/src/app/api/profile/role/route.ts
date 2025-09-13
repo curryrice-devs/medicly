@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 // POST /api/profile/role { role: 'client' | 'doctor' }
 export async function POST(req: NextRequest) {
-  const res = NextResponse.next();
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -11,13 +12,13 @@ export async function POST(req: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return req.cookies.get(name)?.value;
+          return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: any) {
-          res.cookies.set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options });
         },
         remove(name: string, options: any) {
-          res.cookies.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options });
         },
       },
     }
@@ -65,13 +66,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Wait a bit to ensure database propagation
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // Wait longer to ensure database propagation
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // Verify the profile was actually updated before returning
+  const { data: verifyProfile } = await supabase
+    .from("profiles")
+    .select("role, onboarded")
+    .eq("id", user.id)
+    .single();
+
+  if (!verifyProfile?.onboarded) {
+    console.error('[role-api] Profile verification failed - onboarded is still false');
+    return NextResponse.json({ error: "Profile update failed" }, { status: 500 });
+  }
 
   // Refresh the session to ensure updated data is available
   await supabase.auth.refreshSession();
 
-  return NextResponse.json({ success: true, role });
+  return NextResponse.json({ success: true, role, profile: verifyProfile });
 }
 
 
