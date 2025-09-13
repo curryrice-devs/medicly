@@ -102,15 +102,17 @@ export default function UnauthedLanding() {
             />
           </div>
           <h1 style={{
-            fontSize: '4rem',
+            fontSize: '4.5rem',
             fontFamily: 'Houschka Rounded, system-ui, -apple-system, sans-serif',
-            fontWeight: 'bold',
-            background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 30%, #267d56 70%, #A08DF6 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             margin: 0,
-            lineHeight: '1.1'
+            lineHeight: '1.1',
+            letterSpacing: '-0.02em',
+            textShadow: '0 0 40px rgba(13, 74, 43, 0.3)'
           }}>
             medicly
           </h1>
@@ -119,14 +121,18 @@ export default function UnauthedLanding() {
 
         {/* Subtitle */}
         <p style={{
-          fontSize: '1.25rem',
+          fontSize: '1.4rem',
           color: '#4a5568',
           marginBottom: '40px',
-          lineHeight: '1.5',
-          animation: 'fadeInUp 1s ease-out 0.4s both'
+          lineHeight: '1.6',
+          animation: 'fadeInUp 1s ease-out 0.4s both',
+          fontWeight: '400',
+          letterSpacing: '-0.01em',
+          maxWidth: '600px',
+          margin: '0 auto 40px auto'
         }}>
           AI-powered rehabilitation tracking with intelligent pose analysis<br />
-          and personalized recovery insights
+          <span style={{ color: '#A08DF6', fontWeight: '500' }}>and personalized recovery insights</span>
         </p>
 
         {/* CTA Buttons */}
@@ -145,19 +151,33 @@ export default function UnauthedLanding() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '12px',
-              padding: '16px 32px',
+              padding: '18px 36px',
               fontSize: '1.125rem',
-              fontWeight: '600',
+              fontWeight: '500',
               color: 'white',
-              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 100%)',
+              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '16px',
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 4px 16px rgba(13, 74, 43, 0.3)',
-              minWidth: '280px'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 8px 25px rgba(13, 74, 43, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+              minWidth: '300px',
+              letterSpacing: '-0.01em',
+              backdropFilter: 'blur(10px)'
             }}
             className="hover:scale-105 hover:shadow-lg"
+            onMouseEnter={(e) => {
+              const target = e.target as HTMLButtonElement
+              target.style.background = 'linear-gradient(135deg, #1a6741 0%, #267d56 50%, #0d4a2b 100%)'
+              target.style.boxShadow = '0 12px 35px rgba(13, 74, 43, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.2) inset'
+              target.style.transform = 'translateY(-2px) scale(1.02)'
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement
+              target.style.background = 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)'
+              target.style.boxShadow = '0 8px 25px rgba(13, 74, 43, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
+              target.style.transform = 'translateY(0) scale(1)'
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

@@ -17,19 +17,19 @@ export function VideoPlayer({ src }: Props) {
   } = useVideoPlayer();
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      <div className="relative overflow-hidden rounded-lg">
+    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+      <div className="relative overflow-hidden rounded-lg bg-gray-100">
         <video ref={videoRef} src={src} className="w-full" controls={false} />
       </div>
-      <div className="mt-3 flex items-center gap-2">
-        <button onClick={() => stepFrame(-1)} className="px-3 py-2 text-sm rounded-full bg-white/10 hover:bg-white/20">Prev</button>
-        <button onClick={playPause} className="px-4 py-2 text-sm rounded-full bg-emerald-500 text-black hover:bg-emerald-400 font-medium">{isPlaying ? 'Pause' : 'Play'}</button>
-        <button onClick={() => stepFrame(1)} className="px-3 py-2 text-sm rounded-full bg-white/10 hover:bg-white/20">Next</button>
+      <div className="mt-4 flex items-center gap-2">
+        <button onClick={() => stepFrame(-1)} className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700">Prev</button>
+        <button onClick={playPause} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium">{isPlaying ? 'Pause' : 'Play'}</button>
+        <button onClick={() => stepFrame(1)} className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700">Next</button>
 
         <div className="ml-4 flex items-center gap-2">
-          <span className="text-sm text-white/70">Speed</span>
+          <span className="text-sm text-gray-600">Speed</span>
           <select
-            className="rounded-full bg-white/10 border border-white/10 px-2 py-1 text-sm"
+            className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700"
             value={playbackRate}
             onChange={(e) => setPlaybackRate(Number(e.target.value))}
           >
@@ -40,9 +40,9 @@ export function VideoPlayer({ src }: Props) {
           </select>
         </div>
 
-        <button onClick={requestFullscreen} className="ml-auto px-3 py-2 text-sm rounded-full bg-white/10 hover:bg-white/20">Full screen</button>
+        <button onClick={requestFullscreen} className="ml-auto px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700">Full screen</button>
       </div>
-      <p className="mt-2 text-xs text-white/50">Shortcuts: Space (play/pause), ←/→ (frame)</p>
+      <p className="mt-3 text-xs text-gray-500">Shortcuts: Space (play/pause), ←/→ (frame)</p>
     </div>
   );
 }

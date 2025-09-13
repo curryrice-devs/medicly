@@ -229,10 +229,11 @@ export default function PatientSessionDetailPage() {
         }}>
           <div>
             <h1 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: 'bold', 
+              fontSize: '1.75rem', 
+              fontWeight: '600', 
               color: 'hsl(var(--foreground))',
-              marginBottom: '4px'
+              marginBottom: '4px',
+              letterSpacing: '-0.01em'
             }}>
               Today's Session
             </h1>
@@ -343,9 +344,10 @@ export default function PatientSessionDetailPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Activity style={{ width: '20px', height: '20px', color: '#0d4a2b' }} />
               <h2 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: 'bold', 
-                color: 'hsl(var(--foreground))' 
+                fontSize: '1.75rem', 
+                fontWeight: '600', 
+                color: 'hsl(var(--foreground))',
+                letterSpacing: '-0.01em'
               }}>
                 Your Exercises
               </h2>
@@ -404,15 +406,19 @@ export default function PatientSessionDetailPage() {
             {getFilteredExercises().map((exercise) => (
                 <div key={exercise.id} style={{ 
                   backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '8px',
+                  borderRadius: '16px',
                   overflow: 'hidden',
-                                  border: exercise.completed 
-                  ? exercise.feedback 
-                    ? '2px solid #0d4a2b' 
-                    : '2px solid #6b7280'
-                  : '1px solid hsl(var(--border))',
-                  transition: 'all 0.2s ease'
-                }}>
+                  border: exercise.completed 
+                    ? exercise.feedback 
+                      ? '2px solid #0d4a2b' 
+                      : '2px solid #6b7280'
+                    : '1px solid hsl(var(--border))',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 4px 12px rgba(13, 74, 43, 0.08)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                className="hover-lift"
+                >
                   
                   {/* Exercise Preview Video */}
                   <Link href={`/dashboard/patient/session/${sessionId}/${exercise.name.toLowerCase().replace(/\s+/g, '_')}`}>
@@ -510,10 +516,11 @@ export default function PatientSessionDetailPage() {
                   {/* Exercise Info */}
                   <div style={{ padding: '16px' }}>
                     <h3 style={{ 
-                      fontSize: '1rem', 
+                      fontSize: '1.125rem', 
                       fontWeight: '600', 
                       color: 'hsl(var(--foreground))',
-                      marginBottom: '4px'
+                      marginBottom: '4px',
+                      letterSpacing: '-0.01em'
                     }}>
                       {exercise.name}
                     </h3>

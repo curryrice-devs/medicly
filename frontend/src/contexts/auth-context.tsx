@@ -15,8 +15,8 @@ interface User {
 interface RolePermissions {
   canViewPatients: boolean
   canUploadVideos: boolean
-  canManageUsers: boolean
   canViewAnalytics: boolean
+  canManageUsers: boolean
   canManageSystem: boolean
 }
 
@@ -210,8 +210,8 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     const basePermissions: RolePermissions = {
       canViewPatients: false,
       canUploadVideos: false,
-      canManageUsers: false,
       canViewAnalytics: false,
+      canManageUsers: false,
       canManageSystem: false,
     }
 
@@ -219,7 +219,6 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       case "client":
         return {
           ...basePermissions,
-          canViewAnalytics: true,
         }
       case "doctor":
         return {
@@ -232,8 +231,8 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
         return {
           canViewPatients: true,
           canUploadVideos: true,
-          canManageUsers: true,
           canViewAnalytics: true,
+          canManageUsers: true,
           canManageSystem: true,
         }
       default:
@@ -286,6 +285,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     if (route.includes('/patients')) {
       return hasPermission('canViewPatients')
     }
+    
     if (route.includes('/analytics')) {
       return hasPermission('canViewAnalytics')
     }
@@ -297,8 +297,8 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const permissions = user ? getRolePermissions(user.role) : {
     canViewPatients: false,
     canUploadVideos: false,
-    canManageUsers: false,
     canViewAnalytics: false,
+    canManageUsers: false,
     canManageSystem: false,
   }
 

@@ -171,10 +171,10 @@ export const config = {
     "/dashboard/:path*",
     "/patient/:path*",
     "/client/:path*", 
-    "/doctor/:path*",
-    "/admin/:path*",
-    "/analytics/:path*",
-    "/patients/:path*",
+          "/doctor/:path*",
+      "/admin/:path*",
+      "/analytics/:path*",
+      "/patients/:path*",
     "/upload/:path*"
   ],
 };

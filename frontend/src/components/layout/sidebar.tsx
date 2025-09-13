@@ -3,7 +3,7 @@
 import React from 'react'
 import { 
   LayoutDashboard, 
-  BarChart3, 
+  BarChart3,
   Settings, 
   Users,
   ChevronLeft,
@@ -33,11 +33,13 @@ export function Sidebar() {
   const getNavigationItems = () => {
     const baseRoute = user?.role === 'doctor' ? '/dashboard/doctor' : '/dashboard/patient'
     
-    const items = [
-      { href: baseRoute, label: 'Dashboard', icon: LayoutDashboard },
-      { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 },
-      { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
-    ]
+          const items = [
+        { href: baseRoute, label: 'Dashboard', icon: LayoutDashboard },
+        ...(user?.role === 'doctor' ? [
+          { href: `${baseRoute}/analytics`, label: 'Analytics', icon: BarChart3 }
+        ] : []),
+        { href: `${baseRoute}/settings`, label: 'Settings', icon: Settings }
+      ]
 
     if (user?.role === 'doctor') {
       items.push({ href: '/dashboard/doctor/patients', label: 'Patients', icon: Users })
@@ -129,10 +131,14 @@ export function Sidebar() {
           </div>
           {!isCollapsed && (
             <h1 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: 'bold', 
-              color: 'hsl(var(--foreground))',
-              margin: 0
+              fontSize: '1.75rem', 
+              fontWeight: '600', 
+              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #A08DF6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              margin: 0,
+              letterSpacing: '-0.01em'
             }}>
               medicly
             </h1>

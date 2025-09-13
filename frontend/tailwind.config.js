@@ -76,7 +76,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
-          'var(--font-sans)',
+          'Houschka Rounded',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -91,7 +91,7 @@ module.exports = {
           'Noto Color Emoji'
         ],
         heading: [
-          'var(--font-heading)',
+          'Houschka Rounded',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -105,6 +105,13 @@ module.exports = {
           'Segoe UI Symbol',
           'Noto Color Emoji'
         ]
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.5s ease-out',
+        'slide-in-left': 'slideInLeft 0.5s ease-out',
+        'float': 'float 3s ease-in-out infinite',
+        'pulse-slow': 'pulse 2s ease-in-out infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       }
     }
   },

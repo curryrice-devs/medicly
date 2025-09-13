@@ -34,9 +34,10 @@ export function BreadcrumbNav() {
       return []
     }
     
-    if (pathname === '/dashboard/patient/analytics') {
+    
+    if (pathname === '/dashboard/doctor/analytics') {
       return [
-        { label: 'Dashboard', href: '/dashboard/patient' },
+        { label: 'Dashboard', href: '/dashboard/doctor' },
         { label: 'Analytics' }
       ]
     }
@@ -64,8 +65,20 @@ export function BreadcrumbNav() {
     
     if (pathname.startsWith('/dashboard/patient/session/')) {
       const sessionId = params?.sessionId as string
+      const exerciseName = params?.exerciseName as string
       const sessionName = sessionNames[sessionId] || 'Session'
       
+      // If we have an exerciseName, this is an individual exercise page
+      if (exerciseName) {
+        const exerciseDisplayName = exerciseName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+        return [
+          { label: 'Dashboard', href: '/dashboard/patient' },
+          { label: sessionName, href: `/dashboard/patient/session/${sessionId}` },
+          { label: exerciseDisplayName }
+        ]
+      }
+      
+      // Otherwise, this is a session overview page
       return [
         { label: 'Dashboard', href: '/dashboard/patient' },
         { label: sessionName }
@@ -80,13 +93,15 @@ export function BreadcrumbNav() {
   return (
     <>
       <header style={{ 
-        height: '60px',
-        backgroundColor: 'hsl(var(--background))',
-        borderBottom: '1px solid hsl(var(--border))',
+        height: '70px',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(13, 74, 43, 0.1)',
         display: 'flex',
         alignItems: 'center',
         position: 'relative',
-        paddingRight: '24px'
+        paddingRight: '24px',
+        boxShadow: '0 1px 3px rgba(13, 74, 43, 0.1)'
       }}>
         <div style={{ 
           display: 'flex', 
@@ -110,7 +125,12 @@ export function BreadcrumbNav() {
                     priority
                   />
                 </div>
-                <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'hsl(var(--foreground))' }}>
+                <h1 style={{ 
+                  fontSize: '1.5rem', 
+                  fontWeight: '600', 
+                  color: 'hsl(var(--foreground))',
+                  letterSpacing: '-0.01em'
+                }}>
                   medicly
                 </h1>
               </Link>

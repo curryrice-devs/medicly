@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "MediaPipe Pose Detection",
-  description: "Simple pose detection using MediaPipe",
+  title: "Doctor Dashboard",
+  description: "Patient case management and video analysis dashboard for healthcare professionals",
 };
 
 export default function RootLayout({

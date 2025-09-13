@@ -229,12 +229,6 @@ export default function ExerciseDetailPage() {
           padding: '16px 0',
           borderBottom: '1px solid hsl(var(--border))'
         }}>
-          <Link href={`/dashboard/patient/session/${sessionId}`}>
-            <Button variant="outline" size="sm" style={{ gap: '6px' }}>
-              <ArrowLeft style={{ width: '14px', height: '14px' }} />
-              Back to Session
-            </Button>
-          </Link>
           <div>
             <h1 style={{ 
               fontSize: '1.75rem', 
@@ -244,9 +238,6 @@ export default function ExerciseDetailPage() {
             }}>
               {exerciseDisplayName} Analysis
             </h1>
-            <p style={{ color: 'hsl(var(--muted-foreground))' }}>
-              Upload your video for AI-powered movement analysis
-            </p>
           </div>
         </div>
 

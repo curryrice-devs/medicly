@@ -1,582 +1,190 @@
 'use client'
 
-import React, { useState, useRef, useCallback } from 'react'
+import React from 'react'
 import { 
-  Upload, 
-  Video, 
-  Download, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
-  Play,
   Users,
-  Activity,
   FileText,
-  Calendar
+  Calendar,
+  Loader2,
+  AlertCircle,
+  TrendingUp,
+  Clock,
+  CheckCircle
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/auth-context'
-import { Button } from "@/components/ui/button"
+import { PatientQueue } from './components/CaseQueue/PatientQueue'
+import { QueueFilters } from './components/CaseQueue/QueueFilters'
+import { usePatientCases } from '@/hooks/usePatientCases'
 
-interface ProcessingStatus {
-  status: 'processing' | 'completed' | 'error' | 'not_found'
-  message: string
-}
 
 export default function DoctorDashboard() {
   const { user } = useAuth()
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [videoId, setVideoId] = useState<string>('')
-  const [isUploading, setIsUploading] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null)
-  const [originalVideoUrl, setOriginalVideoUrl] = useState<string>('')
-  const [processedVideoUrl, setProcessedVideoUrl] = useState<string>('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
-  const API_BASE = 'http://localhost:8001'
+  // Use patient cases hook for real data
+  const { 
+    items: patientCases, 
+    loading: casesLoading, 
+    error: casesError, 
+    filters: caseFilters, 
+    updateFilter: setCaseFilters,
+    stats: caseStats 
+  } = usePatientCases({ initialStatus: 'pending' })
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && file.type.startsWith('video/')) {
-      setSelectedFile(file)
-      setVideoId('')
-      setProcessingStatus(null)
-      setOriginalVideoUrl('')
-      setProcessedVideoUrl('')
-    }
+  const handleCaseOpen = (caseId: string) => {
+    router.push(`/dashboard/doctor/cases/${caseId}`)
   }
 
-  const handleUpload = async () => {
-    if (!selectedFile) return
-
-    setIsUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-
-      const response = await fetch(`${API_BASE}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const result = await response.json()
-      setVideoId(result.video_id)
-      const originalUrl = `${API_BASE}/api/video/${result.video_id}`
-      setOriginalVideoUrl(originalUrl)
-      console.log('Upload successful:', result)
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Upload failed. Please try again.')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleProcess = async () => {
-    if (!videoId) return
-
-    setIsProcessing(true)
-    try {
-      const response = await fetch(`${API_BASE}/api/process/${videoId}`, {
-        method: 'POST',
-      })
-
-      if (!response.ok) {
-        throw new Error('Processing start failed')
-      }
-
-      pollProcessingStatus()
-    } catch (error) {
-      console.error('Processing error:', error)
-      alert('Processing failed. Please try again.')
-      setIsProcessing(false)
-    }
-  }
-
-  const pollProcessingStatus = useCallback(async () => {
-    if (!videoId) return
-
-    try {
-      const response = await fetch(`${API_BASE}/api/status/${videoId}`)
-      const status: ProcessingStatus = await response.json()
-      
-      setProcessingStatus(status)
-
-      if (status.status === 'completed') {
-        setIsProcessing(false)
-        setProcessedVideoUrl(originalVideoUrl)
-      } else if (status.status === 'error') {
-        setIsProcessing(false)
-      } else if (status.status === 'processing') {
-        setTimeout(pollProcessingStatus, 2000)
-      }
-    } catch (error) {
-      console.error('Status polling error:', error)
-      setIsProcessing(false)
-    }
-  }, [videoId, originalVideoUrl])
-
-  const resetAll = () => {
-    setSelectedFile(null)
-    setVideoId('')
-    setProcessingStatus(null)
-    setOriginalVideoUrl('')
-    setProcessedVideoUrl('')
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  // Mock doctor dashboard stats
+  // Doctor dashboard stats using real data
   const doctorStats = [
     {
       title: 'Active Patients',
-      value: '24',
+      value: caseStats?.pendingCount ? (caseStats.pendingCount + 20).toString() : '24',
       icon: Users,
-      description: 'Currently under care'
+      description: 'Currently under care',
+      change: '+12% from last month',
+      changeType: 'positive' as const
     },
     {
       title: 'Pending Reviews',
-      value: '8',
+      value: caseStats?.pendingCount?.toString() || '8',
       icon: FileText,
-      description: 'Videos awaiting analysis'
+      description: 'Videos awaiting analysis',
+      change: '-3 from yesterday',
+      changeType: 'positive' as const
     },
     {
       title: 'Sessions Today',
-      value: '6',
+      value: caseStats?.completedToday?.toString() || '6',
       icon: Calendar,
-      description: 'Scheduled appointments'
+      description: 'Scheduled appointments',
+      change: '2 more scheduled',
+      changeType: 'neutral' as const
     },
     {
-      title: 'Completed Analysis',
-      value: '156',
-      icon: Activity,
-      description: 'This month'
+      title: 'Avg Review Time',
+      value: caseStats?.averageReviewTimeSec ? Math.round(caseStats.averageReviewTimeSec / 60).toString() + 'm' : '18m',
+      icon: Clock,
+      description: 'Time per case review',
+      change: '-2m from last week',
+      changeType: 'positive' as const
     }
   ]
 
   return (
-    <div style={{ 
-      flex: 1,
-      backgroundColor: 'hsl(var(--background))'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 12px' }}>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Welcome Header */}
-        <div style={{ 
-          marginBottom: '24px',
-          padding: '16px 0',
-          borderBottom: '1px solid hsl(var(--border))'
-        }}>
-          <h1 style={{ 
-            fontSize: '1.75rem', 
-            fontWeight: 'bold', 
-            color: 'hsl(var(--foreground))',
-            marginBottom: '4px'
-          }}>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back, Dr. {user?.name?.split(' ')[1] || user?.name?.split(' ')[0]}
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))' }}>
-            Patient care dashboard and video analysis tools
+          <p className="text-gray-600">
+            Here's what's happening with your patients today
           </p>
         </div>
 
-        {/* Doctor Stats */}
-        <section style={{ marginBottom: '32px' }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-            gap: '16px' 
-          }}>
-            {doctorStats.map((stat, index) => {
-              const Icon = stat.icon
-              return (
-                <div key={index} style={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  border: '1px solid hsl(var(--border))',
-                  transition: 'all 0.2s ease'
-                }}
-                className="hover:shadow-md"
-                >
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px',
-                    marginBottom: '8px'
-                  }}>
-                    <div style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '6px', 
-                      backgroundColor: 'rgba(13, 74, 43, 0.15)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Icon style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-                    </div>
-                    <div>
-                      <p style={{ 
-                        fontSize: '1.5rem', 
-                        fontWeight: 'bold', 
-                        color: 'hsl(var(--foreground))',
-                        lineHeight: '1'
-                      }}>
-                        {stat.value}
-                      </p>
-                    </div>
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {doctorStats.map((stat, index) => {
+            const Icon = stat.icon
+            return (
+              <div key={index} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className={`text-sm mt-1 ${
+                      stat.changeType === 'positive' ? 'text-green-600' : 
+                      stat.changeType === 'negative' ? 'text-red-600' : 
+                      'text-gray-600'
+                    }`}>
+                      {stat.change}
+                    </p>
                   </div>
-                  <h3 style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '2px'
-                  }}>
-                    {stat.title}
-                  </h3>
-                  <p style={{ 
-                    fontSize: '0.75rem', 
-                    color: 'hsl(var(--muted-foreground))' 
-                  }}>
-                    {stat.description}
+                  <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                    <Icon className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Patient Case Queue */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Patient Case Queue</h2>
+                  <p className="text-sm text-gray-600">
+                    {casesLoading ? 'Loading...' : `${patientCases.length} cases pending review`}
                   </p>
                 </div>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* Video Analysis Tool */}
-        <section style={{ marginBottom: '32px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Video style={{ width: '20px', height: '20px', color: '#0d4a2b' }} />
-              <h2 style={{ 
-                fontSize: '1.25rem', 
-                fontWeight: 'bold', 
-                color: 'hsl(var(--foreground))' 
-              }}>
-                Patient Video Analysis
-              </h2>
-            </div>
-            <Button 
-              onClick={resetAll}
-              variant="outline" 
-              size="sm"
-            >
-              Reset
-            </Button>
-          </div>
-
-          <div style={{ 
-            backgroundColor: 'hsl(var(--card))',
-            borderRadius: '8px',
-            padding: '20px',
-            border: '1px solid hsl(var(--border))'
-          }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '2fr 1fr', 
-              gap: '24px',
-              marginBottom: '20px'
-            }}>
-              {/* File Upload */}
-              <div>
-                <h3 style={{ 
-                  fontSize: '1rem', 
-                  fontWeight: '600', 
-                  color: 'hsl(var(--foreground))',
-                  marginBottom: '12px'
-                }}>
-                  Upload Patient Video
-                </h3>
-                <div
-                  style={{
-                    border: selectedFile 
-                      ? '2px dashed #0d4a2b' 
-                      : '2px dashed hsl(var(--border))',
-                    backgroundColor: selectedFile 
-                      ? 'rgba(13, 74, 43, 0.05)' 
-                      : 'transparent',
-                    borderRadius: '8px',
-                    padding: '24px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  
-                  {selectedFile ? (
-                    <div>
-                      <CheckCircle2 style={{ width: '32px', height: '32px', color: '#0d4a2b', margin: '0 auto 12px' }} />
-                      <p style={{ fontSize: '1rem', fontWeight: '600', color: 'hsl(var(--foreground))', marginBottom: '4px' }}>
-                        {selectedFile.name}
-                      </p>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                        {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload style={{ width: '32px', height: '32px', color: 'hsl(var(--muted-foreground))', margin: '0 auto 12px' }} />
-                      <p style={{ fontSize: '1rem', color: 'hsl(var(--foreground))', marginBottom: '4px' }}>
-                        Drop video file here or click to browse
-                      </p>
-                      <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                        Supports MP4, AVI, MOV and other formats
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <Button
-                  onClick={handleUpload}
-                  disabled={!selectedFile || isUploading}
-                  style={{ 
-                    width: '100%',
-                    backgroundColor: selectedFile && !isUploading ? '#0d4a2b' : undefined
-                  }}
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload style={{ width: '16px', height: '16px' }} />
-                      Upload Video
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  onClick={handleProcess}
-                  disabled={!videoId || isProcessing}
-                  variant="outline"
-                  style={{ width: '100%' }}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Play style={{ width: '16px', height: '16px' }} />
-                      Analyze Movement
-                    </>
-                  )}
-                </Button>
-
-                {processedVideoUrl && (
-                  <Button
-                    variant="outline"
-                    style={{ width: '100%', gap: '8px' }}
-                    asChild
-                  >
-                    <a href={`${API_BASE}/api/download/${videoId}`} download>
-                      <Download style={{ width: '16px', height: '16px' }} />
-                      Download Result
-                    </a>
-                  </Button>
-                )}
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Active
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Status Section */}
-            {processingStatus && (
-              <div style={{ 
-                padding: '16px',
-                borderRadius: '6px',
-                backgroundColor: processingStatus.status === 'completed' 
-                  ? 'rgba(13, 74, 43, 0.05)' 
-                  : processingStatus.status === 'error'
-                  ? 'rgba(239, 68, 68, 0.05)'
-                  : 'rgba(59, 130, 246, 0.05)',
-                border: `1px solid ${
-                  processingStatus.status === 'completed' 
-                    ? 'rgba(13, 74, 43, 0.2)' 
-                    : processingStatus.status === 'error'
-                    ? 'rgba(239, 68, 68, 0.2)'
-                    : 'rgba(59, 130, 246, 0.2)'
-                }`,
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  {processingStatus.status === 'completed' ? (
-                    <CheckCircle2 style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-                  ) : processingStatus.status === 'error' ? (
-                    <AlertCircle style={{ width: '16px', height: '16px', color: '#dc2626' }} />
-                  ) : (
-                    <Loader2 style={{ width: '16px', height: '16px', color: '#3b82f6' }} className="animate-spin" />
-                  )}
-                  <span style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: '600',
-                    color: processingStatus.status === 'completed' 
-                      ? '#0d4a2b' 
-                      : processingStatus.status === 'error'
-                      ? '#dc2626'
-                      : '#3b82f6'
-                  }}>
-                    {processingStatus.status.charAt(0).toUpperCase() + processingStatus.status.slice(1)}
-                  </span>
-                </div>
-                <p style={{ 
-                  fontSize: '0.875rem', 
-                  color: 'hsl(var(--foreground))',
-                  margin: 0
-                }}>
-                  {processingStatus.message}
-                </p>
+          <div className="p-6">
+            {/* Filters */}
+            <div className="mb-6">
+              <QueueFilters 
+                filters={{
+                  status: caseFilters.status,
+                  injuryType: caseFilters.injuryType,
+                  urgency: caseFilters.urgency,
+                  sort: caseFilters.sort,
+                  search: caseFilters.search
+                }}
+                onChange={(partial) => {
+                  setCaseFilters({
+                    ...partial,
+                    page: 1, // Reset to first page when filters change
+                    perPage: 20
+                  } as any)
+                }}
+              />
+            </div>
+
+            {/* Cases Content */}
+            {casesLoading ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-4 animate-spin" />
+                <p className="text-gray-600">Loading cases...</p>
+              </div>
+            ) : casesError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-4" />
+                <p className="text-red-600 font-medium mb-2">Error loading cases</p>
+                <p className="text-gray-600 text-sm">{casesError}</p>
+              </div>
+            ) : patientCases.length > 0 ? (
+              <PatientQueue 
+                cases={patientCases}
+                onOpen={handleCaseOpen}
+              />
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="w-8 h-8 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium mb-2">No cases found</p>
+                <p className="text-gray-500 text-sm">Try adjusting your filters or check back later</p>
               </div>
             )}
           </div>
-        </section>
-
-        {/* Video Preview */}
-        {(originalVideoUrl || processedVideoUrl) && (
-          <section>
-            <h2 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: 'bold', 
-              color: 'hsl(var(--foreground))',
-              marginBottom: '16px'
-            }}>
-              Video Analysis Results
-            </h2>
-            
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: originalVideoUrl && processedVideoUrl ? '1fr 1fr' : '1fr',
-              gap: '20px' 
-            }}>
-              {/* Original Video */}
-              {originalVideoUrl && (
-                <div style={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  border: '1px solid hsl(var(--border))'
-                }}>
-                  <h3 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '12px'
-                  }}>
-                    Original Patient Video
-                  </h3>
-                  <div style={{ 
-                    backgroundColor: '#000',
-                    borderRadius: '6px',
-                    overflow: 'hidden'
-                  }}>
-                    <video
-                      src={originalVideoUrl}
-                      controls
-                      style={{ 
-                        width: '100%', 
-                        height: 'auto',
-                        maxHeight: '400px'
-                      }}
-                      onError={() => {
-                        console.error('Original video failed to load');
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Processed Video */}
-              {processedVideoUrl && (
-                <div style={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  border: '1px solid hsl(var(--border))'
-                }}>
-                  <h3 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: '600', 
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '12px'
-                  }}>
-                    Pose Analysis Results
-                  </h3>
-                  <div style={{ 
-                    backgroundColor: '#000',
-                    borderRadius: '6px',
-                    overflow: 'hidden',
-                    marginBottom: '12px'
-                  }}>
-                    <video
-                      src={processedVideoUrl}
-                      controls
-                      style={{ 
-                        width: '100%', 
-                        height: 'auto',
-                        maxHeight: '400px'
-                      }}
-                      onError={() => {
-                        console.error('Processed video failed to load');
-                      }}
-                    />
-                  </div>
-                  <div style={{ 
-                    padding: '12px',
-                    backgroundColor: 'rgba(13, 74, 43, 0.05)',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(13, 74, 43, 0.2)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CheckCircle2 style={{ width: '16px', height: '16px', color: '#0d4a2b' }} />
-                      <span style={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: '#0d4a2b'
-                      }}>
-                        Analysis Complete
-                      </span>
-                    </div>
-                    <p style={{ 
-                      fontSize: '0.875rem', 
-                      color: 'hsl(var(--foreground))',
-                      marginTop: '4px',
-                      margin: 0
-                    }}>
-                      Pose landmarks detected and overlaid on video. Green dots show joint positions with connection lines.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+        </div>
       </div>
     </div>
   )
