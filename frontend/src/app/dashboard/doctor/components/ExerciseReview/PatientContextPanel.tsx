@@ -46,7 +46,7 @@ export function PatientContextPanel({ caze }: Props) {
       try {
         const profile = await doctorApi.getPatientProfile(caze.patientId);
         console.log('[PatientContextPanel] received profile:', profile);
-        setPatientProfile(profile);
+        setPatientProfile(profile as unknown as PatientProfile);
       } catch (error) {
         console.error('Failed to fetch patient profile:', error);
       } finally {
