@@ -14,6 +14,12 @@ export interface SessionVideoData {
   aiEvaluation?: any;
   doctorFeedback?: string;
   status?: string;
+  treatment?: {
+    id: number;
+    name: string;
+    description?: string;
+    video_link?: string;
+  };
   isLoading: boolean;
   error: string | null;
 }
@@ -59,7 +65,8 @@ export function useSessionVideo(sessionId: string) {
         patientNotes: session.patient_notes,
         aiEvaluation: session.ai_evaluation,
         doctorFeedback: session.doctor_feedback,
-        status: session.status
+        status: session.status,
+        treatment: session.treatment
       };
 
       // Original video from previdurl
@@ -104,18 +111,19 @@ export function useSessionVideo(sessionId: string) {
     // Video sources
     originalVideoUrl: videoData.originalVideo?.url || null,
     processedVideoUrl: videoData.processedVideo?.url || null,
-    
+
     // Session data
     patientNotes: videoData.patientNotes || '',
     aiEvaluation: videoData.aiEvaluation,
     doctorFeedback: videoData.doctorFeedback || '',
     sessionStatus: videoData.status,
-    
+    treatment: videoData.treatment,
+
     // State
     isVideoReady: !videoData.isLoading && (!!videoData.originalVideo || !!videoData.processedVideo),
     isLoading: videoData.isLoading,
     error: videoData.error,
-    
+
     // Actions
     refetch: fetchSessionVideos
   };

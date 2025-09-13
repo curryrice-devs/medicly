@@ -67,14 +67,15 @@ export default function ExerciseDetailPage() {
   const { toast } = useToast()
   
   // Use session video hook following auctor_demo pattern
-  const { 
-    originalVideoUrl, 
-    processedVideoUrl, 
+  const {
+    originalVideoUrl,
+    processedVideoUrl,
     patientNotes: existingPatientNotes,
     aiEvaluation: existingAiEvaluation,
     doctorFeedback,
     sessionStatus,
-    isVideoReady, 
+    treatment,
+    isVideoReady,
     isLoading: isLoadingVideos,
     error: videoError,
     refetch: refetchVideos
@@ -538,11 +539,31 @@ export default function ExerciseDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Header with Back Navigation */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-8 pb-4 border-b border-gray-200">
+          <h1 className="text-3xl font-bold text-gray-900">
             {exerciseDisplayName} Analysis
           </h1>
         </div>
+
+        {/* Evaluation Exercise Information */}
+        {treatment && existingPatientNotes && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">
+              📋 Evaluation Exercise
+            </div>
+            <div className="font-semibold text-gray-900 mb-2 text-base">
+              {treatment.name}
+            </div>
+            {treatment.description && (
+              <div className="text-sm text-gray-600 mb-3">
+                {treatment.description}
+              </div>
+            )}
+            <div className="text-sm text-gray-700 pt-2 border-t border-blue-200">
+              <strong>Your Problem:</strong> {existingPatientNotes}
+            </div>
+          </div>
+        )}
 
         {/* 
         UI Rendering Logic by Session Status:

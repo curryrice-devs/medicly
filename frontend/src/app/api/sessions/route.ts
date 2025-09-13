@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         exercise_sets: sessionData.exercise_sets || 3,
         exercise_reps: sessionData.exercise_reps || 10,
         exercise_frequency_daily: sessionData.exercise_frequency_daily || 1,
+        patient_notes: sessionData.description || null, // Store patient's problem description
         created_at: new Date().toISOString()
       })
       .select(`
