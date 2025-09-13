@@ -52,7 +52,9 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
     patientPhone: s.profiles?.patient_profiles?.phone || s.patient_profiles?.phone,
     patientAge: s.profiles?.patient_profiles?.age || s.patient_profiles?.age,
     patientCaseId: s.profiles?.patient_profiles?.case_id || s.patient_profiles?.case_id,
-    videoUrl: treatment?.video_link || '',
+    videoUrl: s.previdurl || '', // Keep for backwards compatibility - will use previdurl
+    originalVideoUrl: s.previdurl || undefined,
+    processedVideoUrl: s.postvidurl || undefined,
     injuryType: aiAnalysis.injuryType || 'General',
     aiAnalysis: aiAnalysis.summary,
     recommendedExercise,

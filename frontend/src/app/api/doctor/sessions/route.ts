@@ -37,6 +37,10 @@ export async function GET() {
         exercise_sets,
         exercise_reps,
         exercise_weight,
+        previdurl,
+        postvidurl,
+        patient_notes,
+        doctor_feedback,
         profiles!sessions_patient_id_fkey (
           id,
           patient_profiles (

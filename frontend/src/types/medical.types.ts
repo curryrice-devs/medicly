@@ -46,7 +46,9 @@ export interface PatientCase {
   patientPhone?: string; // From patient_profiles.phone
   patientAge?: number; // From patient_profiles.age
   patientCaseId?: string; // From patient_profiles.case_id
-  videoUrl: string;
+  videoUrl: string; // Keep for backwards compatibility
+  originalVideoUrl?: string; // previdurl - patient's original uploaded video
+  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;

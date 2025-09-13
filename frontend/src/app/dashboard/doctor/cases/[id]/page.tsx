@@ -237,6 +237,8 @@ export default function CaseReviewRoute() {
                     className="w-full h-full object-contain"
                     preload="metadata"
                     style={{ backgroundColor: '#000' }}
+                    onLoadStart={() => console.log('🎥 Doctor video loading:', { processedUrl: caseData.processedVideoUrl, originalUrl: caseData.originalVideoUrl, fallbackUrl: caseData.videoUrl })}
+                    onError={(e) => console.error('❌ Doctor video failed:', e.currentTarget.src)}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
