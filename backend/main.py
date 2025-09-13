@@ -276,7 +276,7 @@ async def get_angle_data(video_id: str):
         filename=angle_file_path.name
     )
 
-<<<<<<< HEAD
+
 @app.post("/api/analyze-patient-model")
 async def analyze_patient_model(request: Request):
     """Analyze patient pain points and suggest appropriate BioDigital model and movements"""
@@ -307,7 +307,6 @@ async def analyze_patient_model(request: Request):
     except Exception as e:
         logger.error(f"Error analyzing patient model: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-=======
 @app.post("/api/process-supabase-video")
 async def process_supabase_video(request: Request):
     """Download video from Supabase, process it, and upload results back to Supabase"""
@@ -509,7 +508,6 @@ async def process_supabase_video(request: Request):
     except Exception as e:
         logger.error(f"Error starting Supabase video processing: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start Supabase video processing: {str(e)}")
->>>>>>> main
 
 @app.post("/api/two-stage-analysis/{video_id}")
 async def perform_two_stage_analysis(video_id: str):
