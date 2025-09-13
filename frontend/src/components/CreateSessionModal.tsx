@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Plus, Activity } from 'lucide-react'
 import { Button } from "@/components/ui/button"
-import { useTreatments } from '@/hooks/useTreatments'
 import { useRouter } from 'next/navigation'
 
 interface Treatment {
@@ -25,51 +24,83 @@ interface SessionFormData {
   doctor_id?: string;
   treatment_id: number;
   status: 'pending' | 'in_progress' | 'completed' | 'reviewed';
+  description?: string;
 }
 
 export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }: CreateSessionModalProps) {
   const router = useRouter()
-  const { treatments, loading: treatmentsLoading, error: treatmentsError } = useTreatments()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null)
-  
+  const [aiReasoning, setAiReasoning] = useState<string>('')
+  const [description, setDescription] = useState('')
+
   const [formData, setFormData] = useState<SessionFormData>({
     patient_id: userId,
     treatment_id: 0,
     status: 'pending' // Always pending until video uploaded
   })
 
-  // Debug logging
+  // Function to analyze description and select exercise
+  const analyzeAndSelectExercise = async () => {
+    if (!description.trim()) {
+      alert('Please describe your problem first')
+      return
+    }
+
+    setIsAnalyzing(true)
+    try {
+      const response = await fetch('/api/ai/select-exercise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: description.trim() })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze description')
+      }
+
+      const result = await response.json()
+      console.log('🤖 AI exercise selection result:', result)
+
+      if (result.success && result.treatment) {
+        setSelectedTreatment(result.treatment)
+        setAiReasoning(result.reasoning)
+        setFormData(prev => ({
+          ...prev,
+          treatment_id: result.treatment.id,
+          description: description.trim()
+        }))
+      } else {
+        throw new Error(result.error || 'Failed to select exercise')
+      }
+    } catch (error) {
+      console.error('❌ AI analysis failed:', error)
+      alert('Failed to analyze your description. Please try again.')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  // Reset form when modal closes
   useEffect(() => {
-    console.log('🎭 Modal treatments state:', {
-      loading: treatmentsLoading,
-      error: treatmentsError,
-      count: treatments?.length,
-      treatments: treatments?.slice(0, 3) // Log first 3 for debugging
-    });
-  }, [treatments, treatmentsLoading, treatmentsError]);
-
-  const handleTreatmentSelect = (treatment: Treatment) => {
-    console.log('📋 Selected treatment:', treatment);
-    setSelectedTreatment(treatment)
-    setFormData(prev => ({
-      ...prev,
-      treatment_id: treatment.id
-    }))
-  }
-
-  const handleInputChange = (field: keyof SessionFormData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
+    if (!isOpen) {
+      setDescription('')
+      setSelectedTreatment(null)
+      setAiReasoning('')
+      setFormData({
+        patient_id: userId,
+        treatment_id: 0,
+        status: 'pending'
+      })
+    }
+  }, [isOpen, userId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!selectedTreatment) {
-      alert('Please select an exercise')
+      alert('Please analyze your description first to select an exercise')
       return
     }
 
@@ -78,12 +109,14 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
       const createdSession = await onCreateSession(formData)
 
       // Reset form and close modal
+      setDescription('')
+      setSelectedTreatment(null)
+      setAiReasoning('')
       setFormData({
         patient_id: userId,
         treatment_id: 0,
         status: 'pending'
       })
-      setSelectedTreatment(null)
       onClose()
 
       // Redirect to the session page with the exercise name
@@ -125,18 +158,28 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
         {/* Header */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           padding: '24px',
           borderBottom: '1px solid hsl(var(--border))'
         }}>
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: 'bold',
-            color: 'hsl(var(--foreground))'
-          }}>
-            Create New Exercise Session
-          </h2>
+          <div>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              color: 'hsl(var(--foreground))',
+              margin: '0 0 4px 0'
+            }}>
+              Describe Your Problem
+            </h2>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'hsl(var(--muted-foreground))',
+              margin: '0'
+            }}>
+              Our AI will recommend the best exercise for you
+            </p>
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -154,7 +197,7 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-          {/* Exercise Selection */}
+          {/* Problem Description */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{
               display: 'block',
@@ -164,68 +207,94 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
               marginBottom: '8px'
             }}>
               <Activity style={{ width: '16px', height: '16px', display: 'inline', marginRight: '6px' }} />
-              Select Exercise *
+              Describe your problem or pain *
             </label>
-            
-            {treatmentsLoading ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
-                Loading exercises...
-              </div>
-            ) : treatmentsError ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
-                Error loading exercises: {treatmentsError}
-              </div>
-            ) : treatments.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
-                No exercises available. Please run the SQL setup script.
-              </div>
-            ) : (
-              <div style={{
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Example: I have pain in my right shoulder when lifting my arm above my head, or my lower back feels stiff in the mornings..."
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '12px',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                maxHeight: '200px',
-                overflowY: 'auto'
+                backgroundColor: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                fontSize: '0.875rem',
+                resize: 'vertical',
+                minHeight: '100px'
+              }}
+              disabled={isAnalyzing || isSubmitting}
+            />
+            <div style={{
+              marginTop: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                color: 'hsl(var(--muted-foreground))'
               }}>
-                {treatments.map((treatment) => (
-                  <div
-                    key={treatment.id}
-                    onClick={() => handleTreatmentSelect(treatment)}
-                    style={{
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid hsl(var(--border))',
-                      backgroundColor: selectedTreatment?.id === treatment.id ? 'hsl(var(--accent))' : 'transparent',
-                      transition: 'background-color 0.2s'
-                    }}
-                  >
-                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                      {treatment.name}
-                    </div>
-                    {treatment.description && (
-                      <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                        {treatment.description}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                Be specific about location, type of pain, and when it occurs
               </div>
-            )}
+              <Button
+                type="button"
+                onClick={analyzeAndSelectExercise}
+                disabled={!description.trim() || isAnalyzing || isSubmitting}
+                style={{
+                  backgroundColor: isAnalyzing ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                  padding: '8px 16px',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Analyze & Select Exercise'}
+              </Button>
+            </div>
           </div>
 
-          {/* Selected Exercise Summary */}
+          {/* AI Selected Exercise Summary */}
           {selectedTreatment && (
             <div style={{
-              padding: '12px',
+              padding: '16px',
               backgroundColor: 'hsl(var(--accent))',
               borderRadius: '8px',
-              marginBottom: '24px'
+              marginBottom: '24px',
+              border: '1px solid hsl(var(--border))'
             }}>
-              <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                Selected: {selectedTreatment.name}
+              <div style={{
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                color: 'hsl(var(--primary))',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                📋 Evaluation Exercise
+              </div>
+              <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>
+                {selectedTreatment.name}
               </div>
               {selectedTreatment.description && (
-                <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
+                <div style={{
+                  fontSize: '0.875rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  marginBottom: '8px'
+                }}>
                   {selectedTreatment.description}
+                </div>
+              )}
+              {aiReasoning && (
+                <div style={{
+                  fontSize: '0.875rem',
+                  color: 'hsl(var(--foreground))',
+                  fontStyle: 'italic',
+                  paddingTop: '8px',
+                  borderTop: '1px solid hsl(var(--border))'
+                }}>
+                  <strong>Why this exercise:</strong> {aiReasoning}
                 </div>
               )}
             </div>
@@ -250,18 +319,20 @@ export function CreateSessionModal({ isOpen, onClose, onCreateSession, userId }:
             </Button>
             <Button
               type="submit"
-              disabled={!selectedTreatment || isSubmitting}
+              disabled={!selectedTreatment || isSubmitting || isAnalyzing}
               style={{
-                backgroundColor: '#0d4a2b',
+                backgroundColor: (!selectedTreatment || isSubmitting || isAnalyzing) ? 'hsl(var(--muted))' : '#0d4a2b',
                 gap: '8px'
               }}
             >
               {isSubmitting ? (
-                'Creating...'
+                'Creating Session...'
+              ) : !selectedTreatment ? (
+                'Analyze Description First'
               ) : (
                 <>
                   <Plus style={{ width: '16px', height: '16px' }} />
-                  Create Session
+                  Start Exercise Session
                 </>
               )}
             </Button>

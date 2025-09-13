@@ -120,11 +120,14 @@ export async function GET(request: NextRequest) {
     // Step 2: Fetch all available content endpoints using correct URLs
     const allModels: any[] = [];
     const endpoints = [
-      'myhuman',                       // Your saved models - correct endpoint
-      '/services/v2/content/collections/mycollections',  // Your collections
+      'myhuman',                       // Your personal saved models - THIS IS THE MAIN ONE
+      '/services/v2/content/collections/mycollections',  // Your personal collections
+      '/services/v2/content/collections/myhuman',        // Alternative personal library endpoint
+      '/services/v2/content/myhuman',                    // Another personal library variation
       '/services/v2/content/collections/team',           // Team library models
       '/services/v2/content/collections/shared',         // Shared team models
       '/content/v2/',                  // Public models (if accessible)
+      '/content/v2/collections/myhuman',                 // Another personal endpoint variation
     ];
 
     for (const endpoint of endpoints) {
@@ -145,24 +148,55 @@ export async function GET(request: NextRequest) {
           const data = await modelsResponse.json();
           const itemCount = data.myhuman?.length || data.models?.length || data.team?.length || data.shared?.length || data.length || 0;
           console.log(`✅ ${endpoint}: Found ${itemCount} items`);
+          console.log(`📋 ${endpoint} response structure:`, {
+            hasMyHuman: !!data.myhuman,
+            hasTeam: !!data.team,
+            hasShared: !!data.shared,
+            hasModels: !!data.models,
+            isArray: Array.isArray(data),
+            hasContent: !!data.content,
+            dataKeys: Object.keys(data),
+            sampleModel: data.myhuman?.[0] || data.team?.[0] || data.shared?.[0] || data.models?.[0] || data.content?.[0] || data[0]
+          });
           
-          // Handle different response formats
+          // Handle different response formats and tag with source
+          let sourceLabel = '';
+          let models: any[] = [];
+
           if (data.myhuman) {
-            // Handle myhuman endpoint response format
-            allModels.push(...data.myhuman);
+            models = data.myhuman;
+            sourceLabel = 'My Personal Library';
           } else if (data.team) {
-            // Handle team endpoint response format
-            allModels.push(...data.team);
+            models = data.team;
+            sourceLabel = 'Team Library';
           } else if (data.shared) {
-            // Handle shared endpoint response format
-            allModels.push(...data.shared);
+            models = data.shared;
+            sourceLabel = 'Shared Library';
           } else if (data.models) {
-            allModels.push(...data.models);
+            models = data.models;
+            sourceLabel = endpoint.includes('myhuman') ? 'My Personal Library' :
+                         endpoint.includes('team') ? 'Team Library' :
+                         endpoint.includes('shared') ? 'Shared Library' : 'Library';
           } else if (Array.isArray(data)) {
-            allModels.push(...data);
+            models = data;
+            sourceLabel = endpoint.includes('myhuman') ? 'My Personal Library' :
+                         endpoint.includes('team') ? 'Team Library' :
+                         endpoint.includes('shared') ? 'Shared Library' : 'Library';
           } else if (data.content) {
-            allModels.push(...data.content);
+            models = data.content;
+            sourceLabel = endpoint.includes('myhuman') ? 'My Personal Library' :
+                         endpoint.includes('team') ? 'Team Library' :
+                         endpoint.includes('shared') ? 'Shared Library' : 'Library';
           }
+
+          // Tag models with their source
+          const taggedModels = models.map(model => ({
+            ...model,
+            sourceEndpoint: endpoint,
+            sourceLabel: sourceLabel
+          }));
+
+          allModels.push(...taggedModels);
         } else {
           console.warn(`⚠️ ${endpoint}: ${modelsResponse.status} ${modelsResponse.statusText}`);
         }
@@ -188,6 +222,9 @@ export async function GET(request: NextRequest) {
       flags: model.content_flags || {},
       created: model.content_authored_date || model.created_at || model.date_created,
       modified: model.modified_at || model.date_modified,
+      // Preserve source information
+      sourceEndpoint: model.sourceEndpoint,
+      sourceLabel: model.sourceLabel,
       // Add metadata for better matching
       keywords: [
         ...(model.systems || []),
@@ -198,10 +235,35 @@ export async function GET(request: NextRequest) {
         model.title?.toLowerCase() || '',
         model.content_gender || '',
         model.content_type || '',
+        model.sourceLabel?.toLowerCase() || '',
       ].filter(Boolean)
     }));
 
     console.log(`🎉 Total models processed: ${processedModels.length}`);
+
+    // Log summary by source
+    const sourceBreakdown = processedModels.reduce((acc, model) => {
+      const source = model.sourceLabel || 'Unknown';
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log(`📊 Models by source:`, sourceBreakdown);
+
+    // Log sample of each source type
+    const sourceExamples = Object.keys(sourceBreakdown).reduce((acc, source) => {
+      const example = processedModels.find(m => m.sourceLabel === source);
+      if (example) {
+        acc[source] = {
+          id: example.id,
+          name: example.name,
+          endpoint: example.sourceEndpoint
+        };
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    console.log(`🔍 Sample models by source:`, sourceExamples);
 
     // If no models found from real API, use fallback models
     if (processedModels.length === 0) {

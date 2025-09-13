@@ -67,14 +67,15 @@ export default function ExerciseDetailPage() {
   const { toast } = useToast()
   
   // Use session video hook following auctor_demo pattern
-  const { 
-    originalVideoUrl, 
-    processedVideoUrl, 
+  const {
+    originalVideoUrl,
+    processedVideoUrl,
     patientNotes: existingPatientNotes,
     aiEvaluation: existingAiEvaluation,
     doctorFeedback,
     sessionStatus,
-    isVideoReady, 
+    treatment,
+    isVideoReady,
     isLoading: isLoadingVideos,
     error: videoError,
     refetch: refetchVideos
@@ -541,8 +542,8 @@ export default function ExerciseDetailPage() {
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '8px' }}>
         
         {/* Header with Back Navigation */}
-        <div style={{ 
-          display: 'flex', 
+        <div style={{
+          display: 'flex',
           alignItems: 'center',
           gap: '12px',
           marginBottom: '12px',
@@ -550,9 +551,9 @@ export default function ExerciseDetailPage() {
           borderBottom: '1px solid hsl(var(--border))'
         }}>
           <div>
-            <h1 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: 'bold', 
+            <h1 style={{
+              fontSize: '1.25rem',
+              fontWeight: 'bold',
               color: 'hsl(var(--foreground))',
               marginBottom: '0'
             }}>
@@ -560,6 +561,48 @@ export default function ExerciseDetailPage() {
             </h1>
           </div>
         </div>
+
+        {/* Evaluation Exercise Information */}
+        {treatment && existingPatientNotes && (
+          <div style={{
+            backgroundColor: 'hsl(var(--accent))',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '12px',
+            border: '1px solid hsl(var(--border))'
+          }}>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: 'hsl(var(--primary))',
+              marginBottom: '8px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              📋 Evaluation Exercise
+            </div>
+            <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>
+              {treatment.name}
+            </div>
+            {treatment.description && (
+              <div style={{
+                fontSize: '0.875rem',
+                color: 'hsl(var(--muted-foreground))',
+                marginBottom: '8px'
+              }}>
+                {treatment.description}
+              </div>
+            )}
+            <div style={{
+              fontSize: '0.875rem',
+              color: 'hsl(var(--foreground))',
+              paddingTop: '8px',
+              borderTop: '1px solid hsl(var(--border))'
+            }}>
+              <strong>Your Problem:</strong> {existingPatientNotes}
+            </div>
+          </div>
+        )}
 
         {/* 
         UI Rendering Logic by Session Status:
