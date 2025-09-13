@@ -1,4 +1,4 @@
-import { PatientCase, CaseStats, Exercise } from '@/types/medical.types';
+import { PatientCase, CaseStats, Exercise, SessionStatus } from '@/types/medical.types';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { parseAIAnalysis, createFallbackAnalysis, AIAnalysisData } from '@/types/ai-analysis.types';
 
@@ -37,7 +37,9 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
   const pc: PatientCase = {
     id: String(s.id),
     patientId: s.patient_id ?? 'unknown',
-    videoUrl: treatment?.video_link || '',
+    videoUrl: s.previdurl || '', // Keep for backwards compatibility
+    originalVideoUrl: s.previdurl || undefined,
+    processedVideoUrl: s.postvidurl || undefined,
     injuryType: aiAnalysis.injuryType || 'General',
     aiAnalysis: aiAnalysis.summary,
     recommendedExercise,
@@ -52,6 +54,7 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
       return acc;
     }, {} as Record<string, number>),
     painIndicators: aiAnalysis.painIndicators.map(p => `${p.location}: ${p.type} pain (${p.severity}/10)`),
+    patientNotes: s.patient_notes || undefined,
   };
 
   return pc;
@@ -84,12 +87,12 @@ export const doctorApi = {
       treatmentsById = payload.treatmentsById || {}
     } catch (e) {
       console.warn('[doctorApi.listCases] /api/doctor/sessions error', e)
-      return { items: [], total: 0, stats: { pendingCount: 0, completedToday: 0, averageReviewTimeSec: 0 } }
+      return { items: [], total: 0, stats: { pendingCount: 0, completedToday: 0, averageReviewTimeSec: 0, activePatients: 0, sessionsToday: 0, highPriorityPending: 0, activeCount: 0 } }
     }
 
     if (!sessions) {
       console.warn('[doctorApi.listCases] no sessions from API')
-      return { items: [], total: 0, stats: { pendingCount: 0, completedToday: 0, averageReviewTimeSec: 0 } }
+      return { items: [], total: 0, stats: { pendingCount: 0, completedToday: 0, averageReviewTimeSec: 0, activePatients: 0, sessionsToday: 0, highPriorityPending: 0, activeCount: 0 } }
     }
     console.log('[doctorApi.listCases] sessions fetched', { count: sessions.length })
 
@@ -234,7 +237,7 @@ export const doctorApi = {
     }
   },
 
-  async updateCaseStatus(caseId: string, status: 'active' | 'rejected', notes?: string): Promise<boolean> {
+  async updateCaseStatus(caseId: string, status: SessionStatus, notes?: string): Promise<boolean> {
     console.log('[doctorApi.updateCaseStatus] updating case status:', { caseId, status, notes });
     try {
       const resp = await fetch(`/api/doctor/cases/${caseId}`, {

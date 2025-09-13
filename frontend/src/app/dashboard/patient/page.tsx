@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { usePatientSessions } from '@/hooks/usePatientSessions'
 import { useTreatments } from '@/hooks/useTreatments'
 import { CreateSessionModal } from '@/components/CreateSessionModal'
+import { SessionStatus } from '@/types/medical.types'
 
 interface ActiveSession {
   id: string
@@ -39,7 +40,7 @@ export default function PatientDashboard() {
   const { sessions, loading: sessionsLoading, error: sessionsError, createSession } = usePatientSessions()
   const { treatments, loading: treatmentsLoading, error: treatmentsError } = useTreatments()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'active' | 'rejective' | 'completed'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | SessionStatus>('all')
 
   // Debug logging
   React.useEffect(() => {
@@ -90,8 +91,9 @@ export default function PatientDashboard() {
     all: sessions.length,
     pending: sessions.filter(s => s.status === 'pending').length,
     active: sessions.filter(s => s.status === 'active').length,
-    rejective: sessions.filter(s => s.status === 'rejective').length,
-    completed: sessions.filter(s => s.status === 'completed').length
+    rejected: sessions.filter(s => s.status === 'rejected').length,
+    completed: sessions.filter(s => s.status === 'completed').length,
+    feedback: sessions.filter(s => s.status === 'feedback').length
   }
 
   // Remove old hardcoded upcoming tasks
@@ -198,8 +200,9 @@ export default function PatientDashboard() {
               { key: 'all', label: 'All Sessions', count: sessionStats.all },
               { key: 'pending', label: 'Pending', count: sessionStats.pending },
               { key: 'active', label: 'Active', count: sessionStats.active },
-              { key: 'rejective', label: 'Rejective', count: sessionStats.rejective },
-              { key: 'completed', label: 'Completed', count: sessionStats.completed }
+              { key: 'rejected', label: 'Rejected', count: sessionStats.rejected },
+              { key: 'completed', label: 'Completed', count: sessionStats.completed },
+              { key: 'feedback', label: 'Feedback', count: sessionStats.feedback }
             ].map((filter) => (
               <button
                 key={filter.key}
