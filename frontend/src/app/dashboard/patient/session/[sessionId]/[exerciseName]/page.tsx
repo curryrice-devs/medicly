@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from "@/components/ui/button"
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 import { useSessionVideo } from '@/hooks/useSessionVideo'
+import { usePatientSessions } from '@/hooks/usePatientSessions'
 import { useToast } from '@/hooks/use-toast'
 
 type ProcessingStep = 'idle' | 'uploading' | 'processing_pose' | 'extracting_keyframes' | 'claude_analysis' | 'complete'
@@ -81,6 +82,9 @@ export default function ExerciseDetailPage() {
     refetch: refetchVideos
   } = useSessionVideo(sessionId)
   
+  // Get updateSession function from patient sessions hook
+  const { updateSession } = usePatientSessions()
+  
   // Use Supabase video upload hook
   const { 
     isUploading,
@@ -92,9 +96,21 @@ export default function ExerciseDetailPage() {
   } = useVideoUpload({
     userId: user?.id || '',
     sessionId,
-    onUploadComplete: (result) => {
+    onUploadComplete: async (result) => {
       console.log('✅ Video uploaded to Supabase:', result)
       setVideoId(result.id)
+      
+      // Update session with original video URL (previdurl)
+      try {
+        console.log('📝 Updating session with original video URL...')
+        await updateSession(parseInt(sessionId), {
+          previdurl: result.signedUrl || result.url || result.storagePath
+        })
+        console.log('✅ Session updated with previdurl')
+      } catch (error) {
+        console.error('❌ Failed to update session with video URL:', error)
+      }
+      
       // Refetch session videos to get updated URLs
       setTimeout(() => refetchVideos(), 1000)
     },

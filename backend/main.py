@@ -368,7 +368,8 @@ async def process_supabase_video(request: Request):
                         # Create storage path for processed video
                         # Extract user_id from original storage_path if available
                         user_id = storage_path.split('/')[0] if storage_path else 'unknown'
-                        processed_storage_path = f"{user_id}/processed/{video_id}_processed.mp4"
+                        # Store processed videos in a separate path to distinguish from originals
+                        processed_storage_path = f"processed/{user_id}/sessions/{session_id}/{video_id}_processed.mp4"
                         
                         logger.info(f"Uploading processed video to Supabase: {processed_storage_path}")
                         
@@ -379,7 +380,8 @@ async def process_supabase_video(request: Request):
                         logger.info(f"Supabase credentials check - URL: {'SET' if supabase_url else 'MISSING'}, Key: {'SET' if supabase_key else 'MISSING'}")
                         
                         if supabase_url and supabase_key:
-                            upload_url = f"{supabase_url}/storage/v1/object/patient_videos/{processed_storage_path}"
+                            # Upload to processed_videos bucket instead of patient_videos
+                            upload_url = f"{supabase_url}/storage/v1/object/processed_videos/{processed_storage_path}"
                             logger.info(f"Attempting upload to: {upload_url}")
                             logger.info(f"Video file size: {len(video_data)} bytes")
                             
@@ -404,7 +406,8 @@ async def process_supabase_video(request: Request):
                                     supabase_client = create_client(supabase_url, supabase_key)
                                     
                                     logger.info(f"Creating signed URL for: {processed_storage_path}")
-                                    signed_url_result = supabase_client.storage.from_('patient_videos').create_signed_url(
+                                    # Create signed URL from processed_videos bucket
+                                    signed_url_result = supabase_client.storage.from_('processed_videos').create_signed_url(
                                         processed_storage_path, 
                                         60 * 60 * 24  # 24 hours
                                     )
