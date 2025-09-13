@@ -108,13 +108,6 @@ export default function PatientDashboard() {
         minHeight: '100vh',
         width: '100%'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 className="animate-spin" style={{ width: '48px', height: '48px', marginBottom: '16px' }} />
-          <p>Loading your sessions...</p>
-          <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginTop: '8px' }}>
-            This may take up to 10 seconds
-          </p>
-        </div>
       </div>
     )
   }
