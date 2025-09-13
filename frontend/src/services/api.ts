@@ -54,6 +54,7 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
       return acc;
     }, {} as Record<string, number>),
     painIndicators: aiAnalysis.painIndicators.map(p => `${p.location}: ${p.type} pain (${p.severity}/10)`),
+    patientNotes: s.patient_notes || undefined,
   };
 
   return pc;

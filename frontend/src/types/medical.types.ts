@@ -52,6 +52,7 @@ export interface PatientCase {
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
+  patientNotes?: string; // Patient's notes to the doctor
 }
 
 export interface PrescriptionParams {

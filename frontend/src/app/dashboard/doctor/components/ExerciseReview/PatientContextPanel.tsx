@@ -193,6 +193,16 @@ export function PatientContextPanel({ caze }: Props) {
             )}
           </div>
           
+          {/* Patient Notes Section */}
+          {caze.patientNotes && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Patient Notes</h4>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-900 whitespace-pre-wrap">{caze.patientNotes}</p>
+              </div>
+            </div>
+          )}
+
           {/* Recommended Exercise Section */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Recommended Exercise</h4>
