@@ -18,8 +18,15 @@ class AngleCalculator:
         angles = {}
         
         try:
-            # Get landmark points
-            points = landmarks.landmark
+            # Handle both MediaPipe landmarks object and list of dictionaries
+            if hasattr(landmarks, 'landmark'):
+                # MediaPipe landmarks object
+                points = landmarks.landmark
+            elif isinstance(landmarks, list):
+                # List of dictionaries (converted format)
+                points = landmarks
+            else:
+                return {}
             
             # Calculate knee angles
             if self._has_landmarks(points, [23, 25, 27]):  # Left hip, knee, ankle
@@ -82,17 +89,39 @@ class AngleCalculator:
     def _has_landmarks(self, points, indices):
         """Check if all required landmarks are visible"""
         for idx in indices:
-            if idx >= len(points) or points[idx].visibility < 0.5:
+            if idx >= len(points):
+                return False
+            
+            # Handle both MediaPipe landmark objects and dictionary format
+            if hasattr(points[idx], 'visibility'):
+                # MediaPipe landmark object
+                if points[idx].visibility < 0.5:
+                    return False
+            elif isinstance(points[idx], dict):
+                # Dictionary format
+                if points[idx].get('visibility', 0) < 0.5:
+                    return False
+            else:
                 return False
         return True
     
     def _calculate_angle(self, point1, point2, point3):
         """Calculate angle between three points"""
         try:
-            # Convert to numpy arrays
-            p1 = np.array([point1.x, point1.y])
-            p2 = np.array([point2.x, point2.y])
-            p3 = np.array([point3.x, point3.y])
+            # Convert to numpy arrays - handle both MediaPipe objects and dictionaries
+            def get_coords(point):
+                if hasattr(point, 'x') and hasattr(point, 'y'):
+                    # MediaPipe landmark object
+                    return [point.x, point.y]
+                elif isinstance(point, dict):
+                    # Dictionary format
+                    return [point.get('x', 0), point.get('y', 0)]
+                else:
+                    return [0, 0]
+            
+            p1 = np.array(get_coords(point1))
+            p2 = np.array(get_coords(point2))
+            p3 = np.array(get_coords(point3))
             
             # Calculate vectors
             v1 = p1 - p2
@@ -228,8 +257,8 @@ class SimpleProcessor:
                                     'visibility': landmark.visibility
                                 })
                             
-                            # Calculate angles for this frame
-                            frame_angles = self.angle_calculator.calculate_joint_angles(landmarks)
+                            # Calculate angles for this frame using original MediaPipe landmarks
+                            frame_angles = self.angle_calculator.calculate_joint_angles(results.pose_landmarks)
                             if frame_angles:
                                 angle_data.append({
                                     'frame': frame_count,
@@ -264,6 +293,14 @@ class SimpleProcessor:
                                 } for i, landmark in enumerate(landmarks)],
                                 'pose_detected': True
                             })
+                        else:
+                            # No pose detected, add empty data
+                            landmarks_data.append({
+                                'frame': frame_count,
+                                'timestamp': frame_count / fps,
+                                'landmarks_2d': [],
+                                'pose_detected': False
+                            })
                         
                         # Write frame to output video
                         out.write(frame)
@@ -294,7 +331,9 @@ class SimpleProcessor:
                             codec='libx264',
                             audio_codec='aac',
                             temp_audiofile='temp-audio.m4a',
-                            remove_temp=True
+                            remove_temp=True,
+                            verbose=False,
+                            logger=None
                         )
                         clip.close()
                         
@@ -328,8 +367,8 @@ class SimpleProcessor:
                                         'angle_data': angle_data,
                                         'angle_summary': angle_summary,
                                         'key_frames': key_frames,  # Key frames for Claude analysis
-                                        'angle_descriptions': self.angle_calculator.get_angle_descriptions(),
-                                        'health_ranges': self.angle_calculator.get_health_ranges(),
+                                        'angle_descriptions': self.get_angle_descriptions(),
+                                        'health_ranges': self.get_health_ranges(),
                                         'landmarks_data': landmarks_data  # Include landmarks for ICON viewer
                                     }, f, indent=2)
                                 
@@ -376,8 +415,8 @@ class SimpleProcessor:
                                             'angle_data': angle_data,
                                             'angle_summary': angle_summary,
                                             'key_frames': key_frames,  # Key frames for Claude analysis
-                                            'angle_descriptions': self.angle_calculator.get_angle_descriptions(),
-                                            'health_ranges': self.angle_calculator.get_health_ranges(),
+                                            'angle_descriptions': self.get_angle_descriptions(),
+                                            'health_ranges': self.get_health_ranges(),
                                             'landmarks_data': landmarks_data  # Include landmarks for ICON viewer
                                         }, f, indent=2)
                                     
@@ -628,3 +667,29 @@ class SimpleProcessor:
                 }
         
         return summary
+    
+    def get_angle_descriptions(self):
+        """Get descriptions for all calculated angles"""
+        return {
+            'left_knee_angle': 'Left knee joint angle (hip-knee-ankle)',
+            'right_knee_angle': 'Right knee joint angle (hip-knee-ankle)',
+            'left_elbow_angle': 'Left elbow joint angle (shoulder-elbow-wrist)',
+            'right_elbow_angle': 'Right elbow joint angle (shoulder-elbow-wrist)',
+            'left_hip_angle': 'Left hip joint angle (shoulder-hip-knee)',
+            'right_hip_angle': 'Right hip joint angle (shoulder-hip-knee)',
+            'left_shoulder_angle': 'Left shoulder joint angle',
+            'right_shoulder_angle': 'Right shoulder joint angle'
+        }
+    
+    def get_health_ranges(self):
+        """Get healthy ranges for joint angles (in degrees)"""
+        return {
+            'left_knee_angle': {'min': 160, 'max': 180, 'optimal': 170},
+            'right_knee_angle': {'min': 160, 'max': 180, 'optimal': 170},
+            'left_elbow_angle': {'min': 140, 'max': 180, 'optimal': 160},
+            'right_elbow_angle': {'min': 140, 'max': 180, 'optimal': 160},
+            'left_hip_angle': {'min': 160, 'max': 180, 'optimal': 170},
+            'right_hip_angle': {'min': 160, 'max': 180, 'optimal': 170},
+            'left_shoulder_angle': {'min': 160, 'max': 180, 'optimal': 170},
+            'right_shoulder_angle': {'min': 160, 'max': 180, 'optimal': 170}
+        }

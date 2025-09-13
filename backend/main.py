@@ -17,7 +17,7 @@ load_dotenv()
 
 from simple_processor import SimpleProcessor
 from key_frame_extractor import KeyFrameExtractor
-from two_stage_claude_analyzer import TwoStageClaudeAnalyzer
+# from two_stage_claude_analyzer import TwoStageClaudeAnalyzer
 from action_logger import action_logger
 from datetime import datetime
 
@@ -46,7 +46,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # Global processor and thread pool
 processor = SimpleProcessor()
 key_frame_extractor = KeyFrameExtractor()
-two_stage_claude_analyzer = TwoStageClaudeAnalyzer()
+# two_stage_claude_analyzer = TwoStageClaudeAnalyzer()
 executor = ThreadPoolExecutor(max_workers=2)
 
 # In-memory storage for processing status
@@ -111,15 +111,23 @@ async def process_video(video_id: str):
                 action_logger.log_processing_step("VIDEO_PROCESSING", video_id, "started")
                 
                 # Process video
-                output_path = processor.process_video(str(video_path), str(OUTPUT_DIR))
+                output_file_path = OUTPUT_DIR / f"{video_id}_output.mp4"
+                success, actual_output_path = processor.process_video(str(video_path), str(output_file_path))
                 
                 # Update status
-                processing_status[video_id] = {
-                    "status": "completed",
-                    "message": "Processing completed successfully",
-                    "output_path": str(output_path),
-                    "end_time": datetime.now().isoformat()
-                }
+                if success:
+                    processing_status[video_id] = {
+                        "status": "completed",
+                        "message": "Processing completed successfully",
+                        "output_path": actual_output_path,
+                        "end_time": datetime.now().isoformat()
+                    }
+                else:
+                    processing_status[video_id] = {
+                        "status": "error",
+                        "message": "Processing failed",
+                        "end_time": datetime.now().isoformat()
+                    }
                 
                 action_logger.log_processing_step("VIDEO_PROCESSING", video_id, "completed")
                 logger.info(f"Processing completed for video {video_id}")
