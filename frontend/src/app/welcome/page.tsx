@@ -40,9 +40,11 @@ export default function WelcomePage() {
           throw new Error(data?.error || `Failed to set role (${res.status})`);
         }
 
-        // Small delay to ensure database update propagates before redirect
-        await new Promise(resolve => setTimeout(resolve, 100));
-        router.replace("/dashboard");
+        // Wait longer to ensure database update fully propagates
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Hard redirect with full page reload to ensure fresh auth state
+        window.location.replace("/dashboard/doctor");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unexpected error");
         setSubmitting(false);
