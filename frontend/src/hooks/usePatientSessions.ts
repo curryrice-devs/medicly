@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { SessionStatus } from '@/types/medical.types';
 
 export interface Session {
   id: number;
   created_at: string;
   patient_id: string;
   doctor_id?: string;
-  status: 'pending' | 'active' | 'rejective' | 'completed';
+  status: SessionStatus;
   due_date?: string;
   ai_evaluation?: any; // JSONB
   exercise_sets?: number;

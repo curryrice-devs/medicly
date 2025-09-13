@@ -44,10 +44,12 @@ export function PatientQueue({ cases, onOpen }: Props) {
             </span>
           </div>
           
-          {/* Patient ID */}
+          {/* Patient */}
           <div className="mb-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient ID</p>
-            <p className="text-lg font-semibold text-gray-900">#{c.patientId}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Patient</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {c.patientName || `#${c.patientId}`}
+            </p>
           </div>
           
           {/* Injury Type */}

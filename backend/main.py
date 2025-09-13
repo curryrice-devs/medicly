@@ -504,10 +504,17 @@ async def perform_two_stage_analysis(video_id: str):
         key_frames_dir.mkdir(exist_ok=True)
         action_logger.log_file_operation("CREATE_DIR", key_frames_dir, True)
         
-        # Extract key frames
+        # Load angle data
+        with open(angle_file, 'r') as f:
+            angle_data_raw = json.load(f)
+        
+        angle_data = angle_data_raw.get('angle_data', [])
+        
+        # Extract key frames with pose data
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "started")
-        analysis_package = key_frame_extractor.extract_key_frames(
+        analysis_package = key_frame_extractor.create_analysis_package(
             str(video_path), 
+            angle_data,
             str(key_frames_dir)
         )
         action_logger.log_processing_step("KEY_FRAME_EXTRACTION", video_id, "completed")

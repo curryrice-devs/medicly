@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PatientCase, CaseStats } from '@/types/medical.types';
+import { PatientCase, CaseStats, SessionStatus } from '@/types/medical.types';
 import { doctorApi } from '@/services/api';
 
 interface UsePatientCasesOptions {
-  initialStatus?: 'pending' | 'active' | 'rejected' | 'completed';
+  initialStatus?: SessionStatus;
 }
 
 export function usePatientCases(options: UsePatientCasesOptions = {}) {

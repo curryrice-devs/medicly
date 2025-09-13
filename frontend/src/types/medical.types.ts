@@ -1,5 +1,8 @@
 export type UrgencyLevel = 'low' | 'medium' | 'high';
 
+// Session status types - centralized for consistency
+export type SessionStatus = 'pending' | 'active' | 'rejected' | 'completed' | 'feedback';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -38,11 +41,14 @@ export interface PatientContext {
 export interface PatientCase {
   id: string;
   patientId: string;
-  videoUrl: string;
+  patientName?: string; // Patient name from profiles table
+  videoUrl: string; // Keep for backwards compatibility - will use previdurl
+  originalVideoUrl?: string; // previdurl - patient's original uploaded video
+  processedVideoUrl?: string; // postvidurl - processed video with pose analysis
   injuryType: string;
   aiAnalysis: string | any; // Can be string or JSONB object
   recommendedExercise: Exercise;
-  status: 'pending' | 'active' | 'rejected' | 'completed';
+  status: SessionStatus; // Updated to use the centralized type
   submittedAt: string; // ISO date
   urgency: UrgencyLevel;
   aiConfidence?: number; // 0-1
@@ -50,6 +56,7 @@ export interface PatientCase {
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
+  patientNotes?: string; // Patient's notes to the doctor
 }
 
 export interface PrescriptionParams {

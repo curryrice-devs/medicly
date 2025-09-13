@@ -12,6 +12,7 @@ export interface SessionVideoData {
   processedVideo?: VideoSource;
   patientNotes?: string;
   aiEvaluation?: any;
+  doctorFeedback?: string;
   status?: string;
   isLoading: boolean;
   error: string | null;
@@ -47,6 +48,7 @@ export function useSessionVideo(sessionId: string) {
         previdurl: session.previdurl,
         postvidurl: session.postvidurl,
         patient_notes: session.patient_notes,
+        doctor_feedback: session.doctor_feedback,
         status: session.status
       });
 
@@ -56,6 +58,7 @@ export function useSessionVideo(sessionId: string) {
         error: null,
         patientNotes: session.patient_notes,
         aiEvaluation: session.ai_evaluation,
+        doctorFeedback: session.doctor_feedback,
         status: session.status
       };
 
@@ -105,6 +108,7 @@ export function useSessionVideo(sessionId: string) {
     // Session data
     patientNotes: videoData.patientNotes || '',
     aiEvaluation: videoData.aiEvaluation,
+    doctorFeedback: videoData.doctorFeedback || '',
     sessionStatus: videoData.status,
     
     // State
