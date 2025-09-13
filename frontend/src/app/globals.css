@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Houschka Rounded';
+  src: url('/houschkarounded_bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded';
+  src: url('/houschka-rounded-medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Core App Colors - Limited Palette */
+  --color-white: 0 0% 100%;
+  --color-black: 0 0% 0%;
+  --color-dark-green: 158 75% 15%; /* Darker green #0d4a2b for better visibility */
+  --color-purple-accent: 250 75% 76%; /* #A08DF6 */
+
+  /* Derived colors from core palette */
+  --color-dark-green-light: 158 30% 95%; /* Very light green for backgrounds */
+  --color-dark-green-medium: 158 50% 35%; /* Medium green for text */
+  --color-dark-green-dark: 158 75% 12%; /* Very dark green for text */
+  --color-purple-light: 250 75% 96%; /* Very light purple for backgrounds */
+
+  /* Base colors */
+  --background: var(--color-white);
+  --foreground: var(--color-dark-green-dark);
+  --card: 158 20% 99%;
+  --card-foreground: var(--color-dark-green-dark);
+  --popover: 158 20% 99%;
+  --popover-foreground: var(--color-dark-green-dark);
+
+  /* Brand colors - Dark Green Primary */
+  --primary: var(--color-dark-green);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-purple-light);
+  --secondary-foreground: var(--color-dark-green-dark);
+  --muted: var(--color-dark-green-light);
+  --muted-foreground: var(--color-dark-green-medium);
+  --accent: var(--color-purple-light);
+  --accent-foreground: var(--color-dark-green);
+
+  /* Status colors using core palette */
+  --success: var(--color-dark-green);
+  --success-light: var(--color-dark-green-light);
+  --warning: var(--color-purple-accent);
+  --warning-light: var(--color-purple-light);
+  --info: var(--color-purple-accent);
+  --info-light: var(--color-purple-light);
+  --destructive: var(--color-black);
+  --destructive-foreground: var(--color-white);
+  --destructive-light: 0 0% 95%;
+
+  /* Brand colors */
+  --brand: var(--color-dark-green);
+  --brand-foreground: var(--color-white);
+
+  /* UI elements */
+  --border: 158 25% 88%;
+  --input: 158 25% 88%;
+  --ring: var(--color-dark-green);
+  --radius: 0.5rem;
+
+  /* Charts - using core palette only */
+  --chart-1: var(--color-dark-green);
+  --chart-2: var(--color-purple-accent);
+  --chart-3: var(--color-dark-green-medium);
+  --chart-4: var(--color-black);
+  --chart-5: var(--color-white);
+}
+
+.dark {
+  --background: var(--color-black);
+  --foreground: var(--color-white);
+  --card: 158 50% 6%;
+  --card-foreground: var(--color-white);
+  --popover: 158 50% 6%;
+  --popover-foreground: var(--color-white);
+  --primary: var(--color-dark-green);
+  --primary-foreground: var(--color-white);
+  --secondary: 0 0% 10%;
+  --secondary-foreground: var(--color-white);
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 0 0% 12%;
+  --accent-foreground: var(--color-purple-accent);
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar styling - dark green theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}
+
+/* Focus styles - dark green */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--primary));
+}
+
+/* Video player styling */
+video {
+  border-radius: 8px;
+}
+
+/* Medical gradient backgrounds - using core colors only */
+.medical-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--warning)) 100%);
+}
+
+.medical-gradient-subtle {
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--muted)) 100%);
+}
+
+/* Medical-themed utilities */
+.medical-shadow {
+  box-shadow: 0 4px 6px -1px hsl(var(--primary) / 0.1), 0 2px 4px -1px hsl(var(--primary) / 0.06);
+}
+
+.medical-border {
+  border: 1px solid hsl(var(--primary) / 0.2);
+}
+
+/* Progress bar color classes using core palette */
+.progress-excellent {
+  background-color: #1a5744; /* Dark green for 80%+ */
+}
+
+.progress-good {
+  background-color: #A08DF6; /* Purple accent for 60-79% */
+}
+
+.progress-moderate {
+  background-color: #6b7280; /* Gray for 40-59% */
+}
+
+.progress-poor {
+  background-color: #374151; /* Dark gray for <40% */
+}
