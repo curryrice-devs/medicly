@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -23,43 +23,118 @@ export async function GET() {
 
     const supabase = createClient(url, key)
 
-    const { data: sessions, error } = await supabase
-      .from('sessions')
-      .select(`
-        id,
-        created_at,
-        patient_id,
-        doctor_id,
-        status,
-        due_date,
-        treatment_id,
-        ai_evaluation,
-        exercise_sets,
-        exercise_reps,
-        exercise_weight,
-        previdurl,
-        postvidurl,
-        patient_notes,
-        doctor_feedback,
-        profiles!sessions_patient_id_fkey (
-          id,
-          patient_profiles (
-            id,
-            full_name,
-            email,
-            phone,
-            age,
-            case_id
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(200)
+    // Get URL parameters
+    const { searchParams } = new URL(request.url)
+    const doctorId = searchParams.get('doctorId')
 
-    if (error) {
-      console.error('[api/doctor/sessions] sessions error', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    let sessions: any[] = []
+
+    if (doctorId) {
+      // Filter sessions for patients assigned to this doctor
+      console.log('[api/doctor/sessions] Filtering sessions for doctor:', doctorId)
+      
+      // First get patients assigned to this doctor
+      const { data: relationships, error: relationshipError } = await supabase
+        .from('doctor_patient_relationships')
+        .select('patient_id')
+        .eq('doctor_id', doctorId)
+        .eq('status', 'active')
+
+      if (relationshipError) {
+        console.error('[api/doctor/sessions] relationship error:', relationshipError)
+        return NextResponse.json({ error: relationshipError.message }, { status: 500 })
+      }
+
+      const patientIds = relationships?.map(r => r.patient_id) || []
+      console.log('[api/doctor/sessions] Found patients for doctor:', patientIds.length)
+
+      if (patientIds.length > 0) {
+        // Get sessions only for assigned patients
+        const { data: filteredSessions, error: sessionsError } = await supabase
+          .from('sessions')
+          .select(`
+            id,
+            created_at,
+            patient_id,
+            doctor_id,
+            status,
+            due_date,
+            treatment_id,
+            ai_evaluation,
+            exercise_sets,
+            exercise_reps,
+            exercise_weight,
+            previdurl,
+            postvidurl,
+            patient_notes,
+            doctor_feedback,
+            profiles!sessions_patient_id_fkey (
+              id,
+              patient_profiles (
+                id,
+                full_name,
+                email,
+                phone,
+                age,
+                case_id
+              )
+            )
+          `)
+          .in('patient_id', patientIds)
+          .order('created_at', { ascending: false })
+          .limit(200)
+
+        if (sessionsError) {
+          console.error('[api/doctor/sessions] sessions error', sessionsError)
+          return NextResponse.json({ error: sessionsError.message }, { status: 500 })
+        }
+
+        sessions = filteredSessions || []
+      }
+    } else {
+      // No doctor filter - return all sessions (for admin or general use)
+      const { data: allSessions, error } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          created_at,
+          patient_id,
+          doctor_id,
+          status,
+          due_date,
+          treatment_id,
+          ai_evaluation,
+          exercise_sets,
+          exercise_reps,
+          exercise_weight,
+          previdurl,
+          postvidurl,
+          patient_notes,
+          doctor_feedback,
+          profiles!sessions_patient_id_fkey (
+            id,
+            patient_profiles (
+              id,
+              full_name,
+              email,
+              phone,
+              age,
+              case_id
+            )
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(200)
+
+      if (error) {
+        console.error('[api/doctor/sessions] sessions error', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      sessions = allSessions || []
     }
+
+    console.log('[api/doctor/sessions] Returning sessions:', sessions.length)
 
     const treatmentIds = Array.from(new Set((sessions || []).map(s => s.treatment_id).filter((v): v is number => !!v)))
     let treatmentsById: Record<number, { id: number; video_link: string | null; description: string | null; name: string | null }> = {}
