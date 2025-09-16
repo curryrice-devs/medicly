@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-
 /**
  * Video Rotation Detection and Correction Utilities
  *
@@ -254,31 +252,4 @@ export async function detectAndCorrectVideoRotation(
   }
 }
 
-/**
- * Auto-detect video rotation when video loads
- * This can be used as a hook or effect in React components
- */
-export function useVideoRotationDetection(
-  videoRef: { current: HTMLVideoElement | null },
-  videoFile?: File
-) {
-  const [rotationInfo, setRotationInfo] = useState<VideoRotationInfo>({
-    angle: 0,
-    needsCorrection: false,
-    transform: 'none',
-    containerStyle: { transform: 'none' },
-  });
-
-  useEffect(() => {
-    if (videoFile && videoRef.current) {
-      detectAndCorrectVideoRotation(videoFile, videoRef.current)
-        .then(setRotationInfo)
-        .catch(error => {
-          console.error('Failed to detect video rotation:', error);
-        });
-    }
-  }, [videoFile, videoRef]);
-
-  return rotationInfo;
-}
 
