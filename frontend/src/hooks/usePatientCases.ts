@@ -62,7 +62,7 @@ export function usePatientCases(options: UsePatientCasesOptions = {}) {
       // If server-side filtering is working, we might not need client-side filtering
       // But we'll keep it as a fallback for robustness
       let filteredItems = res.items;
-      if (user?.role === 'doctor' && doctorPatients.length > 0 && !filtersWithDoctor.doctorId) {
+      if (user?.role === 'doctor' && doctorPatients.length > 0 && !('doctorId' in filtersWithDoctor)) {
         // Only apply client-side filtering if we didn't do server-side filtering
         filteredItems = res.items.filter(item => doctorPatients.includes(item.patientId));
         console.log('[usePatientCases] client-side filtered to doctor patients:', filteredItems.length, 'from', res.items.length);

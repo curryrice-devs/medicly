@@ -2,14 +2,9 @@
 
 import React from 'react'
 import { 
-  User, 
+  Users,
   Settings, 
-  LogOut, 
-  FileText, 
-  Activity,
-  CreditCard,
-  Shield,
-  HelpCircle
+  LogOut
 } from 'lucide-react'
 
 import { useAuth } from '@/contexts/auth-context'
@@ -35,9 +30,9 @@ export function UserMenu() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'doctor': return 'success'
+      case 'doctor': return 'railway'
       case 'admin': return 'destructive'
-      default: return 'secondary'
+      default: return 'railway-outline'
     }
   }
 
@@ -49,20 +44,31 @@ export function UserMenu() {
     }
   }
 
+  const handleSettingsClick = () => {
+    const settingsRoute = user.role === 'doctor' 
+      ? '/dashboard/doctor/settings'
+      : '/dashboard/patient/settings'
+    router.push(settingsRoute)
+  }
+
+  const handlePatientsClick = () => {
+    router.push('/dashboard/doctor/patients')
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-muted">
+          <Avatar className="h-9 w-9">
             <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
               {user.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-64 bg-white/95 backdrop-blur-sm border shadow-xl z-[99999]" 
+        className="w-64 railway-glass border shadow-lg z-[99999]" 
         align="end" 
         forceMount
         style={{ zIndex: 99999 }}
@@ -70,7 +76,7 @@ export function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium leading-none">{user.name}</p>
+              <p className="text-sm font-medium leading-none text-foreground">{user.name}</p>
               <Badge variant={getRoleColor(user.role)} className="text-xs">
                 {getRoleLabel(user.role)}
               </Badge>
@@ -82,45 +88,26 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="gap-2">
-            <User className="h-4 w-4" />
-            <span>Profile</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2">
-            <Activity className="h-4 w-4" />
-            <span>My Analyses</span>
-          </DropdownMenuItem>
           {user.role === 'doctor' && (
-            <DropdownMenuItem className="gap-2">
-              <FileText className="h-4 w-4" />
-              <span>Patient Reports</span>
+            <DropdownMenuItem 
+              className="gap-2 cursor-pointer hover:bg-muted transition-colors"
+              onClick={handlePatientsClick}
+            >
+              <Users className="h-4 w-4" />
+              <span>Patients</span>
             </DropdownMenuItem>
           )}
-          {user.role === 'admin' && (
-            <DropdownMenuItem className="gap-2">
-              <Shield className="h-4 w-4" />
-              <span>Admin Panel</span>
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="gap-2">
-            <CreditCard className="h-4 w-4" />
-            <span>Billing</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2">
+          <DropdownMenuItem 
+            className="gap-2 cursor-pointer hover:bg-muted transition-colors"
+            onClick={handleSettingsClick}
+          >
             <Settings className="h-4 w-4" />
             <span>Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2">
-            <HelpCircle className="h-4 w-4" />
-            <span>Support</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
-          className="gap-2 text-destructive focus:text-destructive" 
+          className="gap-2 text-destructive focus:text-destructive cursor-pointer hover:bg-destructive/10 transition-colors" 
           onClick={async () => {
             if (isLoggingOut) {
               console.debug('[menu] logout already in progress')

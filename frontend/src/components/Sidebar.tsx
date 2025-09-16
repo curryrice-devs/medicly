@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-export type ViewType = 'overview' | 'pose' | 'icon' | '3d' | 'health' | 'claude' | 'version' | 'data_summary'
+export type ViewType = 'overview' | 'pose' | 'icon' | '3d' | 'health' | 'claude' | 'version' | 'data_summary' | 'input' | 'processing'
 
 interface SidebarProps {
   activeView: ViewType
@@ -42,11 +42,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 
   return (
-    <div className="w-64 bg-gray-50 border-r border-gray-200 h-full flex flex-col">
+    <div className="w-64 bg-card border-r border-border h-full flex flex-col railway-glass">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Analysis Views</h2>
-        <p className="text-sm text-gray-600">Switch between different analysis modes</p>
+      <div className="p-4 border-b border-border">
+        <h2 className="text-lg font-semibold text-foreground">Analysis Views</h2>
+        <p className="text-sm text-muted-foreground">Switch between different analysis modes</p>
       </div>
 
       {/* Navigation */}
@@ -55,10 +55,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button
             key={view.id}
             onClick={() => onViewChange(view.id as ViewType)}
-            className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors railway-button-outline ${
               activeView === view.id
-                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                : 'text-gray-700 hover:bg-gray-100'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'text-foreground hover:bg-muted border-border'
             }`}
           >
             <div className="flex items-center space-x-3">
@@ -72,9 +72,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Version Info */}
       {versionInfo && (
-        <div className="p-4 border-t border-gray-200 bg-gray-100">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">System Info</h3>
-          <div className="text-xs text-gray-600 space-y-1">
+        <div className="p-4 border-t border-border bg-muted/50">
+          <h3 className="text-sm font-medium text-foreground mb-2">System Info</h3>
+          <div className="text-xs text-muted-foreground space-y-1">
             <div>API: {versionInfo.api_version}</div>
             <div>MediaPipe: {versionInfo.libraries?.mediapipe}</div>
             <div>ICON: {versionInfo.icon_analyzer?.version}</div>

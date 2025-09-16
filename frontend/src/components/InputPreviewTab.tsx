@@ -121,7 +121,8 @@ const InputPreviewTab: React.FC<InputPreviewTabProps> = ({ videoId, onVideoProce
       
     } catch (error) {
       console.error('Analysis error:', error);
-      alert(`Analysis failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Analysis failed: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -192,7 +193,7 @@ const InputPreviewTab: React.FC<InputPreviewTabProps> = ({ videoId, onVideoProce
               <button
                 onClick={handleAnalyze}
                 disabled={isAnalyzing}
-                className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
               </button>

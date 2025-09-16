@@ -176,8 +176,8 @@ export default function PatientDashboard() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <Activity className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-foreground" />
               </div>
               <div>
                 <h2 className="text-2xl font-semibold text-gray-900">
@@ -206,7 +206,7 @@ export default function PatientDashboard() {
                 onClick={() => setStatusFilter(filter.key as any)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center space-x-2 ${
                   statusFilter === filter.key
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -258,8 +258,8 @@ export default function PatientDashboard() {
                           {session.doctor_id ? `Doctor assigned` : 'Self-guided'}
                         </p>
                       </div>
-                      <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
-                        <Activity className="w-4 h-4 text-green-600" />
+                      <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
+                        <Activity className="w-4 h-4 text-foreground" />
                       </div>
                     </div>
 
@@ -268,7 +268,7 @@ export default function PatientDashboard() {
                       {/* Progress Section */}
                       <div>
                         <div className="flex items-center space-x-2 mb-2">
-                          <Activity className="w-4 h-4 text-green-600" />
+                          <Activity className="w-4 h-4 text-foreground" />
                           <span className="text-sm font-medium text-gray-900">
                             Exercise Details
                           </span>
@@ -284,7 +284,7 @@ export default function PatientDashboard() {
                       {/* Due Date Section */}
                       <div>
                         <div className="flex items-center space-x-2 mb-2">
-                          <Calendar className="w-4 h-4 text-green-600" />
+                          <Calendar className="w-4 h-4 text-foreground" />
                           <span className="text-sm font-medium text-gray-900">
                             Due Date
                           </span>

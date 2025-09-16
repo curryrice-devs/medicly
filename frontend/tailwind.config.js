@@ -61,6 +61,20 @@ module.exports = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        // Railway-inspired gray scale
+        gray: {
+          50: 'hsl(var(--color-gray-50))',
+          100: 'hsl(var(--color-gray-100))',
+          200: 'hsl(var(--color-gray-200))',
+          300: 'hsl(var(--color-gray-300))',
+          400: 'hsl(var(--color-gray-400))',
+          500: 'hsl(var(--color-gray-500))',
+          600: 'hsl(var(--color-gray-600))',
+          700: 'hsl(var(--color-gray-700))',
+          800: 'hsl(var(--color-gray-800))',
+          900: 'hsl(var(--color-gray-900))',
+          950: 'hsl(var(--color-gray-950))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -69,6 +83,24 @@ module.exports = {
           '5': 'hsl(var(--chart-5))'
         }
       },
+      fontSize: {
+        'xs': 'var(--font-size-xs)',
+        'sm': 'var(--font-size-sm)', 
+        'base': 'var(--font-size-base)',
+        'lg': 'var(--font-size-lg)',
+        'xl': 'var(--font-size-xl)',
+        '2xl': 'var(--font-size-2xl)',
+        '3xl': 'var(--font-size-3xl)',
+        '4xl': 'var(--font-size-4xl)',
+        '5xl': 'var(--font-size-5xl)',
+        '6xl': 'var(--font-size-6xl)',
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '128': '32rem',
+        '144': '36rem',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -76,7 +108,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
-          'Houschka Rounded',
+          'var(--font-geist-sans)',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -90,8 +122,18 @@ module.exports = {
           'Segoe UI Symbol',
           'Noto Color Emoji'
         ],
+        mono: [
+          'var(--font-geist-mono)',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Monaco',
+          'Consolas',
+          'Liberation Mono',
+          'Courier New',
+          'monospace'
+        ],
         heading: [
-          'Houschka Rounded',
+          'var(--font-geist-sans)',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',

@@ -1,17 +1,9 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Create Supabase client for server-side operations
-function createSupabaseServer() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+import { createSupabaseServer } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServer();
+    const supabase = await createSupabaseServer();
 
     console.log('📋 Fetching treatments...');
 

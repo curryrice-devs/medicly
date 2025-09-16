@@ -5,7 +5,6 @@ import {
   User, 
   Edit3,
   Mail,
-  Phone,
   Shield
 } from 'lucide-react'
 
@@ -105,23 +104,6 @@ export default function PatientSettingsPage() {
               </Button>
             </div>
 
-            {/* Phone Number */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Phone style={{ width: '16px', height: '16px', color: 'hsl(var(--muted-foreground))' }} />
-                  <span style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>Phone Number</span>
-                </div>
-                <p style={{ fontSize: '1rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>
-                  (555) 123-4567
-                </p>
-              </div>
-              <Button variant="outline" size="sm" style={{ gap: '6px' }}>
-                <Edit3 style={{ width: '14px', height: '14px' }} />
-                Edit
-              </Button>
-            </div>
-
             {/* Account Type */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -137,37 +119,6 @@ export default function PatientSettingsPage() {
           </div>
         </section>
 
-        {/* Account Management */}
-        <section>
-          <h2 style={{ 
-            fontSize: '1.25rem', 
-            fontWeight: '600', 
-            color: 'hsl(var(--foreground))',
-            marginBottom: '16px',
-            paddingBottom: '8px',
-            borderBottom: '1px solid hsl(var(--border))'
-          }}>
-            Account Management
-          </h2>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Deactivate Account */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{ fontSize: '1rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>Deactivate Account</span>
-                <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
-                  Temporarily disable your account access
-                </p>
-              </div>
-              <Button variant="outline" size="sm" style={{ 
-                color: '#dc2626',
-                borderColor: '#dc2626'
-              }}>
-                Deactivate
-              </Button>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   )

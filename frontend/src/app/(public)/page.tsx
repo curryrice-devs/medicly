@@ -27,23 +27,23 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+    <main className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 text-blue-800 px-3 py-1 text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full bg-muted text-foreground px-3 py-1 text-xs font-medium mb-6">
             <span>Healthcare</span>
-            <span className="w-1 h-1 rounded-full bg-blue-400" />
+            <span className="w-1 h-1 rounded-full bg-muted-foreground" />
             <span>AI‑assisted recovery</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900">Medicly</h1>
-          <p className="mt-4 text-lg text-gray-600 max-w-prose">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground">Medicly</h1>
+          <p className="mt-4 text-lg text-muted-foreground max-w-prose">
             Intelligent, privacy‑first physical therapy tracking. Upload sessions, get posture insights,
             and measure progress over time—securely, from anywhere.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <button
               onClick={handleGoogleSignIn}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-3 shadow-sm"
+              className="railway-button inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium shadow-sm"
             >
               <span>Begin Login</span>
             </button>

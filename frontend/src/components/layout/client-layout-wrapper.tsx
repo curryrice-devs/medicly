@@ -21,7 +21,7 @@ export function ClientLayoutWrapper({ children }: ClientLayoutWrapperProps) {
   if (shouldShowSidebarLayout) {
     return (
       <SidebarProvider>
-        <div style={{ position: 'relative', minHeight: '100vh', backgroundColor: 'white' }}>
+        <div className="relative min-h-screen bg-background">
           <Sidebar />
           <LayoutContent>
             {children}
