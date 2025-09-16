@@ -40,7 +40,7 @@ ON storage.objects FOR INSERT
 WITH CHECK (
     bucket_id = 'patient_videos' 
     AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = ('user_' || auth.uid()::text)
+    AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow users to view their own videos
@@ -50,7 +50,7 @@ ON storage.objects FOR SELECT
 USING (
     bucket_id = 'patient_videos' 
     AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = ('user_' || auth.uid()::text)
+    AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow users to update their own videos (for metadata updates)
@@ -60,7 +60,7 @@ ON storage.objects FOR UPDATE
 USING (
     bucket_id = 'patient_videos' 
     AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = ('user_' || auth.uid()::text)
+    AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow users to delete their own videos
@@ -70,7 +70,7 @@ ON storage.objects FOR DELETE
 USING (
     bucket_id = 'patient_videos' 
     AND auth.role() = 'authenticated'
-    AND (storage.foldername(name))[1] = ('user_' || auth.uid()::text)
+    AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- 3. Create a simple videos table to track uploaded videos (optional)

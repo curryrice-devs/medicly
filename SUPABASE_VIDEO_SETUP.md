@@ -58,7 +58,7 @@ After running the SQL, verify in your Supabase dashboard:
 The video upload hook will now:
 
 1. **Authenticate** the user
-2. **Upload** video to `patient_videos` bucket in path: `user_{userId}/sessions/{sessionId}/...`
+2. **Upload** video to `patient_videos` bucket in path: `{patientId}/sessions/{caseNumber}/...`
 3. **Create record** in `videos` table via `upload_session_video()` RPC
 4. **Update status** via `start_video_processing()` when processing begins
 
@@ -67,14 +67,23 @@ The video upload hook will now:
 Videos are organized as:
 ```
 patient_videos/
-└── user_{user_id}/
+└── {patient_id}/
     ├── sessions/
-    │   └── {session_id}/
-    │       └── 2024/01/15/
-    │           └── {random_id}.mp4
-    └── uploads/
-        └── 2024/01/15/
-            └── {random_id}.mp4
+    │   └── {case_number}/
+    │       └── {timestamp}-{random_id}.mp4
+    └── processed/
+        └── {timestamp}-{random_id}.mp4
+```
+
+Example:
+```
+patient_videos/
+└── 880e8f5c-faa2-42d2-95d8-e0e053962a14/
+    ├── sessions/
+    │   └── 80/
+    │       └── 1704067200000-abc123.mp4
+    └── processed/
+        └── 1704067200000-def456.mp4
 ```
 
 ## Security
