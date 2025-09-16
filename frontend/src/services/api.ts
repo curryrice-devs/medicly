@@ -110,16 +110,25 @@ export const doctorApi = {
       search = '',
       page = 1,
       perPage = 20,
+      doctorId = undefined,
     } = filters || {};
 
     const supabase = supabaseBrowser();
 
-    // Fetch sessions (no RLS filtering yet); optionally filter client-side
-    console.log('[doctorApi.listCases] fetching sessions via /api/doctor/sessions')
+    // Fetch sessions with optional doctor filtering
+    console.log('[doctorApi.listCases] fetching sessions via /api/doctor/sessions', { doctorId })
     let sessions: any[] | null = null
     let treatmentsById: Record<number, { id: number; video_link: string | null; description: string | null }> = {}
     try {
-      const resp = await fetch('/api/doctor/sessions', { cache: 'no-store' })
+      // Include doctorId parameter if provided
+      const queryParams = new URLSearchParams()
+      if (doctorId) {
+        queryParams.set('doctorId', doctorId)
+      }
+      const queryString = queryParams.toString()
+      const url = `/api/doctor/sessions${queryString ? `?${queryString}` : ''}`
+      
+      const resp = await fetch(url, { cache: 'no-store' })
       const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
       if (!resp.ok) {
         console.warn('[doctorApi.listCases] route error payload', payload)
@@ -189,10 +198,8 @@ export const doctorApi = {
       (c) => c.status === 'completed' && isSameDay(c.submittedAt)
     ).length;
 
-    // Calculate active patients (unique patient IDs with active status)
-    const activePatients = new Set(
-      mapped.filter(c => c.status === 'active').map(c => c.patientId)
-    ).size;
+    // Calculate active patients (unique patient IDs - total patients with any cases)
+    const activePatients = new Set(mapped.map(c => c.patientId)).size;
 
     // Calculate sessions created today
     const sessionsToday = mapped.filter(c => isSameDay(c.submittedAt)).length;
@@ -202,7 +209,7 @@ export const doctorApi = {
       c.urgency === 'high' && c.status === 'pending'
     ).length;
 
-    // Calculate active cases
+    // Calculate active cases (cases that are actively being worked on)
     const activeCount = mapped.filter(c => c.status === 'active').length;
 
     // Calculate average review time based on case complexity
@@ -300,18 +307,18 @@ export const doctorApi = {
       const allPatients = payload.patients || []
       console.log('[doctorApi.searchPatients] fetched', { count: allPatients.length })
 
-      // Map database response to TypeScript interface (same as before)
+      // Map database response to TypeScript interface (API returns camelCase)
       let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
         id: item.id,
-        caseId: item.case_id,
-        fullName: item.full_name,
+        caseId: item.caseId,
+        fullName: item.fullName,
         email: item.email,
         phone: item.phone,
         age: item.age,
-        relationshipStatus: item.relationship_status,
-        assignedAt: item.assigned_at,
-        lastSession: item.last_session,
-        totalSessions: Number(item.total_sessions) || 0
+        relationshipStatus: item.relationshipStatus,
+        assignedAt: item.assignedAt,
+        lastSession: item.lastSession,
+        totalSessions: Number(item.totalSessions) || 0
       }));
 
       // Client-side filtering (same pattern as listCases)
@@ -411,41 +418,55 @@ export const doctorApi = {
 
 
   async getPatientProfile(patientId: string): Promise<PatientProfile | null> {
+    console.log('🔍 getPatientProfile: Starting API call for patientId:', patientId);
+
     try {
-      const { data, error } = await supabaseBrowser()
-        .from('profiles')
-        .select('*')
-        .eq('id', patientId)
-        .single();
+      console.log('🔍 getPatientProfile: Calling API route...');
+      const queryStart = Date.now();
 
-      if (error) throw error;
+      const response = await fetch(`/api/doctor/patient-profile/${patientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (!data) return null;
+      const queryTime = Date.now() - queryStart;
+      console.log(`🔍 getPatientProfile: API call completed in ${queryTime}ms`);
 
-      // Map database fields to TypeScript interface
-      // The profiles table has: id, name, role, onboarded
-      const mappedProfile: PatientProfile = {
-        id: data.id,
-        caseId: data.id, // Use ID as caseId since profiles table doesn't have case_id
-        fullName: data.name || data.email || 'Unknown Patient',
-        email: data.email,
-        phone: data.phone,
-        age: data.age,
-        gender: data.gender,
-        address: data.address,
-        emergencyContactName: data.emergency_contact_name,
-        emergencyContactPhone: data.emergency_contact_phone,
-        medicalHistory: data.medical_history || [],
-        currentMedications: data.current_medications || [],
-        allergies: data.allergies || [],
-        createdAt: data.created_at || new Date().toISOString(),
-        updatedAt: data.updated_at || new Date().toISOString()
-      };
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('🔍 getPatientProfile: API error:', errorData);
+        
+        if (response.status === 404) {
+          console.log('🔍 getPatientProfile: Patient not found, returning null');
+          return null;
+        }
+        
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
 
-      return mappedProfile;
+      const result = await response.json();
+      console.log('🔍 getPatientProfile: API response:', result);
+
+      if (!result.profile) {
+        console.log('🔍 getPatientProfile: No profile data in response, returning null');
+        return null;
+      }
+
+      console.log('🔍 getPatientProfile: Successfully received profile:', result.profile);
+      return result.profile;
     } catch (error) {
-      console.error('Error fetching patient profile:', error);
-      return null;
+      console.error('🔍 getPatientProfile: Error occurred:', error);
+      console.error('🔍 getPatientProfile: Error type:', typeof error);
+      console.error('🔍 getPatientProfile: Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      // Re-throw the error so component can handle it properly
+      throw error;
     }
   },
 
@@ -557,19 +578,23 @@ export const doctorApi = {
   // Doctor-patient relationship management
   async assignPatientToDoctor(doctorId: string, patientId: string, notes?: string): Promise<DoctorPatientRelationship | null> {
     try {
-      const { data, error } = await supabaseBrowser()
-        .from('doctor_patient_relationships')
-        .insert([{
-          doctor_id: doctorId,
-          patient_id: patientId,
-          notes: notes,
-          status: 'active'
-        }])
-        .select()
-        .single();
+      console.log('[doctorApi.assignPatientToDoctor] assigning patient to doctor:', { doctorId, patientId, notes });
 
-      if (error) throw error;
-      return data;
+      const resp = await fetch('/api/doctor/assign-patient', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctorId, patientId, notes })
+      });
+
+      const payload = await resp.json();
+
+      if (!resp.ok) {
+        console.error('[doctorApi.assignPatientToDoctor] failed:', payload);
+        throw new Error(payload.error || 'Failed to assign patient');
+      }
+
+      console.log('[doctorApi.assignPatientToDoctor] success:', payload);
+      return payload.relationship;
     } catch (error) {
       console.error('Error assigning patient to doctor:', error);
       throw new Error('Failed to assign patient to doctor');
@@ -578,10 +603,12 @@ export const doctorApi = {
 
   async getDoctorPatients(doctorId: string): Promise<PatientSearchResult[]> {
     try {
-      console.log('[doctorApi.getDoctorPatients] fetching patients via API route for doctor:', doctorId);
+      console.log('[doctorApi.getDoctorPatients] fetching patients for doctor:', doctorId);
 
-      // Use the same working pattern as searchPatients
-      const resp = await fetch('/api/doctor/all-patients', { cache: 'no-store' })
+      // Use the correct endpoint that filters by doctor relationships
+      const resp = await fetch(`/api/doctor/patients?doctorId=${encodeURIComponent(doctorId)}`, { 
+        cache: 'no-store' 
+      })
       const payload = await resp.json().catch(() => ({ error: 'invalid json' }))
 
       if (!resp.ok) {
@@ -589,29 +616,24 @@ export const doctorApi = {
         throw new Error(`HTTP ${resp.status}`)
       }
 
-      const allPatients = payload.patients || []
-      console.log('[doctorApi.getDoctorPatients] fetched', { count: allPatients.length })
+      const doctorPatients = payload.patients || []
+      console.log('[doctorApi.getDoctorPatients] fetched', { count: doctorPatients.length })
 
-      // Map database response to TypeScript interface - API already returns camelCase
-      let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
+      // Map the doctor-patient API response to PatientSearchResult format
+      const mapped: PatientSearchResult[] = doctorPatients.map((item: any) => ({
         id: item.id,
-        caseId: item.caseId,
-        fullName: item.fullName,
-        email: item.email,
-        phone: item.phone,
+        caseId: '', // Not provided by this endpoint, could be enhanced
+        fullName: item.name || 'Unknown Patient',
+        email: item.email || '',
+        phone: item.phone || '',
         age: item.age,
-        relationshipStatus: item.relationshipStatus,
+        relationshipStatus: item.status, // 'active', 'inactive', etc.
         assignedAt: item.assignedAt,
-        lastSession: item.lastSession,
+        lastSession: item.lastSessionDate,
         totalSessions: Number(item.totalSessions) || 0
       }));
 
-      // Filter for patients assigned to this specific doctor
-      mapped = mapped.filter((patient) => {
-        return patient.relationshipStatus === 'active' || patient.relationshipStatus === 'inactive';
-      });
-
-      console.log(`[doctorApi.getDoctorPatients] filtered to ${mapped.length} patients for doctor ${doctorId}`);
+      console.log(`[doctorApi.getDoctorPatients] mapped ${mapped.length} patients for doctor ${doctorId}`);
       return mapped;
     } catch (error) {
       console.error('Error fetching doctor patients:', error);

@@ -32,7 +32,7 @@ export default function DoctorDashboard() {
     filters: caseFilters,
     updateFilter: setCaseFilters,
     stats: caseStats
-  } = usePatientCases({ initialStatus: 'pending' })
+  } = usePatientCases({ initialStatus: 'all' })
 
   const handleCaseOpen = (caseId: string) => {
     router.push(`/dashboard/doctor/cases/${caseId}`)
@@ -41,18 +41,18 @@ export default function DoctorDashboard() {
   // Doctor dashboard stats using real data
   const doctorStats = [
     {
-      title: 'Active Patients',
+      title: 'My Patients',
       value: caseStats?.activePatients?.toString() || '0',
       icon: Users,
-      description: 'In treatment programs',
-      change: caseStats?.activePatients ? `${caseStats.activePatients} sessions in progress` : 'No active treatments',
+      description: 'Patients under your care',
+      change: caseStats?.activeCount ? `${caseStats.activeCount} active cases` : 'No active cases',
       changeType: 'neutral' as const
     },
     {
       title: 'Pending Reviews',
       value: caseStats?.pendingCount?.toString() || '0',
       icon: FileText,
-      description: 'Cases awaiting review',
+      description: 'Cases awaiting your review',
       change: caseStats?.highPriorityPending ? `${caseStats.highPriorityPending} high priority` : 'No urgent cases',
       changeType: caseStats?.highPriorityPending ? 'negative' as const : 'positive' as const
     },
@@ -60,7 +60,7 @@ export default function DoctorDashboard() {
       title: 'Sessions Today',
       value: caseStats?.sessionsToday?.toString() || '0',
       icon: Calendar,
-      description: 'New sessions submitted',
+      description: 'New sessions from your patients',
       change: caseStats?.completedToday ? `${caseStats.completedToday} completed today` : 'None completed today',
       changeType: 'neutral' as const
     },
