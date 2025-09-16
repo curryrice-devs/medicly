@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Users,
-  Search,
-  Filter,
   Calendar,
   Phone,
   Mail,
@@ -14,26 +12,28 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Plus,
   Eye,
-  MessageSquare
+  MessageSquare,
+  List,
+  Search as SearchIcon,
+  UserPlus
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { doctorApi } from '@/services/api'
 import { PatientSearchResult } from '@/types/medical.types'
 import { useRouter } from 'next/navigation'
+import { PatientSearch } from '../components/PatientSearch/PatientSearch'
 
 export default function PatientsPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('recent')
   const [patients, setPatients] = useState<PatientSearchResult[]>([])
+  const [allPatients, setAllPatients] = useState<PatientSearchResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [allPatientsLoading, setAllPatientsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'search' | 'list'>('search')
 
   // Load doctor's patients
   useEffect(() => {
@@ -58,18 +58,51 @@ export default function PatientsPage() {
     loadPatients()
   }, [user?.id])
 
-  const filteredPatients = patients.filter(patient => {
-    const searchLower = searchTerm.toLowerCase()
-    const matchesSearch = (patient.fullName && patient.fullName.toLowerCase().includes(searchLower)) ||
-                         (patient.email && patient.email.toLowerCase().includes(searchLower)) ||
-                         (patient.caseId && patient.caseId.toLowerCase().includes(searchLower))
+  // Load all patients for list view
+  const loadAllPatients = async () => {
+    if (!user?.id) return
 
-    return matchesSearch
-  })
+    setAllPatientsLoading(true)
+    try {
+      const response = await doctorApi.searchPatients({
+        searchTerm: '', // Empty search to get all patients
+        doctorId: undefined
+      })
+      setAllPatients(response.items || response)
+    } catch (err) {
+      console.error('Failed to load all patients:', err)
+    } finally {
+      setAllPatientsLoading(false)
+    }
+  }
+
+  // Load all patients when switching to list view
+  useEffect(() => {
+    if (viewMode === 'list' && allPatients.length === 0) {
+      loadAllPatients()
+    }
+  }, [viewMode])
+
+  const handleAssignPatient = async (patient: PatientSearchResult) => {
+    if (!user?.id) return
+
+    try {
+      await doctorApi.assignPatientToDoctor(user.id, patient.id)
+      // Refresh both lists
+      const patientsData = await doctorApi.getDoctorPatients(user.id)
+      setPatients(patientsData)
+      // Also refresh all patients list to update assignment status
+      loadAllPatients()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to assign patient')
+    }
+  }
+
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
+      case 'active': return 'bg-success/10 text-success'
       case 'completed': return 'bg-blue-100 text-blue-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       default: return 'bg-gray-100 text-gray-800'
@@ -89,8 +122,8 @@ export default function PatientsPage() {
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-            <span className="text-green-600 font-semibold text-lg">
+          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+            <span className="text-foreground font-semibold text-lg">
               {patient.fullName.split(' ').map((n: string) => n[0]).join('')}
             </span>
           </div>
@@ -188,8 +221,8 @@ export default function PatientsPage() {
           
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-                <Activity className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mr-4">
+                <Activity className="w-6 h-6 text-foreground" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Sessions</p>
@@ -229,37 +262,115 @@ export default function PatientsPage() {
           </div>
         </div>
 
-        {/* Search and Add Patient */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search patients by name, email, or case ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        {/* Patient Management */}
+        <div className="railway-card mb-8">
+          <div className="px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-foreground" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Patient Management</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Search for patients or browse all available patients to add them to your care
+                  </p>
+                </div>
+              </div>
+              
+              {/* View Toggle */}
+              <div className="flex items-center space-x-2 bg-muted rounded-lg p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode('search')}
+                  className={`${viewMode === 'search' ? 'bg-background shadow-sm' : ''}`}
+                >
+                  <SearchIcon className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className={`${viewMode === 'list' ? 'bg-background shadow-sm' : ''}`}
+                >
+                  <List className="w-4 h-4 mr-2" />
+                  Browse All
+                </Button>
+              </div>
             </div>
-
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="name">Name A-Z</SelectItem>
-                <SelectItem value="sessions">Sessions</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap"
-              onClick={() => router.push('/dashboard/doctor/patients/add')}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Patient
-            </Button>
+          </div>
+          
+          <div className="p-6">
+            {viewMode === 'search' ? (
+              <PatientSearch 
+                onPatientSelect={(patient) => {
+                  router.push(`/dashboard/doctor/patients/${patient.id}`)
+                }}
+                showAddButton={true}
+              />
+            ) : (
+              <div>
+                {/* All Patients List */}
+                {allPatientsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading all patients...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allPatients.map((patient) => (
+                      <div key={patient.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                            <span className="text-foreground font-medium text-sm">
+                              {patient.fullName.split(' ').map((n: string) => n[0]).join('')}
+                            </span>
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-foreground">{patient.fullName}</h3>
+                            <p className="text-sm text-muted-foreground">{patient.email}</p>
+                            <p className="text-xs text-muted-foreground">Case ID: {patient.caseId}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/doctor/patients/${patient.id}`)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          
+                          {patient.relationshipStatus === 'unassigned' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAssignPatient(patient)}
+                              className="text-primary border-border hover:bg-muted"
+                            >
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Add
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {allPatients.length === 0 && (
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-foreground mb-2">No patients found</h3>
+                        <p className="text-muted-foreground">No patients are available in the system</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -282,41 +393,53 @@ export default function PatientsPage() {
             <p className="text-red-600 mb-4">{error}</p>
             <Button 
               onClick={() => window.location.reload()} 
-              className="bg-green-600 hover:bg-green-700 text-white"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               Try Again
             </Button>
           </div>
         )}
 
-        {/* Patients Grid */}
-        {!loading && !error && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPatients.map((patient) => (
-                <PatientCard key={patient.id} patient={patient} />
-              ))}
-            </div>
-
-            {filteredPatients.length === 0 && patients.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients assigned</h3>
-                <p className="text-gray-600 mb-4">
-                  Use the search feature on your dashboard to find and add patients to your care
-                </p>
+        {/* Current Patients Grid */}
+        <div className="railway-card">
+          <div className="px-6 py-4 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Your Patients</h2>
+            <p className="text-sm text-muted-foreground">Patients currently under your care</p>
+          </div>
+          
+          <div className="p-6">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading your patients...</p>
               </div>
-            )}
-
-            {filteredPatients.length === 0 && patients.length > 0 && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients match your search</h3>
-                <p className="text-gray-600 mb-4">Try adjusting your search terms or filters</p>
+            ) : error ? (
+              <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Failed to load patients</h3>
+                <p className="text-muted-foreground mb-4">{error}</p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {patients.map((patient) => (
+                    <PatientCard key={patient.id} patient={patient} />
+                  ))}
+                </div>
+
+                {patients.length === 0 && (
+                  <div className="text-center py-12">
+                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No patients assigned</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Use the search feature above to find and add patients to your care
+                    </p>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   )

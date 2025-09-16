@@ -6,7 +6,6 @@ type Role = "client" | "doctor";
 
 interface PatientInfo {
   fullName: string;
-  phone: string;
   age: string;
   gender: "male" | "female" | "other" | "";
 }
@@ -17,7 +16,6 @@ export default function WelcomePage() {
   const [error, setError] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState<PatientInfo>({
     fullName: "",
-    phone: "",
     age: "",
     gender: "",
   });
@@ -59,7 +57,7 @@ export default function WelcomePage() {
       setError(null);
 
       // Validate required fields
-      if (!patientInfo.fullName.trim() || !patientInfo.phone.trim() || !patientInfo.age.trim() || !patientInfo.gender) {
+      if (!patientInfo.fullName.trim() || !patientInfo.age.trim() || !patientInfo.gender) {
         throw new Error("Please fill in all required fields");
       }
 
@@ -76,7 +74,6 @@ export default function WelcomePage() {
           role: "client",
           patientInfo: {
             fullName: patientInfo.fullName.trim(),
-            phone: patientInfo.phone.trim(),
             age: age,
             gender: patientInfo.gender,
           },
@@ -124,21 +121,6 @@ export default function WelcomePage() {
                 onChange={(e) => setPatientInfo({ ...patientInfo, fullName: e.target.value })}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Enter your full name"
-                disabled={submitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                value={patientInfo.phone}
-                onChange={(e) => setPatientInfo({ ...patientInfo, phone: e.target.value })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Enter your phone number"
                 disabled={submitting}
               />
             </div>

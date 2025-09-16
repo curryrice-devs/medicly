@@ -75,15 +75,15 @@ export default function DoctorDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Welcome back, Dr. {user?.name?.split(' ')[1] || user?.name?.split(' ')[0]}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Here's what's happening with your patients today
           </p>
         </div>
@@ -93,21 +93,21 @@ export default function DoctorDashboard() {
           {doctorStats.map((stat, index) => {
             const Icon = stat.icon
             return (
-              <div key={index} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div key={index} className="railway-card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                     <p className={`text-sm mt-1 ${
-                      stat.changeType === 'positive' ? 'text-green-600' :
-                      stat.changeType === 'negative' ? 'text-red-600' :
-                      'text-gray-600'
+                      stat.changeType === 'positive' ? 'text-success' :
+                      stat.changeType === 'negative' ? 'text-destructive' :
+                      'text-muted-foreground'
                     }`}>
                       {stat.change}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-green-600" />
+                  <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                    <Icon className="w-6 h-6 text-foreground" />
                   </div>
                 </div>
               </div>
@@ -116,15 +116,15 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Patient Search Section */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="railway-card mb-8">
+          <div className="px-6 py-4 border-b border-border">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-foreground" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Patient Search</h2>
-                <p className="text-sm text-gray-600">
+                <h2 className="text-lg font-semibold text-foreground">Patient Search</h2>
+                <p className="text-sm text-muted-foreground">
                   Search for patients by case ID, patient ID, or name to add them to your care
                 </p>
               </div>
@@ -141,22 +141,22 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Patient Case Queue */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="railway-card">
+          <div className="px-6 py-4 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Patient Case Queue</h2>
-                  <p className="text-sm text-gray-600">
+                  <h2 className="text-lg font-semibold text-foreground">Patient Case Queue</h2>
+                  <p className="text-sm text-muted-foreground">
                     {casesLoading ? 'Loading...' : `${patientCases.length} cases pending review`}
                   </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success text-white">
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Active
                 </span>

@@ -132,14 +132,11 @@ export function Sidebar() {
           </div>
           {!isCollapsed && (
             <h1 style={{ 
-              fontSize: '1.75rem', 
+              fontSize: '2rem', 
               fontWeight: '600', 
-              background: 'linear-gradient(135deg, #0d4a2b 0%, #1a6741 50%, #267d56 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              color: 'hsl(var(--foreground))',
               margin: 0,
-              letterSpacing: '-0.01em'
+              letterSpacing: '-0.02em'
             }}>
               medicly
             </h1>
@@ -170,21 +167,21 @@ export function Sidebar() {
                 gap: isCollapsed ? '0' : '12px',
                 padding: isCollapsed ? '8px' : '8px 12px',
                 borderRadius: '8px',
-                backgroundColor: isActive ? 'rgba(13, 74, 43, 0.15)' : 'transparent',
-                color: isActive ? '#0d4a2b' : 'hsl(var(--muted-foreground))',
+                backgroundColor: isActive ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                 fontWeight: isActive ? '600' : '500',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
-                border: isActive ? '2px solid rgba(13, 74, 43, 0.2)' : '2px solid transparent'
+                border: isActive ? '2px solid hsl(var(--primary) / 0.2)' : '2px solid transparent'
               }}
               className="hover:bg-accent/50 hover:text-foreground"
               title={isCollapsed ? item.label : undefined}
               >
                 <Icon style={{ 
-                  width: isCollapsed ? '20px' : '16px', 
-                  height: isCollapsed ? '20px' : '16px' 
+                  width: isCollapsed ? '24px' : '20px', 
+                  height: isCollapsed ? '24px' : '20px' 
                 }} />
                 {!isCollapsed && (
                   <span style={{ 

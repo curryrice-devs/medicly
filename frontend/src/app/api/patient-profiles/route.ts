@@ -1,16 +1,9 @@
-import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest } from 'next/server';
+import { createSupabaseServer } from '@/lib/supabase/server';
 
-function createSupabaseServer() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
-
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServer()
+    const supabase = await createSupabaseServer()
     const patientData = await request.json()
 
     console.log('📝 Creating patient profile:', patientData)
