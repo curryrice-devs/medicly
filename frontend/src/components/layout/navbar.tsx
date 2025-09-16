@@ -20,7 +20,7 @@ export function Navbar({ title, breadcrumbs = [] }: NavbarProps) {
     if (breadcrumbs.length > 0) return breadcrumbs
 
     const pathSegments = pathname.split('/').filter(Boolean)
-    const generatedBreadcrumbs = []
+    const generatedBreadcrumbs: Array<{ label: string; href: string }> = []
 
     // Skip 'dashboard' and role segments
     const relevantSegments = pathSegments.slice(2) // Skip 'dashboard' and 'doctor'/'patient'

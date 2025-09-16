@@ -43,14 +43,9 @@ export async function GET() {
         doctor_feedback,
         profiles!sessions_patient_id_fkey (
           id,
-          patient_profiles (
-            id,
-            full_name,
-            email,
-            phone,
-            age,
-            case_id
-          )
+          name,
+          role,
+          created_at
         )
       `)
       .order('created_at', { ascending: false })

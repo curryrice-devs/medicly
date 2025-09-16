@@ -45,55 +45,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Create or update the user's profile using the same pattern as doctor role API
+    // Create or update the user's profile using upsert for reliability
     const userName = user.user_metadata?.full_name || fullName || user.email;
 
-    // Use update instead of upsert to ensure the profile exists and is properly updated
-    const { error } = await supabase
+    console.log('[patient-onboarding-api] Attempting to upsert profile for user:', user.id, 'with name:', userName);
+
+    // Use upsert to handle both new and existing users
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .update({
+      .upsert({
+        id: user.id,
         role: 'client',
         onboarded: true,
         name: userName
+      }, {
+        onConflict: 'id'
       })
-      .eq("id", user.id);
+      .select()
+      .single();
 
-    if (error) {
-      // If update fails, try insert (for new users)
-      const { error: insertError } = await supabase
-        .from("profiles")
-        .insert({
-          id: user.id,
-          role: 'client',
-          onboarded: true,
-          name: userName
-        });
-
-      if (insertError) {
-        console.error('Error creating profile:', insertError)
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
-      }
+    if (profileError) {
+      console.error('Error upserting profile:', profileError)
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
-    // Create patient profile
-    const { error: patientError } = await supabase
-      .from('patient_profiles')
-      .insert({
-        id: user.id,
-        full_name: fullName,
-        email: user.email,
-        phone: phone,
-        age: parseInt(age),
-        gender: gender,
-      })
+    console.log('[patient-onboarding-api] Profile upserted successfully:', profileData);
 
-    if (patientError) {
-      console.error('Error creating patient profile:', patientError)
-      return NextResponse.json(
-        { error: 'Failed to create patient profile' },
-        { status: 500 }
-      )
-    }
+    // Note: We only use the profiles table now, no separate patient_profiles table
+    // The patient information is stored in the main profiles table with the name field
 
     // Wait longer to ensure database propagation
     await new Promise(resolve => setTimeout(resolve, 1000));

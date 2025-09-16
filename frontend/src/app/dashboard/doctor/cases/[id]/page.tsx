@@ -250,7 +250,7 @@ export default function CaseReviewRoute() {
             </h1>
             <div className="flex items-center space-x-4">
               <p className="text-gray-600">
-                Patient {caseData.patientId} • {caseData.injuryType} • Submitted {new Date(caseData.submittedAt).toLocaleDateString()}
+                {caseData.patientName ? `${caseData.patientName} • #${caseData.patientId.slice(0, 8)}` : `Patient #${caseData.patientId.slice(0, 8)}`} • {caseData.injuryType} • Submitted {new Date(caseData.submittedAt).toLocaleDateString()}
               </p>
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(caseData.status)}`}>
                 {caseData.status}
