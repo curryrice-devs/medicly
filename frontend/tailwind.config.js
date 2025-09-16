@@ -108,7 +108,6 @@ module.exports = {
       },
       fontFamily: {
         sans: [
-          'var(--font-geist-sans)',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -123,7 +122,6 @@ module.exports = {
           'Noto Color Emoji'
         ],
         mono: [
-          'var(--font-geist-mono)',
           'ui-monospace',
           'SFMono-Regular',
           'Monaco',
@@ -133,7 +131,6 @@ module.exports = {
           'monospace'
         ],
         heading: [
-          'var(--font-geist-sans)',
           'ui-sans-serif',
           '-apple-system',
           'BlinkMacSystemFont',

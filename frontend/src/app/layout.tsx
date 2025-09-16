@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+// Using system fonts instead of geist
 
 import { AuthProvider } from "@/contexts/auth-context";
 import { ClientLayoutWrapper } from "@/components/layout/client-layout-wrapper";
@@ -77,7 +76,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`scroll-smooth ${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className="scroll-smooth">
       <body className="antialiased font-sans" suppressHydrationWarning={true}>
         <AuthProvider initialUser={initialUser}>
           <ClientLayoutWrapper>
