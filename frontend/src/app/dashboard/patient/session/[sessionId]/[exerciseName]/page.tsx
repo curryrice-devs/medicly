@@ -63,6 +63,7 @@ export default function ExerciseDetailPage() {
   const [keyFrames, setKeyFrames] = useState<any[]>([])
   const [patientNotes, setPatientNotes] = useState<string>('')
   const [isSubmittingNotes, setIsSubmittingNotes] = useState(false)
+  const [videoRotation, setVideoRotation] = useState<number>(0)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -270,6 +271,16 @@ export default function ExerciseDetailPage() {
         uploadResult = await uploadVideo(selectedFile)
         currentVideoId = uploadResult.id
         setVideoId(currentVideoId)
+        
+        // Store rotation information for video correction
+        if (uploadResult.rotation !== undefined) {
+          setVideoRotation(uploadResult.rotation)
+          console.log('🔄 Video rotation detected:', uploadResult.rotation, 'degrees')
+          console.log('🔄 Setting videoRotation state to:', uploadResult.rotation)
+        } else {
+          console.log('⚠️ No rotation detected in upload result')
+        }
+        
         console.log('✅ Upload completed with video ID:', currentVideoId)
         
       } catch (uploadError) {
@@ -334,8 +345,12 @@ export default function ExerciseDetailPage() {
         video_id: currentVideoId,
         video_url: uploadResult?.url || uploadResult?.signedUrl || uploadedVideo?.url,
         storage_path: uploadResult?.storagePath || uploadedVideo?.storagePath,
-        session_id: sessionId
+        session_id: sessionId,
+        rotation: uploadResult?.rotation || videoRotation || 0 // Pass rotation information to backend
       }
+      
+      console.log('🔄 Processing payload rotation value:', processingPayload.rotation)
+      console.log('🔄 Sources: uploadResult.rotation =', uploadResult?.rotation, 'videoRotation state =', videoRotation)
       
       console.log('📋 Processing payload:', processingPayload)
       
@@ -489,19 +504,57 @@ export default function ExerciseDetailPage() {
     }
   }
 
-  const resetAnalysis = () => {
-    setSelectedFile(null)
-    setVideoId('')
-    setCurrentStep('idle')
-    setStepProgress(0)
-    setAnalysisResult(null)
-    setError(null)
-    setKeyFrames([])
-    setPatientNotes('')
-    // setProcessedVideoData(null) // This state is no longer needed
-    resetUpload()
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+  const resetAnalysis = async () => {
+    try {
+      console.log('🗑️ Resetting analysis and deleting existing videos...')
+      
+      // If there are existing videos, delete them from bucket and clear session URLs
+      if ((originalVideoUrl || processedVideoUrl) && user?.id) {
+        console.log('🗑️ Deleting existing session videos...')
+        
+        const deleteResponse = await fetch('/api/delete-session-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            userId: user.id
+          })
+        })
+        
+        if (deleteResponse.ok) {
+          const result = await deleteResponse.json()
+          console.log('✅ Existing videos deleted:', result)
+          
+          // Refetch to update URLs
+          setTimeout(() => refetchVideos(), 500)
+        } else {
+          const errorData = await deleteResponse.json()
+          console.warn('⚠️ Failed to delete existing videos:', errorData.error)
+          // Continue anyway - user can still upload new video
+        }
+      }
+      
+      // Reset local state
+      setSelectedFile(null)
+      setVideoId('')
+      setCurrentStep('idle')
+      setStepProgress(0)
+      setAnalysisResult(null)
+      setError(null)
+      setKeyFrames([])
+      setVideoMode('original') // Reset to original video mode
+      setVideoRotation(0) // Reset rotation
+      resetUpload()
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      
+      console.log('✅ Analysis reset complete')
+      
+    } catch (error) {
+      console.error('❌ Error resetting analysis:', error)
+      setError('Failed to reset analysis. Please refresh the page.')
     }
   }
 
@@ -545,6 +598,57 @@ export default function ExerciseDetailPage() {
       case 'complete': return '#0d4a2b'
       default: return '#6b7280'
     }
+  }
+
+  // Helper function to get video rotation correction CSS
+  const getVideoRotationStyle = (rotation: number, isProcessedVideo: boolean = false) => {
+    console.log('🔄 getVideoRotationStyle called:', { rotation, isProcessedVideo, videoRotationState: videoRotation });
+    
+    if (rotation === 0) return {};
+    
+    // Skip CSS rotation for processed videos - they're already corrected in the backend
+    if (isProcessedVideo) {
+      console.log('🔄 Skipping CSS rotation for processed video - already corrected in backend');
+      return {};
+    }
+    
+    // Apply counter-rotation to fix display for original videos only
+    let transform = '';
+    let additionalStyles = {};
+    
+    switch (rotation) {
+      case 90:
+        // Counter-rotate by -90 degrees (or +270)
+        transform = 'rotate(270deg)';
+        additionalStyles = {
+          transformOrigin: 'center center',
+          width: '100%',
+          height: '100%'
+        };
+        break;
+      case 180:
+        transform = 'rotate(180deg)';
+        additionalStyles = {
+          transformOrigin: 'center center'
+        };
+        break;
+      case 270:
+        // Counter-rotate by -270 degrees (or +90)
+        transform = 'rotate(90deg)';
+        additionalStyles = {
+          transformOrigin: 'center center',
+          width: '100%',
+          height: '100%'
+        };
+        break;
+      default:
+        return {};
+    }
+    
+    return {
+      transform,
+      ...additionalStyles
+    };
   }
 
   // Extract exercise name from URL parameter
@@ -688,6 +792,7 @@ export default function ExerciseDetailPage() {
                         muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                         loop={false}
                         className="w-full h-full object-contain"
+                        style={getVideoRotationStyle(videoRotation, false)}
                         onLoadedData={() => {
                           console.log('✅ Original video loaded from Supabase');
                         }}
@@ -777,8 +882,10 @@ export default function ExerciseDetailPage() {
                       muted={(sessionStatus === 'completed' || sessionStatus === 'feedback')}
                       loop={false}
                       className="w-full h-full object-contain"
+                      style={getVideoRotationStyle(videoRotation, true)}
                         onLoadedData={() => {
                           console.log('✅ Processed video loaded');
+                          console.log('🔄 Processed video rotation state:', videoRotation);
                         }}
                         onError={(e) => {
                           console.error('❌ Processed video failed to load:', e);
