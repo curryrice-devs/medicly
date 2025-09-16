@@ -86,26 +86,32 @@ export async function GET(request: Request) {
 
       return {
         id: patient?.id || relationship.patient_id,
-        caseId: patient?.id || relationship.patient_id,
-        fullName: patient?.name || 'Unknown Patient',
-        email: '', // Not available in profiles table
-        phone: '', // Not available in profiles table
-        age: null, // Not available in profiles table
-        relationshipStatus: relationship.status, // from doctor_patient_relationships
+        name: patient?.name || 'Unknown Patient',
+        email: '',
+        phone: '',
+        age: null,
+        gender: null,
+        injuryType,
+        status: relationship.status, // from doctor_patient_relationships
         assignedAt: relationship.assigned_at,
-        lastSession: lastSessionDate?.toISOString() || null,
-        totalSessions
+        totalSessions,
+        activeSessions,
+        completedSessions,
+        lastSessionDate: lastSessionDate?.toISOString() || null,
+        progress,
+        notes: relationship.notes,
+        relationshipId: relationship.id
       }
     }) || []
 
     // Calculate summary statistics
     const stats = {
       totalPatients: patients.length,
-      activePatients: patients.filter(p => p.relationshipStatus === 'active').length,
-      inactivePatients: patients.filter(p => p.relationshipStatus === 'inactive').length,
-      completedPatients: patients.filter(p => p.relationshipStatus === 'completed').length,
+      activePatients: patients.filter(p => p.status === 'active').length,
+      inactivePatients: patients.filter(p => p.status === 'inactive').length,
+      completedPatients: patients.filter(p => p.status === 'completed').length,
       totalSessions: patients.reduce((sum, p) => sum + p.totalSessions, 0),
-      totalActiveSessions: 0 // We don't have activeSessions in the simplified structure
+      totalActiveSessions: patients.reduce((sum, p) => sum + p.activeSessions, 0)
     }
 
     return NextResponse.json({

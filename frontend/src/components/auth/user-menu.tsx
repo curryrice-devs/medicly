@@ -35,7 +35,7 @@ export function UserMenu() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'doctor': return 'default'
+      case 'doctor': return 'success'
       case 'admin': return 'destructive'
       default: return 'secondary'
     }

@@ -10,15 +10,15 @@ from pathlib import Path
 class KeyFrameExtractor:
     """
     Extract key frames from video for analysis
-    Selects 10 representative frames from different intervals
+    Selects 5 representative frames from different intervals
     """
     
     def __init__(self):
-        self.max_frames = 10
+        self.max_frames = 5
         
     def extract_key_frames(self, video_path: str, output_dir: str) -> Dict:
         """
-        Extract 10 key frames from different intervals of the video
+        Extract 5 key frames from different intervals of the video
         """
         try:
             cap = cv2.VideoCapture(video_path)
@@ -32,7 +32,7 @@ class KeyFrameExtractor:
             
             print(f"📹 Video info: {total_frames} frames, {fps:.1f} FPS, {duration:.1f}s duration")
             
-            # Calculate frame intervals for 10 key frames
+            # Calculate frame intervals for 5 key frames
             frame_intervals = self._calculate_frame_intervals(total_frames)
             
             # Extract frames
@@ -60,7 +60,7 @@ class KeyFrameExtractor:
                         'timestamp': float(timestamp),
                         'filename': frame_filename,
                         'path': frame_path,
-                        'interval': f"{(i+1)*10}%",  # 10%, 20%, 30%, ..., 100%
+                        'interval': f"{(i+1)*20}%",  # 20%, 40%, 60%, 80%, 100%
                         'image_base64': image_base64,
                         'image_encoded': True
                     }
@@ -95,16 +95,16 @@ class KeyFrameExtractor:
     
     def _calculate_frame_intervals(self, total_frames: int) -> List[int]:
         """
-        Calculate frame numbers for 10 evenly distributed intervals
+        Calculate frame numbers for 5 evenly distributed intervals
         """
-        if total_frames <= 10:
+        if total_frames <= 5:
             # If video is very short, just take all frames
             return list(range(total_frames))
         
-        # Calculate 10 intervals: 10%, 20%, 30%, ..., 100%
+        # Calculate 5 intervals: 20%, 40%, 60%, 80%, 100%
         intervals = []
-        for i in range(1, 11):  # 1, 2, 3, ..., 10
-            frame_num = int((i / 10) * total_frames) - 1  # -1 for 0-based indexing
+        for i in range(1, 6):  # 1, 2, 3, 4, 5
+            frame_num = int((i / 5) * total_frames) - 1  # -1 for 0-based indexing
             frame_num = max(0, min(frame_num, total_frames - 1))  # Ensure valid range
             intervals.append(frame_num)
         

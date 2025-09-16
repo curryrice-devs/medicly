@@ -62,9 +62,12 @@ export interface PatientCase {
   movementMetrics?: MovementMetric[];
   rangeOfMotion?: Record<string, number>; // e.g., { shoulderElevation: 87 }
   painIndicators?: string[];
+<<<<<<< HEAD
   affected_model?: string; // URL to BioDigital model for AI analysis preview
   exercise_models?: string; // Comma-separated URLs to BioDigital models for recommended exercises
+=======
   patientNotes?: string; // Patient's notes to the doctorasd
+>>>>>>> main
 }
 
 export interface PrescriptionParams {
