@@ -1,7 +1,7 @@
 # Medicly
 
 <div align="center">
-  <h3>🏆 Winner of CMU Hacks 2024 🏆</h3>
+  <h3>🏆 Winner of CMU Hacks 2025 🏆</h3>
   <p><em>AI-Powered Physical Therapy Analysis Platform</em></p>
 </div>
 
