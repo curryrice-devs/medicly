@@ -53,9 +53,3 @@ Medicly revolutionizes physical therapy through AI-powered movement analysis, co
 
 ---
 
-<div align="center">
-  <p>Built with ❤️ by the CurryRice team</p>
-  <p>🏆 CMU Hacks 2024 Winner 🏆</p>
-</div>
-
-
