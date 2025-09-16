@@ -42,5 +42,8 @@ RUN mkdir -p uploads outputs logs
 # Expose port
 EXPOSE 8000
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Command to run the application
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["./start.sh"]
