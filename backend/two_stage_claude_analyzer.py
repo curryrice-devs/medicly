@@ -189,7 +189,7 @@ VIDEO INFORMATION:
 - FPS: {video_info.get('fps', 0):.1f}
 
 KEY FRAMES ANALYSIS:
-I've extracted 10 key frames from different intervals of the video. Please analyze these frames to determine:
+I've extracted 5 key frames from different intervals of the video. Please analyze these frames to determine:
 
 1. What type of movement is being performed?
 2. What is the quality and technique of the movement?

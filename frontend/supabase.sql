@@ -6,7 +6,6 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   role text not null default 'client' check (role in ('client','doctor','admin')),
   onboarded boolean not null default false,
-  name text,
   created_at timestamp with time zone not null default now()
 );
 
@@ -37,13 +36,7 @@ create policy "update own profile" on public.profiles
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
-  insert into public.profiles (id, role, onboarded, name) 
-  values (
-    new.id, 
-    'client', 
-    false,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email)
-  )
+  insert into public.profiles (id) values (new.id)
   on conflict (id) do nothing;
   return new;
 end;

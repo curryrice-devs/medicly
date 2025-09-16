@@ -74,11 +74,11 @@ function createPatientCaseFromSession(s: any, treatmentsById: any): PatientCase 
   const pc: PatientCase = {
     id: String(s.id),
     patientId: s.patient_id ?? 'unknown',
-    patientName: s.profiles?.name || 'Unknown Patient',
-    patientEmail: undefined, // Not available in profiles table
-    patientPhone: undefined, // Not available in profiles table
-    patientAge: undefined, // Not available in profiles table
-    patientCaseId: s.profiles?.id || s.patient_id,
+    patientName: s.profiles?.patient_profiles?.full_name || s.patient_profiles?.full_name,
+    patientEmail: s.profiles?.patient_profiles?.email || s.patient_profiles?.email,
+    patientPhone: s.profiles?.patient_profiles?.phone || s.patient_profiles?.phone,
+    patientAge: s.profiles?.patient_profiles?.age || s.patient_profiles?.age,
+    patientCaseId: s.profiles?.patient_profiles?.case_id || s.patient_profiles?.case_id,
     videoUrl: s.previdurl || '', // Keep for backwards compatibility - will use previdurl
     originalVideoUrl: s.previdurl || undefined,
     processedVideoUrl: s.postvidurl || undefined,
@@ -359,21 +359,24 @@ export const doctorApi = {
       console.log('Using direct search method');
 
       let query = supabaseBrowser()
-        .from('profiles')
+        .from('patient_profiles')
         .select(`
           id,
-          name,
-          role,
+          case_id,
+          full_name,
+          email,
+          phone,
+          age,
           created_at
         `);
 
       // Add search filters if provided
       if (params.searchTerm && params.searchTerm.trim()) {
         const searchTerm = params.searchTerm.trim();
-        query = query.or(`id.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`);
+        query = query.or(`case_id.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
       }
 
-      const { data: profiles, error: profilesError } = await query.order('name');
+      const { data: profiles, error: profilesError } = await query.order('full_name');
 
       if (profilesError) {
         console.error('Error in direct patient search:', profilesError);
@@ -385,11 +388,11 @@ export const doctorApi = {
       // Map the results (simplified version without relationship data for now)
       const mappedData = (profiles || []).map((profile: any) => ({
         id: profile.id,
-        caseId: profile.id,
-        fullName: profile.name || 'Unknown Patient',
-        email: undefined, // Not available in profiles table
-        phone: undefined, // Not available in profiles table
-        age: undefined, // Not available in profiles table
+        caseId: profile.case_id,
+        fullName: profile.full_name,
+        email: profile.email,
+        phone: profile.phone,
+        age: profile.age,
         relationshipStatus: 'unassigned', // Default for direct search
         assignedAt: undefined,
         lastSession: undefined,
@@ -465,7 +468,7 @@ export const doctorApi = {
       };
 
       const { data, error } = await supabaseBrowser()
-        .from('profiles')
+        .from('patient_profiles')
         .insert([dbProfile])
         .select()
         .single();
@@ -517,7 +520,7 @@ export const doctorApi = {
       dbUpdates.updated_at = new Date().toISOString();
 
       const { data, error } = await supabaseBrowser()
-        .from('profiles')
+        .from('patient_profiles')
         .update(dbUpdates)
         .eq('id', patientId)
         .select()
@@ -589,18 +592,18 @@ export const doctorApi = {
       const allPatients = payload.patients || []
       console.log('[doctorApi.getDoctorPatients] fetched', { count: allPatients.length })
 
-      // Map database response to TypeScript interface
+      // Map database response to TypeScript interface - API already returns camelCase
       let mapped: PatientSearchResult[] = allPatients.map((item: any) => ({
         id: item.id,
-        caseId: item.case_id,
-        fullName: item.full_name,
+        caseId: item.caseId,
+        fullName: item.fullName,
         email: item.email,
         phone: item.phone,
         age: item.age,
-        relationshipStatus: item.relationship_status,
-        assignedAt: item.assigned_at,
-        lastSession: item.last_session,
-        totalSessions: Number(item.total_sessions) || 0
+        relationshipStatus: item.relationshipStatus,
+        assignedAt: item.assignedAt,
+        lastSession: item.lastSession,
+        totalSessions: Number(item.totalSessions) || 0
       }));
 
       // Filter for patients assigned to this specific doctor
@@ -777,7 +780,7 @@ export const doctorApi = {
 
       // Try to count total patients (this will test RLS policies)
       const { count: totalPatients, error: countError } = await supabaseBrowser()
-        .from('profiles')
+        .from('patient_profiles')
         .select('*', { count: 'exact', head: true });
 
       console.log('Patient count query result:', { totalPatients, countError });
