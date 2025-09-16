@@ -48,8 +48,3 @@ Thumbs.db
 outputs/*
 uploads/*
 logs/*
-
-# Keep directory structure but ignore contents
-!outputs/.gitkeep
-!uploads/.gitkeep
-!logs/.gitkeep
