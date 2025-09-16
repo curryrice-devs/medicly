@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { extractVideoRotationFromMetadata, type RotationAngle } from '@/utils/videoRotation';
 
 // Create Supabase client for server-side operations with service role key
 function createSupabaseServer() {
@@ -84,6 +85,16 @@ export async function POST(request: NextRequest) {
       serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
       nodeEnv: process.env.NODE_ENV
     });
+
+    // Detect video rotation
+    let rotationAngle: RotationAngle = 0;
+    try {
+      rotationAngle = await extractVideoRotationFromMetadata(file);
+      console.log('🔄 Detected video rotation:', rotationAngle, 'degrees');
+    } catch (error) {
+      console.error('⚠️  Error detecting video rotation:', error);
+      // Continue with upload even if rotation detection fails
+    }
 
     // Generate unique file path following auctor_demo pattern
     const timestamp = Date.now();
@@ -397,7 +408,25 @@ export async function POST(request: NextRequest) {
     // Return success response following auctor_demo pattern
     return NextResponse.json({
       success: true,
-      data: responseData
+      data: {
+        id: videoId,
+        key: uploadData.path,
+        path: uploadData.path,
+        url: urlData?.signedUrl || null,
+        signedUrl: urlData?.signedUrl || null,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        storagePath: filePath,
+        userId,
+        sessionId,
+        rotation: rotationAngle,
+        metadata: {
+          rotation: rotationAngle,
+          needsCorrection: rotationAngle !== 0,
+          detectedAt: new Date().toISOString()
+        }
+      }
     });
 
   } catch (error) {

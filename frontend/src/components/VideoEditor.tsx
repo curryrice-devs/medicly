@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { VideoRotationInfo, getVideoRotationInfo, applyVideoRotationCorrection } from '@/utils/videoRotation';
 
 interface VideoEditorProps {
   videoUrl: string;
+  videoFile?: File;
   keyFrames?: Array<{
     frame_number: number;
     timestamp: number;
@@ -12,10 +14,11 @@ interface VideoEditorProps {
   onFrameSelect?: (frameNumber: number) => void;
 }
 
-const VideoEditor: React.FC<VideoEditorProps> = ({ 
-  videoUrl, 
-  keyFrames = [], 
-  onFrameSelect 
+const VideoEditor: React.FC<VideoEditorProps> = ({
+  videoUrl,
+  videoFile,
+  keyFrames = [],
+  onFrameSelect
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,6 +28,12 @@ const VideoEditor: React.FC<VideoEditorProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [rotationInfo, setRotationInfo] = useState<VideoRotationInfo>({
+    angle: 0,
+    needsCorrection: false,
+    transform: 'none',
+    containerStyle: { transform: 'none' },
+  });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -56,6 +65,29 @@ const VideoEditor: React.FC<VideoEditorProps> = ({
       video.removeEventListener('canplay', handleCanPlay);
     };
   }, [videoUrl]);
+
+  // Handle video rotation detection and correction
+  useEffect(() => {
+    const detectAndApplyRotation = async () => {
+      if (!videoFile || !videoRef.current) return;
+
+      try {
+        const { extractVideoRotationFromMetadata, getVideoRotationInfo, applyVideoRotationCorrection } = await import('@/utils/videoRotation');
+
+        const rotation = await extractVideoRotationFromMetadata(videoFile);
+        const rotationInfo = getVideoRotationInfo(rotation);
+
+        console.log('Detected video rotation:', rotation, 'degrees');
+
+        setRotationInfo(rotationInfo);
+        applyVideoRotationCorrection(videoRef.current, rotationInfo);
+      } catch (error) {
+        console.error('Error detecting video rotation:', error);
+      }
+    };
+
+    detectAndApplyRotation();
+  }, [videoFile]);
 
   // Debug keyframes
   useEffect(() => {
@@ -126,12 +158,25 @@ const VideoEditor: React.FC<VideoEditorProps> = ({
       
       {/* Video Player */}
       <div className="mb-4">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full h-64 bg-black rounded-lg"
-          controls={false}
-        />
+        <div
+          className="w-full h-64 bg-black rounded-lg flex items-center justify-center overflow-hidden"
+          style={rotationInfo.needsCorrection ? rotationInfo.containerStyle : undefined}
+        >
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            className="max-w-full max-h-full"
+            controls={false}
+            style={rotationInfo.needsCorrection ? { transform: rotationInfo.transform } : undefined}
+          />
+        </div>
+        {rotationInfo.needsCorrection && (
+          <div className="mt-2 text-sm text-gray-600 flex items-center justify-center">
+            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              ↻ Auto-corrected rotation: {rotationInfo.angle}°
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Frame Navigation Controls */}

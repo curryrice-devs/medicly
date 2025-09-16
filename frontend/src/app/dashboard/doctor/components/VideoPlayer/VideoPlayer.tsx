@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVideoPlayer } from '@/hooks/useVideoPlayer';
+import { VideoRotationInfo } from '@/utils/videoRotation';
 
 interface Props {
   src: string;
+  videoFile?: File;
 }
 
-export function VideoPlayer({ src }: Props) {
+export function VideoPlayer({ src, videoFile }: Props) {
   const {
     videoRef,
     isPlaying,
@@ -16,11 +18,57 @@ export function VideoPlayer({ src }: Props) {
     requestFullscreen,
   } = useVideoPlayer();
 
+  const [rotationInfo, setRotationInfo] = useState<VideoRotationInfo>({
+    angle: 0,
+    needsCorrection: false,
+    transform: 'none',
+    containerStyle: { transform: 'none' },
+  });
+
+  // Handle video rotation detection and correction
+  useEffect(() => {
+    const detectAndApplyRotation = async () => {
+      if (!videoFile || !videoRef.current) return;
+
+      try {
+        const { extractVideoRotationFromMetadata, getVideoRotationInfo, applyVideoRotationCorrection } = await import('@/utils/videoRotation');
+
+        const rotation = await extractVideoRotationFromMetadata(videoFile);
+        const rotationInfo = getVideoRotationInfo(rotation);
+
+        console.log('VideoPlayer: Detected video rotation:', rotation, 'degrees');
+
+        setRotationInfo(rotationInfo);
+        applyVideoRotationCorrection(videoRef.current, rotationInfo);
+      } catch (error) {
+        console.error('VideoPlayer: Error detecting video rotation:', error);
+      }
+    };
+
+    detectAndApplyRotation();
+  }, [videoFile]);
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
-      <div className="relative overflow-hidden rounded-lg bg-gray-100">
-        <video ref={videoRef} src={src || undefined} className="w-full" controls={false} />
+      <div
+        className="relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center"
+        style={rotationInfo.needsCorrection ? rotationInfo.containerStyle : undefined}
+      >
+        <video
+          ref={videoRef}
+          src={src || undefined}
+          className="max-w-full max-h-full"
+          controls={false}
+          style={rotationInfo.needsCorrection ? { transform: rotationInfo.transform } : undefined}
+        />
       </div>
+      {rotationInfo.needsCorrection && (
+        <div className="mt-2 text-sm text-gray-600 flex items-center justify-center">
+          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+            ↻ Auto-corrected rotation: {rotationInfo.angle}°
+          </span>
+        </div>
+      )}
       <div className="mt-4 flex items-center gap-2">
         <button onClick={() => stepFrame(-1)} className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700">Prev</button>
         <button onClick={playPause} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium">{isPlaying ? 'Pause' : 'Play'}</button>
