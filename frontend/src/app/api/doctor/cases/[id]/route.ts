@@ -5,12 +5,12 @@ export const dynamic = 'force-dynamic'
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('[api/doctor/cases] PUT request received for ID:', params?.id)
+    const { id } = await params
+    console.log('[api/doctor/cases] PUT request received for ID:', id)
 
-    const { id } = params
     if (!id) {
       console.error('[api/doctor/cases] Missing ID parameter')
       return NextResponse.json({ error: 'Missing case ID' }, { status: 400 })

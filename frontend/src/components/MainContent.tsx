@@ -3,10 +3,11 @@
 import React, { useState } from 'react'
 import InputPreviewTab from './InputPreviewTab'
 import ProcessingResultsTab from './ProcessingResultsTab'
-import { ViewType } from './Sidebar'
+
+type MainContentViewType = 'input' | 'processing'
 
 interface MainContentProps {
-  activeView: ViewType
+  activeView: MainContentViewType
   videoId: string
   originalVideoUrl: string
   processedVideoUrl: string

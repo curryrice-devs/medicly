@@ -121,7 +121,7 @@ const InputPreviewTab: React.FC<InputPreviewTabProps> = ({ videoId, onVideoProce
       
     } catch (error) {
       console.error('Analysis error:', error);
-      alert(`Analysis failed: ${error.message}`);
+      alert(`Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsAnalyzing(false);
     }

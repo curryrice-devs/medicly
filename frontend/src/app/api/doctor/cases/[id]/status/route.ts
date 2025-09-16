@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic'
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const { status, notes } = await request.json()
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string
