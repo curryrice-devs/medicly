@@ -82,10 +82,10 @@ export function PatientSearch({ onPatientSelect, showAddButton = true }: Patient
 
   const getRelationshipStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'inactive': return 'bg-gray-100 text-gray-800'
-      case 'completed': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-yellow-100 text-yellow-800'
+      case 'active': return 'bg-success/10 text-success'
+      case 'inactive': return 'bg-muted text-muted-foreground'
+      case 'completed': return 'bg-secondary text-secondary-foreground'
+      default: return 'bg-muted text-foreground'
     }
   }
 
@@ -196,7 +196,7 @@ export function PatientSearch({ onPatientSelect, showAddButton = true }: Patient
                           variant="outline"
                           size="sm"
                           onClick={() => handleAssignPatient(patient)}
-                          className="text-green-600 border-green-200 hover:bg-green-50"
+                          className="text-primary border-border hover:bg-muted"
                         >
                           <UserPlus className="w-3 h-3 mr-1" />
                           Add

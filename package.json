@@ -3,6 +3,7 @@
     "supabase": "^2.40.7"
   },
   "dependencies": {
-    "autoprefixer": "^10.4.21"
+    "autoprefixer": "^10.4.21",
+    "geist": "^1.5.1"
   }
 }
